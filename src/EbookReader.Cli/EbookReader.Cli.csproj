@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <AssemblyName>ereader</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../EbookReader.Domain/EbookReader.Domain.csproj" />
+    <ProjectReference Include="../EbookReader.Epub/EbookReader.Epub.csproj" />
+    <ProjectReference Include="../EbookReader.Application/EbookReader.Application.csproj" />
+    <ProjectReference Include="../EbookReader.Layout/EbookReader.Layout.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Terminal.Gui" />
+  </ItemGroup>
+
+</Project>

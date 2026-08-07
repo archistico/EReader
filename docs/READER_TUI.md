@@ -1,0 +1,146 @@
+# M1.3/M1.4 — Terminal.Gui 2.x Reader TUI
+
+## Obiettivo
+
+M1.3 collega il `Book` format-neutral e i contratti M1.1/M1.2 a una prima interfaccia fullscreen realmente utilizzabile.
+
+La TUI non è un secondo layout engine. È una proiezione del `BookLayout` corrente e conserva come stato soltanto una `ReadingLocation`.
+
+## Avvio
+
+```bat
+ereader "C:\Libri\libro.epub"
+```
+
+Per il rendering lineare storico:
+
+```bat
+ereader --plain "C:\Libri\libro.epub"
+```
+
+## Struttura visuale
+
+```text
+┌ EReader ───────────────────────────────────────────────────────────────┐
+│ Titolo — Autore   Cap. 3/21   Pag. 12/84                              │
+│                                                                        │
+│ contenuto della pagina prodotto da DeterministicLayoutEngine           │
+│ ...                                                                    │
+│                                                                        │
+│ ↑/k ↓/j riga  PgUp/h PgDn/l/Space pagina  [ ] capitolo  ...           │
+└────────────────────────────────────────────────────────────────────────┘
+```
+
+L'header espone titolo/autore, capitolo primario e pagina del layout corrente. La pagina è effimera; non costituisce una posizione persistibile.
+
+## Comandi M1.3
+
+| Tasto | Azione |
+|---|---|
+| `↑`, `k` | riga precedente |
+| `↓`, `j` | riga successiva |
+| `PgUp`, `h` | pagina precedente |
+| `PgDn`, `l`, `Space` | pagina successiva |
+| `[` | capitolo precedente |
+| `]` | capitolo successivo |
+| `g` | inizio capitolo |
+| `G` | fine capitolo |
+| `F1`, `?` | mostra/nasconde help |
+| `q`, `Esc` | esce |
+
+## Boundary
+
+```text
+Terminal.Gui
+    ↓
+ReaderWindow
+    ↓
+ReaderSession
+  ↙          ↘
+Layout     Application
+   \          /
+       Domain
+```
+
+`ReaderWindow` può conoscere Terminal.Gui, ma non EPUB. `ReaderSession` non conosce Terminal.Gui né EPUB.
+
+## Viewport e resize M1.4
+
+M1.3 crea un viewport iniziale di bootstrap dalle dimensioni del terminale. M1.4 Hotfix 2 sincronizza il reflow tramite `_body.ViewportChanged`, che Terminal.Gui 2.4.17 emette dopo l’aggiornamento della geometria reale del body.
+
+Se width o height cambiano, `ReaderSession.Reflow` ricostruisce il `BookLayout` e conserva esattamente la stessa `ReadingLocation`. Pagina e riga possono cambiare e restano effimere.
+
+Dettagli: [`RESIZE_STABILITY.md`](RESIZE_STABILITY.md).
+
+## Help
+
+F1 o `?` sostituisce temporaneamente il body con la pagina help. Chiudere l'help non modifica la `ReadingLocation`.
+
+## Non obiettivi
+
+M1.3/M1.4 non introducono:
+
+- persistenza dell'ultima posizione;
+- TOC interattivo;
+- ricerca;
+- bookmark;
+- temi configurabili;
+- immagini terminal-native.
+
+Questi appartengono alle milestone successive.
+
+
+## M2.0 Hotfix 1 — scorrimento per riga visibile
+
+Le azioni `↑/↓` e `k/j` modificano da M1.2 una `ReadingLocation` stabile. La prima TUI renderizzava però sempre `LayoutPage` intera, quindi il testo restava identico finché il movimento non oltrepassava il confine di pagina.
+
+Hotfix 1 rende la `ReadingLocation` anche l'ancora della finestra visibile:
+
+```text
+ReadingLocation corrente
+        ↓
+LayoutLocationResolver
+        ↓
+riga visuale corrente
+        ↓
+viewport.Height righe da quel punto
+```
+
+PgUp/PgDn continuano invece a saltare alla prima riga logica della pagina adiacente.
+
+
+## M2.0 Hotfix 2 — separatori visuali
+
+La TUI separa esplicitamente le tre aree principali:
+
+```text
+Titolo — Autore   Cap. x/y   Pag. n/m
+──────────────────────────────────────
+contenuto del libro
+...
+──────────────────────────────────────
+↑/k ↓/j ... q/Esc esci
+```
+
+Le due righe orizzontali appartengono esclusivamente al chrome della TUI e non al `BookLayout`. Il body occupa quindi le righe comprese fra i due separatori; il suo `Viewport` reale continua a essere la sola geometria usata da `ReaderSession.Reflow`.
+
+
+## M2.1 — Interactive TOC — VALIDATED
+
+Il reader espone ora `t`/`Tab` per aprire il `TableOfContents` format-neutral nello stesso body. La gerarchia viene mostrata tramite indentazione; la selezione salta i grouping node senza target. `Enter` aggiorna direttamente la `ReadingLocation` del target e torna alla lettura. `Esc` chiude l'indice senza modificare la posizione.
+
+Dettagli: [`INTERACTIVE_TOC.md`](INTERACTIVE_TOC.md).
+
+
+## M2.2 — Metadata View
+
+`m` apre la vista dei metadata nello stesso body del reader. I dati provengono esclusivamente da `BookMetadata` e `BookId` format-neutral.
+
+```text
+m                 apre/chiude metadata
+↑/↓ oppure j/k      scroll una riga
+PgUp/PgDn           scroll una pagina
+Esc                 chiude metadata
+```
+
+Il formatter è indipendente da Terminal.Gui e usa la misura in celle di `TerminalCellWidth`; resize e scroll della vista non modificano mai la `ReadingLocation`.

@@ -1,0 +1,17 @@
+<Project>
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Runtime dependency used by the outer TUI adapter. -->
+    <PackageVersion Include="Terminal.Gui" Version="2.4.17" />
+
+    <!-- XHTML parser owned exclusively by the EPUB adapter Content boundary from M0.6 onward. -->
+    <PackageVersion Include="AngleSharp" Version="1.7.1" />
+
+    <!-- Stable xUnit v3 line using Microsoft Testing Platform v2. -->
+    <PackageVersion Include="xunit.v3.mtp-v2" Version="3.2.2" />
+  </ItemGroup>
+</Project>

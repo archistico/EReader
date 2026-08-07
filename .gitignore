@@ -1,0 +1,14 @@
+**/bin/
+**/obj/
+.vs/
+.idea/
+*.user
+*.suo
+TestResults/
+artifacts/
+*.trx
+.DS_Store
+Thumbs.db
+
+# Generated architecture-analysis output
+/graphify-out/
