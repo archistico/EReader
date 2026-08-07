@@ -1,7 +1,7 @@
 # Architettura di EReader
 
-Stato: **M2.2 Metadata View — CANDIDATE**  
-Baseline autoritativa: **M2.1 Interactive TOC VALIDATED**  
+Stato: **M2.3 Search pre-layout — CANDIDATE**  
+Baseline autoritativa: **M2.2 Metadata View VALIDATED**  
 Target: **.NET 10 / C# 14**
 
 ## 1. Obiettivo
@@ -110,7 +110,7 @@ Composition root e adapter di presentazione. È l'unico modulo autorizzato a ref
 
 M1.0 aggiunge una proiezione console diretta del `Book` Domain, mantenuta da M1.3 come modalità `--plain`.
 
-M1.3 aggiunge `ReaderSession`, `ReaderWindow`, `TerminalGuiReaderHost` e `TerminalViewportFactory`. `ReaderSession` compone Domain/Application/Layout senza conoscere Terminal.Gui; `ReaderWindow` traduce input e presenta header/body/footer senza implementare parsing, wrapping o semantica di navigazione. M1.4 rende il viewport dinamico tramite `_body.ViewportChanged`. M2.0 aggiunge il composition wiring per caricare/salvare lo stato e il comando `--resume`; `ReaderWindow` resta ignara di JSON/filesystem. M2.1 proietta il TOC Domain; M2.2 proietta `BookMetadata` tramite `ReaderMetadataEntry` e un formatter cell-aware privo di Terminal.Gui.
+M1.3 aggiunge `ReaderSession`, `ReaderWindow`, `TerminalGuiReaderHost` e `TerminalViewportFactory`. `ReaderSession` compone Domain/Application/Layout senza conoscere Terminal.Gui; `ReaderWindow` traduce input e presenta header/body/footer senza implementare parsing, wrapping o semantica di navigazione. M1.4 rende il viewport dinamico tramite `_body.ViewportChanged`. M2.0 aggiunge il composition wiring per caricare/salvare lo stato e il comando `--resume`; `ReaderWindow` resta ignara di JSON/filesystem. M2.1 proietta il TOC Domain; M2.2 proietta `BookMetadata` tramite `ReaderMetadataEntry` e un formatter cell-aware privo di Terminal.Gui. M2.3 aggiunge `BookTextSearch` nell’Application layer: ricerca su `ContentText.GetPlainText`, risultati `ReadingLocation` e nessuna dipendenza da layout/Terminal.Gui/EPUB.
 
 ## 3. Direzione delle dipendenze
 
@@ -415,3 +415,22 @@ Vincoli:
 ## M2.2 — Metadata View
 
 `ReaderSession` proietta `Book.Metadata`/`Book.Id` in `ReaderMetadataEntry`; `ReaderMetadataFormatter` effettua wrapping in celle terminale senza dipendere da Terminal.Gui. `ReaderWindow` conserva soltanto modalità aperta/chiusa e offset di scroll effimeri. La vista non conosce OPF/EPUB e non modifica `ReadingLocation` o `state.json`.
+
+
+## M2.3 — Search pre-layout
+
+La ricerca vive in `EbookReader.Application.Search` e usa esclusivamente il modello Domain:
+
+```text
+Book.ReadingOrder
+      ↓
+ContentBlock
+      ↓ ContentText.GetPlainText
+logical UTF-16 text
+      ↓ BookTextSearch
+BookSearchMatch(ReadingLocation, MatchLength)
+```
+
+`ReaderSession` conserva query/result set/indice come stato effimero. `ReaderWindow` offre soltanto il prompt `/` nella status bar e traduce `n/N` in navigazione fra match. Nessuna query viene persistita; il resize non ricalcola la ricerca e conserva la stessa `ReadingLocation`.
+
+Dettagli: [`SEARCH.md`](SEARCH.md) e ADR-0039.

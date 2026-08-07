@@ -1,13 +1,13 @@
-# Project Handoff — EReader M2.2
+# Project Handoff — EReader M2.3 Hotfix 1
 
 ## Stato corrente
 
-- **Ultima baseline autoritativa validata:** M2.1 — Interactive TOC.
-- **Gate baseline:** `M2.1 VALIDATION PASSED`.
-- **Candidate corrente:** M2.2 — Metadata View.
+- **Ultima baseline autoritativa validata:** M2.2 — Metadata View.
+- **Gate baseline:** `M2.2 VALIDATION PASSED`.
+- **Candidate corrente:** M2.3 Hotfix 1 — Search pre-layout analyzer fix.
 - **Target:** .NET 10 / C# 14 / Terminal.Gui 2.4.17.
 
-M2.2 è costruita esclusivamente sopra `EReader_M2.1_InteractiveTOC_NET10_Candidate.zip` validata dall'utente.
+M2.3 era costruita esclusivamente sopra `EReader_M2.2_MetadataView_NET10_Candidate.zip` validata dall'utente. Hotfix 1 parte esclusivamente dalla candidate M2.3 testata dall'utente e corregge soltanto CA1861 nel test dei match sovrapposti.
 
 ## Contratti autoritativi invariati
 
@@ -22,25 +22,28 @@ M2.2 è costruita esclusivamente sopra `EReader_M2.1_InteractiveTOC_NET10_Candid
 - nessuna estrazione ZIP, rete o circumvention DRM;
 - ADR autoritativi.
 
-## M2.2
+## M2.3 Hotfix 1
 
 Nuovi componenti/contratti:
 
-- `ReaderMetadataEntry` — label/value format-neutral;
-- `ReaderSession.MetadataEntries` — proiezione da `BookMetadata`/`BookId`;
-- `ReaderMetadataFormatter` — wrapping terminal-cell-aware senza Terminal.Gui;
-- modalità metadata nel body `ReaderWindow` con offset di scroll effimero.
+- `BookTextSearch` — ricerca bounded sul testo logico Domain;
+- `BookSearchMatch` — `ReadingLocation` + lunghezza UTF-16;
+- `BookSearchResultSet` — query, match e flag `IsTruncated`;
+- stato ricerca effimero in `ReaderSession`;
+- prompt inline `/` nella status bar;
+- `n/N` per risultato successivo/precedente.
 
 Comandi:
 
 ```text
-m                   apre/chiude metadata
-↑/↓ oppure j/k       scroll una riga
-PgUp/PgDn            scroll una pagina
-Esc                  chiude metadata
+/                   apre il prompt
+Enter               cerca
+Backspace           elimina ultimo grapheme
+Esc                 annulla
+n / N               risultato successivo / precedente
 ```
 
-La vista mostra i campi Domain disponibili e non modifica mai la `ReadingLocation`.
+La ricerca è indipendente da wrapping e viewport e non viene persistita in `state.json`.
 
 ## Validation
 
@@ -51,16 +54,16 @@ La vista mostra i campi Domain disponibili e non modifica mai la `ReadingLocatio
 Gate atteso:
 
 ```text
-M2.2 VALIDATION PASSED
+M2.3 HOTFIX 1 VALIDATION PASSED
 ```
 
-Conteggio statico: **344 Fact + 16 InlineData = 360 casi attesi**.
+Conteggio statico: **358 Fact + 16 InlineData = 374 casi attesi**.
 
 ## ADR/documentazione
 
-- ADR-0038 — La vista metadata proietta solo metadata Domain format-neutral;
-- `docs/METADATA_VIEW.md`.
+- ADR-0039 — La ricerca opera sul testo logico Domain prima del layout;
+- `docs/SEARCH.md`.
 
 ## Prossimo passo dopo il PASS
 
-**M2.3 — Search pre-layout**: ricerca sul testo logico indipendente dal wrapping e salto ai risultati tramite `ReadingLocation`.
+**M2.4 — Bookmark logici**: bookmark persistiti come `ReadingLocation`, gestione add/remove/lista e salto dalla TUI senza dipendenza da pagina o layout.

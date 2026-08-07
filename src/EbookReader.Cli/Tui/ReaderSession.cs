@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using EbookReader.Application.Reading;
+using EbookReader.Application.Search;
 using EbookReader.Domain.Books;
 using EbookReader.Domain.Content;
 using EbookReader.Domain.Navigation;
@@ -17,6 +18,8 @@ public sealed class ReaderSession
     private readonly Book _book;
     private readonly ReadOnlyCollection<ReaderTocEntry> _tocEntries;
     private readonly ReadOnlyCollection<ReaderMetadataEntry> _metadataEntries;
+    private BookSearchResultSet? _searchResults;
+    private int _searchMatchIndex = -1;
 
     public ReaderSession(Book book, LayoutViewport viewport, ReadingLocation? initialLocation = null)
     {
@@ -59,6 +62,14 @@ public sealed class ReaderSession
     public bool HasTableOfContents => _tocEntries.Count > 0;
 
     public ReadOnlyCollection<ReaderMetadataEntry> MetadataEntries => _metadataEntries;
+
+    public string? SearchQuery => _searchResults?.Query;
+
+    public int SearchMatchCount => _searchResults?.Matches.Count ?? 0;
+
+    public int CurrentSearchMatchNumber => _searchMatchIndex < 0 ? 0 : _searchMatchIndex + 1;
+
+    public bool SearchResultsTruncated => _searchResults?.IsTruncated ?? false;
 
     /// <summary>
     /// Returns the navigable TOC entry nearest to, but not after, the current logical reading location.
@@ -195,6 +206,40 @@ public sealed class ReaderSession
     public bool ChapterStart() => Move(LogicalReadingNavigator.ChapterStart(_book, Location));
 
     public bool ChapterEnd() => Move(LogicalReadingNavigator.ChapterEnd(_book, Location));
+
+    /// <summary>
+    /// Searches logical Domain text before layout. The first selected result is the first match that is
+    /// not before the current ReadingLocation; when no such match exists the search wraps to the first hit.
+    /// </summary>
+    public bool Search(string query)
+    {
+        BookSearchResultSet results = BookTextSearch.Search(_book, query);
+        _searchResults = results;
+
+        if (results.Matches.Count == 0)
+        {
+            _searchMatchIndex = -1;
+            return false;
+        }
+
+        int firstAtOrAfter = -1;
+        for (int index = 0; index < results.Matches.Count; index++)
+        {
+            if (CompareLocations(results.Matches[index].Location, Location) >= 0)
+            {
+                firstAtOrAfter = index;
+                break;
+            }
+        }
+
+        _searchMatchIndex = firstAtOrAfter >= 0 ? firstAtOrAfter : 0;
+        Location = results.Matches[_searchMatchIndex].Location;
+        return true;
+    }
+
+    public bool NextSearchResult() => MoveSearchResult(1);
+
+    public bool PreviousSearchResult() => MoveSearchResult(-1);
 
     public bool NavigateToTocEntry(int index)
     {
@@ -370,6 +415,24 @@ public sealed class ReaderSession
         }
 
         throw new InvalidOperationException($"Blocco TOC non presente nella sezione {section.Id}: {blockId}.");
+    }
+
+    private bool MoveSearchResult(int direction)
+    {
+        if (direction is not (-1 or 1))
+        {
+            throw new ArgumentOutOfRangeException(nameof(direction));
+        }
+
+        if (_searchResults is null || _searchResults.Matches.Count == 0)
+        {
+            return false;
+        }
+
+        int count = _searchResults.Matches.Count;
+        _searchMatchIndex = (_searchMatchIndex + direction + count) % count;
+        Location = _searchResults.Matches[_searchMatchIndex].Location;
+        return true;
     }
 
     private bool Move(ReadingLocation? destination)

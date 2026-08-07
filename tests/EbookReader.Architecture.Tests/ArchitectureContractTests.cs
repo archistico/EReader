@@ -607,6 +607,63 @@ public sealed class ArchitectureContractTests
         Assert.DoesNotContain("EpubPackage", window, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void M23SearchLivesInApplicationAndDoesNotDependOnLayoutTerminalGuiOrEpub()
+    {
+        string root = RepositoryRoot.Find();
+        string searchDirectory = Path.Combine(root, "src", "EbookReader.Application", "Search");
+
+        Assert.True(Directory.Exists(searchDirectory));
+        foreach (string sourceFile in Directory.EnumerateFiles(searchDirectory, "*.cs", SearchOption.AllDirectories))
+        {
+            string source = File.ReadAllText(sourceFile);
+            Assert.DoesNotContain("EbookReader.Layout", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("Terminal.Gui", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("EbookReader.Epub", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("VisualLine", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("BookLayout", source, StringComparison.Ordinal);
+        }
+
+        string engine = File.ReadAllText(Path.Combine(searchDirectory, "BookTextSearch.cs"));
+        Assert.Contains("ContentText.GetPlainText(block)", engine, StringComparison.Ordinal);
+        Assert.Contains("ReadingLocation(section.Id, block.Id, matchOffset)", engine, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void M23ReaderWindowUsesInlineSearchPromptAndLogicalResultNavigation()
+    {
+        string root = RepositoryRoot.Find();
+        string window = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "EbookReader.Cli",
+            "Tui",
+            "ReaderWindow.cs"));
+
+        Assert.Contains("IsCharacter(key, '/')", window, StringComparison.Ordinal);
+        Assert.Contains("_session.Search(query)", window, StringComparison.Ordinal);
+        Assert.Contains("_session.NextSearchResult", window, StringComparison.Ordinal);
+        Assert.Contains("_session.PreviousSearchResult", window, StringComparison.Ordinal);
+        Assert.Contains("key == Key.Backspace", window, StringComparison.Ordinal);
+        Assert.DoesNotContain("TextField", window, StringComparison.Ordinal);
+        Assert.DoesNotContain("Dialog", window, StringComparison.Ordinal);
+        Assert.DoesNotContain("EbookReader.Epub", window, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void M23SearchStateIsNotPersistedInReadingStateJson()
+    {
+        string root = RepositoryRoot.Find();
+        string stateDirectory = Path.Combine(root, "src", "EbookReader.Application", "State");
+
+        foreach (string sourceFile in Directory.EnumerateFiles(stateDirectory, "*.cs", SearchOption.AllDirectories))
+        {
+            string source = File.ReadAllText(sourceFile);
+            Assert.DoesNotContain("SearchQuery", source, StringComparison.Ordinal);
+            Assert.DoesNotContain("BookSearchMatch", source, StringComparison.Ordinal);
+        }
+    }
+
     private static bool ProjectReferencesAngleSharp(string projectFile)
     {
         XDocument document = XDocument.Load(projectFile);

@@ -328,6 +328,83 @@ public sealed class ReaderSessionTests
         Assert.Contains(session.MetadataEntries, entry => entry.Label == "Book ID");
     }
 
+    [Fact]
+    public void SearchSelectsFirstLogicalMatchAtOrAfterCurrentLocation()
+    {
+        ReadingSection section = new(
+            new SectionId("one"),
+            [new ParagraphBlock(new BlockId("p"), [new TextRun("alpha xx alpha")])]);
+        Book book = new(new BookId("search-book"), new BookMetadata("Search"), [section]);
+        ReadingLocation current = new(section.Id, new BlockId("p"), 4);
+        ReaderSession session = new(book, new LayoutViewport(12, 3), current);
+
+        Assert.True(session.Search("alpha"));
+
+        Assert.Equal("alpha", session.SearchQuery);
+        Assert.Equal(2, session.SearchMatchCount);
+        Assert.Equal(new ReadingLocation(section.Id, new BlockId("p"), 9), session.Location);
+        Assert.Equal(2, session.CurrentSearchMatchNumber);
+    }
+
+    [Fact]
+    public void SearchNextAndPreviousResultsWrapAround()
+    {
+        ReadingSection section = new(
+            new SectionId("one"),
+            [new ParagraphBlock(new BlockId("p"), [new TextRun("alpha xx alpha yy alpha")])]);
+        Book book = new(new BookId("search-book"), new BookMetadata("Search"), [section]);
+        ReaderSession session = new(book, new LayoutViewport(20, 5));
+
+        Assert.True(session.Search("alpha"));
+        Assert.Equal(1, session.CurrentSearchMatchNumber);
+        Assert.Equal(0, session.Location.CharacterOffset);
+
+        Assert.True(session.NextSearchResult());
+        Assert.Equal(2, session.CurrentSearchMatchNumber);
+        Assert.Equal(9, session.Location.CharacterOffset);
+
+        Assert.True(session.PreviousSearchResult());
+        Assert.Equal(1, session.CurrentSearchMatchNumber);
+        Assert.Equal(0, session.Location.CharacterOffset);
+
+        Assert.True(session.PreviousSearchResult());
+        Assert.Equal(3, session.CurrentSearchMatchNumber);
+        Assert.Equal(18, session.Location.CharacterOffset);
+    }
+
+    [Fact]
+    public void SearchWithNoMatchesKeepsReadingLocationAndExposesZeroResults()
+    {
+        Book book = CreateBook();
+        ReaderSession session = new(book, new LayoutViewport(20, 5));
+        ReadingLocation before = session.Location;
+
+        Assert.False(session.Search("parola-che-non-esiste"));
+
+        Assert.Equal(before, session.Location);
+        Assert.Equal("parola-che-non-esiste", session.SearchQuery);
+        Assert.Equal(0, session.SearchMatchCount);
+        Assert.Equal(0, session.CurrentSearchMatchNumber);
+        Assert.False(session.NextSearchResult());
+        Assert.False(session.PreviousSearchResult());
+    }
+
+    [Fact]
+    public void SearchLocationSurvivesReflowBecauseResultsArePreLayout()
+    {
+        Book book = CreateBook();
+        ReaderSession session = new(book, new LayoutViewport(12, 3));
+
+        Assert.True(session.Search("epsilon"));
+        ReadingLocation match = session.Location;
+
+        Assert.True(session.Reflow(new LayoutViewport(80, 24)));
+
+        Assert.Equal(match, session.Location);
+        Assert.Equal("epsilon", session.SearchQuery);
+        Assert.Equal(1, session.CurrentSearchMatchNumber);
+    }
+
     private static Book CreateBook(bool includeSupplementary = false)
     {
         ReadingSection one = new(

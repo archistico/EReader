@@ -28,4 +28,4 @@ echo "[7/7] First readable EPUB plain smoke"
 dotnet run --project src/EbookReader.Cli/EbookReader.Cli.csproj -c Release --no-build -- --plain test-books/m1.0-smoke.epub >/dev/null
 
 echo
-echo "M2.2 VALIDATION PASSED"
+echo "M2.3 HOTFIX 1 VALIDATION PASSED"

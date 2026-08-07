@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
@@ -11,7 +12,7 @@ namespace EbookReader.Cli.Tui;
 /// </summary>
 internal sealed class ReaderWindow : Window
 {
-    private const string NormalFooter = "↑/k ↓/j riga  PgUp/h PgDn/l/Space pagina  [ ] capitolo  t/Tab indice  m metadati  F1/? aiuto  q/Esc esci";
+    private const string NormalFooter = "↑/k ↓/j riga  PgUp/h PgDn/l/Space pagina  [ ] capitolo  / cerca  n/N risultato  t indice  m metadati  F1/? aiuto  q/Esc esci";
     private const string TocFooter = "↑/k ↓/j voce  PgUp/PgDn scorri  Enter apri  t/Tab/Esc chiudi  m metadati  q esci";
     private const string MetadataFooter = "↑/k ↓/j scorri  PgUp/PgDn pagina  m/Esc chiudi  t indice  F1/? aiuto  q esci";
 
@@ -26,6 +27,8 @@ internal sealed class ReaderWindow : Window
     private bool _helpVisible;
     private bool _tocVisible;
     private bool _metadataVisible;
+    private bool _searchInputVisible;
+    private readonly StringBuilder _searchInput = new();
     private int _tocSelectedIndex = -1;
     private int _tocScrollOffset;
     private int _metadataScrollOffset;
@@ -92,6 +95,17 @@ internal sealed class ReaderWindow : Window
     {
         ArgumentNullException.ThrowIfNull(key);
 
+        if (_searchInputVisible)
+        {
+            return HandleSearchInputKey(key);
+        }
+
+        if (IsCharacter(key, '/'))
+        {
+            OpenSearchInput();
+            return true;
+        }
+
         if (key == Key.F1 || IsCharacter(key, '?'))
         {
             ToggleHelp();
@@ -154,6 +168,18 @@ internal sealed class ReaderWindow : Window
             return HandleMetadataKey(key);
         }
 
+        if (IsCharacter(key, 'n'))
+        {
+            Navigate(_session.NextSearchResult);
+            return true;
+        }
+
+        if (IsCharacter(key, 'N'))
+        {
+            Navigate(_session.PreviousSearchResult);
+            return true;
+        }
+
         if (key == Key.CursorDown || IsCharacter(key, 'j'))
         {
             Navigate(_session.NextLine);
@@ -203,6 +229,50 @@ internal sealed class ReaderWindow : Window
         }
 
         return base.OnKeyDown(key);
+    }
+
+    private bool HandleSearchInputKey(Key key)
+    {
+        if (key == Key.Esc)
+        {
+            _searchInputVisible = false;
+            _searchInput.Clear();
+            RefreshReader();
+            return true;
+        }
+
+        if (key == Key.Enter)
+        {
+            string query = _searchInput.ToString();
+            _searchInputVisible = false;
+            _searchInput.Clear();
+
+            if (!string.IsNullOrWhiteSpace(query))
+            {
+                _session.Search(query);
+            }
+
+            RefreshReader();
+            return true;
+        }
+
+        if (key == Key.Backspace)
+        {
+            RemoveLastSearchTextElement();
+            RefreshReader();
+            return true;
+        }
+
+        string printable = key.GetPrintableText();
+        if (!string.IsNullOrEmpty(printable)
+            && printable.All(character => !char.IsControl(character))
+            && _searchInput.Length + printable.Length <= global::EbookReader.Application.Search.BookTextSearch.MaximumQueryLength)
+        {
+            _searchInput.Append(printable);
+            RefreshReader();
+        }
+
+        return true;
     }
 
     private bool HandleTocKey(Key key)
@@ -292,6 +362,28 @@ internal sealed class ReaderWindow : Window
 
     private static bool IsCharacter(Key key, char value) =>
         string.Equals(key.GetPrintableText(), value.ToString(), StringComparison.Ordinal);
+
+    private void OpenSearchInput()
+    {
+        _helpVisible = false;
+        _tocVisible = false;
+        _metadataVisible = false;
+        _searchInputVisible = true;
+        _searchInput.Clear();
+        RefreshReader();
+    }
+
+    private void RemoveLastSearchTextElement()
+    {
+        if (_searchInput.Length == 0)
+        {
+            return;
+        }
+
+        string current = _searchInput.ToString();
+        int[] starts = StringInfo.ParseCombiningCharacters(current);
+        _searchInput.Length = starts[^1];
+    }
 
     private void ToggleHelp()
     {
@@ -499,13 +591,15 @@ internal sealed class ReaderWindow : Window
                 : _metadataVisible
                     ? BuildMetadata()
                     : _session.RenderCurrentViewport();
-        _footer.Text = _helpVisible
-            ? "F1/?/Esc chiudi aiuto   q esci"
-            : _tocVisible
-                ? TocFooter
-                : _metadataVisible
-                    ? MetadataFooter
-                    : NormalFooter;
+        _footer.Text = _searchInputVisible
+            ? $"Cerca: {_searchInput}_   Enter cerca   Esc annulla"
+            : _helpVisible
+                ? "F1/?/Esc chiudi aiuto   q esci"
+                : _tocVisible
+                    ? TocFooter
+                    : _metadataVisible
+                        ? MetadataFooter
+                        : NormalFooter;
     }
 
     private string BuildHeader()
@@ -528,12 +622,26 @@ internal sealed class ReaderWindow : Window
         string chapter = _session.CurrentPrimarySectionNumber > 0
             ? $"Cap. {_session.CurrentPrimarySectionNumber}/{_session.PrimarySectionCount}"
             : "Sezione supplementare";
-        return $"{_session.BookTitle}{author}   {chapter}   Pag. {_session.PageNumber}/{_session.PageCount}";
+        string search = BuildSearchStatus();
+        return $"{_session.BookTitle}{author}   {chapter}   Pag. {_session.PageNumber}/{_session.PageCount}{search}";
+    }
+
+    private string BuildSearchStatus()
+    {
+        if (_session.SearchQuery is null)
+        {
+            return string.Empty;
+        }
+
+        string truncation = _session.SearchResultsTruncated ? "+" : string.Empty;
+        return _session.SearchMatchCount == 0
+            ? $"   Cerca «{_session.SearchQuery}»: 0 risultati"
+            : $"   Cerca «{_session.SearchQuery}»: {_session.CurrentSearchMatchNumber}/{_session.SearchMatchCount}{truncation}";
     }
 
     private static string BuildHelp() =>
         """
-        EReader — comandi M2.2
+        EReader — comandi M2.3
 
         ↑ / k             riga precedente
         ↓ / j             riga successiva
@@ -544,6 +652,8 @@ internal sealed class ReaderWindow : Window
         g                 inizio capitolo
         G                 fine capitolo
         t / Tab           apre/chiude indice
+        /                 cerca nel testo logico
+        n / N             risultato successivo / precedente
         m                 apre/chiude metadati
         F1 / ?            mostra/nasconde questo aiuto
         q                 esci
@@ -551,6 +661,7 @@ internal sealed class ReaderWindow : Window
 
         Nell'indice: ↑/↓ o j/k selezionano, PgUp/PgDn scorrono, Enter apre la voce.
         Nei metadati: ↑/↓ o j/k scorrono una riga, PgUp/PgDn una pagina.
+        La ricerca opera sul testo logico prima del wrapping; resize e larghezza terminale non cambiano i risultati.
         Il resize ricostruisce il layout mantenendo la stessa ReadingLocation logica.
         Numero pagina e riga possono cambiare dopo il reflow e restano coordinate effimere.
         """;

@@ -221,7 +221,7 @@ Implementato:
 - preselezione della voce più vicina alla posizione corrente;
 - ADR-0037 e `INTERACTIVE_TOC.md`.
 
-### M2.2 — Metadata View — CANDIDATE
+### M2.2 — Metadata View — VALIDATED
 
 - `m` apre/chiude la vista metadata;
 - proiezione esclusivamente da `BookMetadata` e `BookId` format-neutral;
@@ -232,7 +232,19 @@ Implementato:
 - nessun metadata EPUB-specifico o stato UI persistito;
 - ADR-0038 e `METADATA_VIEW.md`.
 
-- M2.3 Search pre-layout;
+### M2.3 — Search pre-layout — CANDIDATE
+
+- `BookTextSearch` in Application opera su `ContentText.GetPlainText`;
+- risultati ordinati come `ReadingLocation` + lunghezza UTF-16;
+- query case-insensitive, max 256 code unit UTF-16;
+- massimo 10.000 match con flag di truncation;
+- `/` apre il prompt inline nella status bar;
+- `n` / `N` navigano risultato successivo/precedente con wrap-around;
+- primo match selezionato non precedente alla location corrente;
+- risultati invarianti rispetto a resize/wrapping;
+- ricerca non persistita in `state.json`;
+- ADR-0039 e `SEARCH.md`.
+
 - M2.4 Bookmark logici;
 - M2.5 Stable Progress.
 

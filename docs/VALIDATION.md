@@ -1,12 +1,12 @@
-# Validation — M2.2 Metadata View
+# Validation — M2.3 Hotfix 1 Search pre-layout
 
 ## Stato della catena
 
-Ultima baseline autoritativa validata: **M2.1 — Interactive TOC** (`M2.1 VALIDATION PASSED`).
+Ultima baseline autoritativa validata: **M2.2 — Metadata View** (`M2.2 VALIDATION PASSED`).
 
-Candidate corrente: **M2.2 — Metadata View**.
+Candidate corrente: **M2.3 Hotfix 1 — Search pre-layout analyzer fix**.
 
-M2.2 è costruita esclusivamente sopra la baseline M2.1 validata.
+Hotfix 1 è costruita esclusivamente sopra la candidate M2.3 che ha superato restore e quasi tutto il build Release, fermandosi solo su CA1861 nel test `BookTextSearchTests.SearchFindsOverlappingMatches`. Nessun codice produttivo è stato modificato.
 
 ## Gate
 
@@ -35,34 +35,37 @@ Il gate esegue:
 Output finale atteso:
 
 ```text
-M2.2 VALIDATION PASSED
+M2.3 HOTFIX 1 VALIDATION PASSED
 ```
 
 ## Conteggio statico
 
-- **344** `[Fact]`;
+- **358** `[Fact]`;
 - **4** `[Theory]`;
 - **16** casi `[InlineData]`;
-- **360 casi attesi**.
+- **374 casi attesi**.
 
-## Criteri M2.2
+## Criteri M2.3 Hotfix 1
 
 Il PASS deve confermare, oltre a tutte le regressioni precedenti:
 
-- M2.1 TOC resta funzionante e validato;
-- `m` apre/chiude la vista metadata;
-- `Esc` chiude metadata/TOC/help prima di uscire;
-- apertura/scorrimento/chiusura metadata non modifica la `ReadingLocation`;
-- `↑/↓` e `j/k` scorrono i metadata una riga;
-- `PgUp/PgDn` scorrono i metadata di una pagina;
-- metadata opzionali mancanti vengono omessi;
-- contributor e relativi ruoli Domain vengono proiettati senza semantica EPUB;
-- identificatori conservano l'eventuale schema Domain;
-- descrizioni e valori lunghi vengono wrappati secondo la larghezza terminale;
-- Unicode wide/emoji non oltrepassano la larghezza in celle prevista dal formatter;
-- resize riformatta la vista metadata e clampa l'offset di scroll;
-- `ReaderWindow` e `ReaderMetadataFormatter` non conoscono tipi EPUB/OPF;
-- nessuno stato della vista metadata entra in `state.json`;
+- il fix CA1861 usa un campo `static readonly` nel test senza sopprimere analyzer;
+- nessun codice produttivo M2.3 cambia;
+- M2.2 Metadata View resta funzionante e validata;
+- `BookTextSearch` vive nell'Application layer e non referenzia Layout, Terminal.Gui o EPUB;
+- la ricerca usa `ContentText.GetPlainText(ContentBlock)` e produce `ReadingLocation` Domain;
+- confronto case-insensitive deterministico;
+- match che attraversano container inline strong/emphasis/link restano trovabili;
+- offset e lunghezze sono nello spazio UTF-16 Domain;
+- match sovrapposti sono preservati;
+- massimo 256 code unit UTF-16 per query;
+- massimo 10.000 match con `IsTruncated`;
+- `/` apre il prompt inline nella status bar;
+- `Enter` esegue, `Backspace` elimina l'ultimo grapheme, `Esc` annulla;
+- `n/N` navigano avanti/indietro con wrap-around;
+- il primo risultato è il primo non precedente alla location corrente, con wrap quando necessario;
+- nessun risultato cambia al reflow/resize;
+- query e indice del risultato non entrano in `state.json`;
 - `--plain` resta stateless.
 
 ## Evidenza precedente
@@ -79,4 +82,5 @@ Il PASS deve confermare, oltre a tutte le regressioni precedenti:
 - M2.0 — VALIDATED;
 - M2.0 Hotfix 1 — VALIDATED;
 - M2.0 Hotfix 2 — VALIDATED;
-- M2.1 — `M2.1 VALIDATION PASSED`.
+- M2.1 — VALIDATED;
+- M2.2 — `M2.2 VALIDATION PASSED`.

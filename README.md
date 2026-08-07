@@ -2,11 +2,11 @@
 
 Lettore EPUB da terminale scritto in C# per .NET 10.
 
-**Ultima baseline autoritativa validata:** M2.1 — Interactive TOC.  
-**Candidate corrente:** M2.2 — Metadata View.  
-**Stato M2.2:** **CANDIDATE**.
+**Ultima baseline autoritativa validata:** M2.2 — Metadata View.  
+**Candidate corrente:** M2.3 Hotfix 1 — Search pre-layout.  
+**Stato M2.3:** **CANDIDATE**.
 
-M2.1 è stata validata dall’utente con `M2.1 VALIDATION PASSED`. M2.2 è costruita esclusivamente sopra quella baseline e rende consultabile il `BookMetadata` format-neutral nella TUI.
+M2.2 è stata validata dall’utente con `M2.2 VALIDATION PASSED`. M2.3 è costruita esclusivamente sopra quella baseline e aggiunge ricerca full-book sul testo logico Domain, indipendente da wrapping e viewport.
 
 ## Scope autoritativo
 
@@ -62,7 +62,11 @@ M2.0 Hotfix 1 rende visibile lo scorrimento per singola riga; Hotfix 2 aggiunge 
 
 M2.1 aggiunge `t`/`Tab` per aprire un indice gerarchico interattivo; `↑/↓` o `j/k` selezionano e `Enter` salta alla `ReadingLocation` della voce. M2.1 è validata.
 
-M2.2 aggiunge `m` per aprire la vista metadata format-neutral; `↑/↓` o `j/k` scorrono una riga e `PgUp/PgDn` una pagina.
+M2.2 aggiunge `m` per aprire la vista metadata format-neutral; `↑/↓` o `j/k` scorrono una riga e `PgUp/PgDn` una pagina. M2.2 è validata.
+
+M2.3 aggiunge `/` per il prompt di ricerca sul testo logico; `n` e `N` navigano i risultati avanti/indietro con wrap-around. I risultati sono `ReadingLocation` e non dipendono dal layout.
+
+Dettagli ricerca: [`docs/SEARCH.md`](docs/SEARCH.md).
 
 ## Pipeline corrente
 
@@ -98,7 +102,9 @@ Line scroll + separatori TUI                         M2.0 HF1/HF2 VALIDATED
   ↓
 Interactive TOC → ReadingLocation                    M2.1 VALIDATED
   ↓
-Metadata View → BookMetadata                            M2.2 CANDIDATE
+Metadata View → BookMetadata                            M2.2 VALIDATED
+  ↓
+BookTextSearch → ReadingLocation                        M2.3 CANDIDATE
 ```
 
 La facade di ingestione resta:
@@ -186,12 +192,12 @@ Il gate esegue restore, build Release, suite completa, smoke CLI di help/version
 test-books/m1.0-smoke.epub
 ```
 
-La suite contiene staticamente **344 `[Fact]` + 16 casi `[InlineData]` su 4 `[Theory]`**, quindi sono attesi **360 casi**.
+La suite contiene staticamente **358 `[Fact]` + 16 casi `[InlineData]` su 4 `[Theory]`**, quindi sono attesi **374 casi**.
 
 Output finale atteso:
 
 ```text
-M2.2 VALIDATION PASSED
+M2.3 VALIDATION PASSED
 ```
 
 ## Documentazione
@@ -213,6 +219,7 @@ docs/
   READING_STATE.md
   INTERACTIVE_TOC.md
   METADATA_VIEW.md
+  SEARCH.md
   ROADMAP.md
   VALIDATION.md
   PROJECT_HANDOFF.md

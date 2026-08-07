@@ -14,7 +14,7 @@ namespace EbookReader.Cli;
 /// </summary>
 public static class CliEntryPoint
 {
-    public const string Milestone = "M2.2";
+    public const string Milestone = "M2.3";
     public const string Status = "CANDIDATE";
 
     private const int Success = 0;
@@ -303,12 +303,13 @@ public static class CliEntryPoint
         output.WriteLine("Reading state: M2.0 versioned atomic JSON with logical-location restore validated");
         output.WriteLine("Line scrolling/UI separators: M2.0 Hotfix 1+2 validated");
         output.WriteLine("Interactive TOC: M2.1 hierarchical Domain TOC validated");
-        output.WriteLine("Metadata view: M2.2 format-neutral metadata overlay candidate");
+        output.WriteLine("Metadata view: M2.2 format-neutral metadata overlay validated");
+        output.WriteLine("Pre-layout search: M2.3 logical-text search candidate");
     }
 
     private static void WriteHelp(TextWriter output)
     {
-        output.WriteLine("EReader — M2.2 Metadata View");
+        output.WriteLine("EReader — M2.3 Search pre-layout");
         output.WriteLine();
         output.WriteLine("Uso:");
         output.WriteLine("  ereader <libro.epub>          apre il reader fullscreen");
@@ -325,9 +326,11 @@ public static class CliEntryPoint
         output.WriteLine("  [ ]            capitolo precedente/successivo");
         output.WriteLine("  g / G          inizio/fine capitolo");
         output.WriteLine("  t / Tab        apre/chiude indice");
+        output.WriteLine("  /              cerca nel testo logico");
+        output.WriteLine("  n / N          risultato successivo/precedente");
         output.WriteLine("  m              apre/chiude metadati");
         output.WriteLine("  F1 / ?         aiuto");
         output.WriteLine("  q              esci e salva la ReadingLocation");
-        output.WriteLine("  Esc            chiude metadati/indice/aiuto, altrimenti esce");
+        output.WriteLine("  Esc            annulla ricerca o chiude metadati/indice/aiuto, altrimenti esce");
     }
 }

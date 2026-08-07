@@ -144,3 +144,17 @@ Esc                 chiude metadata
 ```
 
 Il formatter è indipendente da Terminal.Gui e usa la misura in celle di `TerminalCellWidth`; resize e scroll della vista non modificano mai la `ReadingLocation`.
+
+
+## M2.3 — Search pre-layout
+
+```text
+/                 apre il prompt di ricerca
+Enter             esegue
+Backspace         elimina l'ultimo grapheme
+Esc               annulla il prompt
+n                 risultato successivo
+N                 risultato precedente
+```
+
+Il prompt usa la status bar e non sostituisce il contenuto del libro. Dopo la ricerca, l'header mostra query e indice del match. I risultati sono `ReadingLocation` prodotte dall'Application layer prima del layout; la View non cerca nelle righe visuali.
