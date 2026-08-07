@@ -80,7 +80,7 @@ public sealed class ReadingStateTests
         store.Save(CreateState(Path.Combine(temporary.Path, "book.epub")));
         string json = File.ReadAllText(statePath);
 
-        Assert.Contains("\"schemaVersion\": 2", json, StringComparison.Ordinal);
+        Assert.Contains("\"schemaVersion\": 3", json, StringComparison.Ordinal);
         Assert.Contains("\"sectionId\"", json, StringComparison.Ordinal);
         Assert.Contains("\"characterOffset\"", json, StringComparison.Ordinal);
         Assert.DoesNotContain("pageNumber", json, StringComparison.OrdinalIgnoreCase);
@@ -211,6 +211,7 @@ public sealed class ReadingStateTests
 
         Assert.NotNull(state);
         Assert.Empty(state.Bookmarks);
+        Assert.Single(state.History);
         Assert.Equal(new SectionId("chapter-1"), state.Location.SectionId);
     }
 
@@ -306,6 +307,7 @@ public sealed class ReadingStateTests
         Assert.Equal(expected.Location, actual.Location);
         Assert.Equal(expected.LastOpenedUtc, actual.LastOpenedUtc);
         Assert.Equal(expected.Bookmarks, actual.Bookmarks);
+        Assert.Equal(expected.History, actual.History);
     }
 
     private static ReadingStateSnapshot CreateState(

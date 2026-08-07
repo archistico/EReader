@@ -710,7 +710,7 @@ public sealed class ArchitectureContractTests
     }
 
     [Fact]
-    public void M24StateSchemaSupportsLegacyV1AndWritesV2Bookmarks()
+    public void M30StateSchemaSupportsLegacyV1V2AndWritesV3History()
     {
         string root = RepositoryRoot.Find();
         string store = File.ReadAllText(Path.Combine(
@@ -720,9 +720,10 @@ public sealed class ArchitectureContractTests
             "State",
             "JsonReadingStateStore.cs"));
 
-        Assert.Contains("CurrentSchemaVersion = 2", store, StringComparison.Ordinal);
-        Assert.Contains("document.SchemaVersion is not (1 or CurrentSchemaVersion)", store, StringComparison.Ordinal);
+        Assert.Contains("CurrentSchemaVersion = 3", store, StringComparison.Ordinal);
+        Assert.Contains("document.SchemaVersion is not (1 or 2 or CurrentSchemaVersion)", store, StringComparison.Ordinal);
         Assert.Contains("Bookmarks = state.Bookmarks", store, StringComparison.Ordinal);
+        Assert.Contains("History = state.History", store, StringComparison.Ordinal);
     }
 
 
@@ -843,6 +844,28 @@ public sealed class ArchitectureContractTests
         Assert.Contains("_session.Progress.Percentage", window, StringComparison.Ordinal);
         Assert.DoesNotContain("Progress", state, StringComparison.Ordinal);
         Assert.DoesNotContain("Percentage", state, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void M30LibraryHistoryStaysLogicalAndTerminalGuiRemainsInCli()
+    {
+        string root = RepositoryRoot.Find();
+        string libraryDirectory = Path.Combine(root, "src", "EbookReader.Application", "Library");
+        string library = string.Join(
+            Environment.NewLine,
+            Directory.EnumerateFiles(libraryDirectory, "*.cs", SearchOption.AllDirectories).Select(File.ReadAllText));
+        string window = File.ReadAllText(Path.Combine(root, "src", "EbookReader.Cli", "Tui", "LibraryWindow.cs"));
+        string state = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Application", "State", "JsonReadingStateStore.cs"));
+
+        Assert.Contains("ReadingLocation", library, StringComparison.Ordinal);
+        Assert.DoesNotContain("BookLayout", library, StringComparison.Ordinal);
+        Assert.DoesNotContain("PageNumber", library, StringComparison.Ordinal);
+        Assert.DoesNotContain("Viewport", library, StringComparison.Ordinal);
+        Assert.DoesNotContain("Terminal.Gui", library, StringComparison.Ordinal);
+        Assert.Contains("ViewportChanged", window, StringComparison.Ordinal);
+        Assert.Contains("CurrentSchemaVersion = 3", state, StringComparison.Ordinal);
+        Assert.DoesNotContain("progress", state, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool ProjectReferencesAngleSharp(string projectFile)

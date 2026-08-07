@@ -2,11 +2,11 @@
 
 Lettore EPUB da terminale scritto in C# per .NET 10.
 
-**Ultima baseline autoritativa validata:** M2.4 Hotfix 3 — Bookmark logici + colori semantici.  
-**Candidate corrente:** M2.5 — Stable Progress.  
-**Stato M2.5:** **CANDIDATE**.
+**Ultima baseline autoritativa validata:** M2.5 — Stable Progress.  
+**Candidate corrente:** M3.0 — Library & Reading History.  
+**Stato M3.0:** **CANDIDATE**.
 
-M2.4 Hotfix 3 ha superato il gate completo con 395/395 casi. M2.5 è costruita esclusivamente sopra quella baseline e aggiunge una percentuale di avanzamento logica basata sul testo Domain UTF-16, separata dalle coordinate effimere di pagina/riga.
+M2.5 ha superato il gate completo. M3.0 è costruita esclusivamente sopra quella baseline e aggiunge una libreria recente bounded, sempre basata su `ReadingLocation` logiche e sullo stesso JSON atomico.
 
 ## Scope autoritativo
 
@@ -114,9 +114,11 @@ Interactive TOC → ReadingLocation                    M2.1 VALIDATED
 Metadata View → BookMetadata                            M2.2 VALIDATED
   ↓
 BookTextSearch → ReadingLocation                        M2.3 VALIDATED
-ReadingBookmarkState → JSON schema 2                    M2.4 VALIDATED
+ReadingBookmarkState → JSON schema 3                    M2.4 VALIDATED
   ↓
-BookProgressIndex → percentuale logica UTF-16                M2.5 CANDIDATE
+BookProgressIndex → percentuale logica UTF-16                M2.5 VALIDATED
+  ↓
+ReadingHistoryState → libreria recente / --library             M3.0 CANDIDATE
 ```
 
 La facade di ingestione resta:
@@ -204,7 +206,7 @@ Il gate esegue restore, build Release, suite completa, smoke CLI di help/version
 test-books/m1.0-smoke.epub
 ```
 
-La suite contiene staticamente **389 `[Fact]` + 16 casi `[InlineData]` su 4 `[Theory]`**, quindi sono attesi **405 casi**.
+La candidate M3.0 contiene staticamente **397 `[Fact]` + 16 casi `[InlineData]` su 4 `[Theory]`**, quindi sono attesi **413 casi**.
 
 Output finale atteso:
 
@@ -247,3 +249,16 @@ Gli ADR in [`docs/adr`](docs/adr/README.md) sono il registro autoritativo delle 
 
 Non è ancora stata scelta una licenza. I riferimenti esterni sono usati per studiare standard, UX e problemi del dominio; il codice di EReader è un'implementazione originale.
 
+
+
+## M3.0 — Library & Reading History
+
+M3.0 aggiunge una libreria locale bounded basata esclusivamente sui libri realmente aperti.
+
+```text
+ereader --library   # selezione fullscreen
+ereader --history   # elenco testuale
+ereader --resume    # ultimo libro globale
+```
+
+La cronologia conserva soltanto metadata format-neutral e `ReadingLocation`; non salva pagina, riga, viewport o percentuale.

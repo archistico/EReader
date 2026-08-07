@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.Collections.ObjectModel;
 using System.Reflection;
+using EbookReader.Application.Library;
 using EbookReader.Application.State;
 using EbookReader.Cli.Reading;
 using EbookReader.Cli.State;
@@ -15,7 +17,7 @@ namespace EbookReader.Cli;
 /// </summary>
 public static class CliEntryPoint
 {
-    public const string Milestone = "M2.5";
+    public const string Milestone = "M3.0";
     public const string Status = "CANDIDATE";
 
     private const int Success = 0;
@@ -60,6 +62,16 @@ public static class CliEntryPoint
             return Success;
         }
 
+        if (args.Length == 1 && string.Equals(args[0], "--library", StringComparison.Ordinal))
+        {
+            return BrowseLibrary(output, error);
+        }
+
+        if (args.Length == 1 && string.Equals(args[0], "--history", StringComparison.Ordinal))
+        {
+            return WriteHistory(output, error);
+        }
+
         if (args.Length == 1 && string.Equals(args[0], "--resume", StringComparison.Ordinal))
         {
             return ResumePublication(output, error);
@@ -85,6 +97,70 @@ public static class CliEntryPoint
         return assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
             ?? assembly.GetName().Version?.ToString()
             ?? "unknown";
+    }
+
+    private static int BrowseLibrary(TextWriter output, TextWriter error)
+    {
+        if (Console.IsInputRedirected || Console.IsOutputRedirected)
+        {
+            error.WriteLine("ER-LIBRARY-TUI-001: la libreria interattiva richiede un terminale. Usa 'ereader --history'.");
+            return UsageError;
+        }
+
+        JsonReadingStateStore? store = TryCreateStateStore(error);
+        if (store is null)
+        {
+            return UsageError;
+        }
+
+        ReadingStateSnapshot? state = TryLoadState(store, error);
+        if (state is null || state.History.Count == 0)
+        {
+            error.WriteLine("ER-LIBRARY-EMPTY-001: nessun libro recente disponibile.");
+            return UsageError;
+        }
+
+        LibraryRunResult selection = TerminalGuiLibraryHost.Run(state.History);
+        if (selection.SelectedEntry is null)
+        {
+            return Success;
+        }
+
+        return ReadPublication(
+            selection.SelectedEntry.BookPath,
+            output,
+            error,
+            interactive: true,
+            stateStore: store,
+            preloadedState: state,
+            historyEntry: selection.SelectedEntry);
+    }
+
+    private static int WriteHistory(TextWriter output, TextWriter error)
+    {
+        JsonReadingStateStore? store = TryCreateStateStore(error);
+        if (store is null)
+        {
+            return UsageError;
+        }
+
+        ReadingStateSnapshot? state = TryLoadState(store, error);
+        if (state is null || state.History.Count == 0)
+        {
+            output.WriteLine("Nessun libro recente.");
+            return Success;
+        }
+
+        foreach (ReadingHistoryEntry entry in state.History)
+        {
+            string author = string.IsNullOrWhiteSpace(entry.AuthorLine) ? string.Empty : $" — {entry.AuthorLine}";
+            string timestamp = entry.LastOpenedUtc.ToString("u", CultureInfo.InvariantCulture);
+            string missing = File.Exists(entry.BookPath) ? string.Empty : " [mancante]";
+            output.WriteLine($"{timestamp}  {entry.Title}{author}{missing}");
+            output.WriteLine($"  {entry.BookPath}");
+        }
+
+        return Success;
     }
 
     private static int ResumePublication(TextWriter output, TextWriter error)
@@ -117,7 +193,8 @@ public static class CliEntryPoint
         TextWriter error,
         bool interactive,
         JsonReadingStateStore? stateStore = null,
-        ReadingStateSnapshot? preloadedState = null)
+        ReadingStateSnapshot? preloadedState = null,
+        ReadingHistoryEntry? historyEntry = null)
     {
         if (!File.Exists(filePath))
         {
@@ -152,7 +229,8 @@ public static class CliEntryPoint
                 error,
                 interactive,
                 stateStore,
-                preloadedState),
+                preloadedState,
+                historyEntry),
             EpubValidationStatus.Invalid => InvalidPublication,
             EpubValidationStatus.Unsupported => UnsupportedPublication,
             _ => throw new InvalidOperationException($"Stato EPUB inatteso: {result.Status}."),
@@ -166,7 +244,8 @@ public static class CliEntryPoint
         TextWriter error,
         bool interactive,
         JsonReadingStateStore? stateStore,
-        ReadingStateSnapshot? preloadedState)
+        ReadingStateSnapshot? preloadedState,
+        ReadingHistoryEntry? historyEntry)
     {
         Book book = result.Book
             ?? throw new InvalidOperationException("Un risultato EPUB valido deve contenere un Book Domain.");
@@ -190,7 +269,11 @@ public static class CliEntryPoint
             savedState = TryLoadState(store, error);
         }
 
-        ReadingLocation? initialLocation = ReadingStateRestore.TryGetLocation(book, filePath, savedState);
+        ReadingHistoryEntry? matchingHistory = historyEntry
+            ?? ReadingHistoryState.FindForBook(book, filePath, savedState?.History);
+        ReadingLocation? initialLocation = matchingHistory is null
+            ? ReadingStateRestore.TryGetLocation(book, filePath, savedState)
+            : ReadingHistoryState.TryGetLocation(book, filePath, matchingHistory);
         ReadOnlyCollection<ReadingLocation> initialBookmarks = ReadingBookmarkState.RestoreForBook(book, filePath, savedState);
         ReaderRunResult runResult = TerminalGuiReaderHost.Run(book, initialLocation, initialBookmarks);
 
@@ -201,12 +284,20 @@ public static class CliEntryPoint
                 filePath,
                 savedState?.Bookmarks,
                 runResult.Bookmarks);
+            DateTimeOffset openedUtc = DateTimeOffset.UtcNow;
+            ReadOnlyCollection<ReadingHistoryEntry> history = ReadingHistoryState.Update(
+                book,
+                filePath,
+                savedState?.History,
+                runResult.Location,
+                openedUtc);
             ReadingStateSnapshot state = new(
                 filePath,
                 book.Id,
                 runResult.Location,
-                DateTimeOffset.UtcNow,
-                bookmarks);
+                openedUtc,
+                bookmarks,
+                history);
             TrySaveState(store, state, error);
         }
 
@@ -318,16 +409,19 @@ public static class CliEntryPoint
         output.WriteLine("Metadata view: M2.2 format-neutral metadata overlay validated");
         output.WriteLine("Pre-layout search: M2.3 logical-text search validated");
         output.WriteLine("Logical bookmarks: M2.4 schema 2 + semantic TUI colors validated");
-        output.WriteLine("Stable progress: M2.5 logical UTF-16 progress independent of layout candidate");
+        output.WriteLine("Stable progress: M2.5 logical UTF-16 progress independent of layout validated");
+        output.WriteLine("Library/history: M3.0 recent-book JSON library with --library/--history candidate");
     }
 
     private static void WriteHelp(TextWriter output)
     {
-        output.WriteLine("EReader — M2.5 Stable Progress");
+        output.WriteLine("EReader — M3.0 Library & Reading History");
         output.WriteLine();
         output.WriteLine("Uso:");
         output.WriteLine("  ereader <libro.epub>          apre il reader fullscreen");
         output.WriteLine("  ereader --resume              riapre l'ultimo libro e la posizione salvata");
+        output.WriteLine("  ereader --library             apre la libreria recente interattiva");
+        output.WriteLine("  ereader --history             stampa la cronologia recente su stdout");
         output.WriteLine("  ereader --plain <libro.epub> stampa il reading order su stdout");
         output.WriteLine("  ereader --help");
         output.WriteLine("  ereader --version");

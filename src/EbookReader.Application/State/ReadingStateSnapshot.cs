@@ -1,12 +1,13 @@
 using System.Collections.ObjectModel;
+using EbookReader.Application.Library;
 using EbookReader.Domain.Books;
 using EbookReader.Domain.Reading;
 
 namespace EbookReader.Application.State;
 
 /// <summary>
-/// Durable application reading state. LastBook drives resume; Bookmarks can retain logical positions for multiple books.
-/// No layout/page coordinates are persisted.
+/// Durable application reading state. LastBook drives global resume; Bookmarks and History retain logical positions
+/// for multiple books. No layout/page/progress coordinates are persisted.
 /// </summary>
 public sealed record ReadingStateSnapshot
 {
@@ -15,7 +16,8 @@ public sealed record ReadingStateSnapshot
         BookId bookId,
         ReadingLocation location,
         DateTimeOffset lastOpenedUtc,
-        IEnumerable<ReadingBookmarkSnapshot>? bookmarks = null)
+        IEnumerable<ReadingBookmarkSnapshot>? bookmarks = null,
+        IEnumerable<ReadingHistoryEntry>? history = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(bookPath);
         ArgumentNullException.ThrowIfNull(bookId);
@@ -36,6 +38,17 @@ public sealed record ReadingStateSnapshot
         }
 
         Bookmarks = bookmarkList.AsReadOnly();
+
+        List<ReadingHistoryEntry> historyList = history?.ToList() ?? [];
+        if (historyList.Count > ReadingHistoryState.MaximumEntries)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(history),
+                historyList.Count,
+                $"Sono ammesse al massimo {ReadingHistoryState.MaximumEntries} voci di cronologia.");
+        }
+
+        History = historyList.AsReadOnly();
     }
 
     public string BookPath { get; }
@@ -47,4 +60,6 @@ public sealed record ReadingStateSnapshot
     public DateTimeOffset LastOpenedUtc { get; }
 
     public ReadOnlyCollection<ReadingBookmarkSnapshot> Bookmarks { get; }
+
+    public ReadOnlyCollection<ReadingHistoryEntry> History { get; }
 }

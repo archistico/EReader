@@ -51,6 +51,8 @@ Formato adottato: numero progressivo, titolo, stato, data, contesto, decisione, 
 
 | [0043](0043-stable-progress-uses-logical-utf16-content.md) | Progresso stabile dal contenuto logico UTF-16 | Accepted |
 
+| [0044](0044-recent-library-is-bounded-logical-json-state.md) | Libreria recente come stato JSON logico bounded | Accepted |
+
 ## Stati
 
 - **Proposed** — in discussione.

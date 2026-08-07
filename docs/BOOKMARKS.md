@@ -37,7 +37,7 @@ M2.4 porta `schemaVersion` a `2`:
 
 ```json
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "lastBook": { "...": "..." },
   "bookmarks": [
     {

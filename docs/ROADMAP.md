@@ -258,7 +258,7 @@ Implementato:
 - Hotfix 1: style span Strong/Emphasis preservati nel layout, palette TUI e cornici/separatori grigi; ADR-0041 e `READER_COLORS.md`.
 - Hotfix 2: applicazione degli schemi via `View.SetScheme(...)`, API effettiva di Terminal.Gui 2.4.17; ADR-0042.
 
-### M2.5 — Stable Progress — CANDIDATE
+### M2.5 — Stable Progress — VALIDATED
 
 - `BookProgressIndex` precomputa il peso logico del `Book.ReadingOrder`;
 - unità = code unit UTF-16 di `ContentText.GetPlainText(block)`;
@@ -271,8 +271,20 @@ Implementato:
 
 ## M3 — Library e personalizzazione
 
-- history/local library;
-- ricerca library;
+### M3.0 — Library & Reading History — CANDIDATE
+
+- cronologia bounded degli ultimi 200 EPUB realmente aperti;
+- stato JSON schema 3 con path, BookId, titolo/autore, ultimo accesso e ReadingLocation;
+- `ereader --library` apre la selezione fullscreen;
+- `ereader --history` stampa la cronologia su stdout;
+- apertura diretta di un libro recente ripristina la sua posizione logica;
+- nessun database, scan automatico di directory o percentuale persistita;
+- schema 1/2 retrocompatibili e promossi dal lastBook;
+- ADR-0044 e `LOCAL_LIBRARY.md`.
+
+### M3.1 — Library Search — PLANNED
+
+- ricerca/filtro fuzzy nella libreria;
 - temi;
 - keymap configurabile;
 - immagini con placeholder/apertura viewer esterno.

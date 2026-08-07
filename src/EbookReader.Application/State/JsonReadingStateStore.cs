@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using EbookReader.Application.Library;
 using EbookReader.Domain.Books;
 using EbookReader.Domain.Content;
 using EbookReader.Domain.Reading;
@@ -7,12 +8,12 @@ using EbookReader.Domain.Reading;
 namespace EbookReader.Application.State;
 
 /// <summary>
-/// Versioned JSON persistence for resume state and logical bookmarks. Writes use a temporary file in the same
+/// Versioned JSON persistence for resume state, logical bookmarks and bounded recent-book history. Writes use a temporary file in the same
 /// directory, flush it to disk, then replace the destination with a same-volume rename.
 /// </summary>
 public sealed class JsonReadingStateStore
 {
-    public const int CurrentSchemaVersion = 2;
+    public const int CurrentSchemaVersion = 3;
     public const int MaximumBookmarks = 10_000;
     public const long MaximumStateBytes = 1_048_576;
 
@@ -115,7 +116,7 @@ public sealed class JsonReadingStateStore
 
     private static ReadingStateSnapshot FromDocument(StateDocumentDto document)
     {
-        if (document.SchemaVersion is not (1 or CurrentSchemaVersion))
+        if (document.SchemaVersion is not (1 or 2 or CurrentSchemaVersion))
         {
             throw new InvalidDataException(
                 $"Versione schema stato non supportata: {document.SchemaVersion}.");
@@ -132,6 +133,12 @@ public sealed class JsonReadingStateStore
                 $"Il documento di stato contiene più di {MaximumBookmarks} bookmark.");
         }
 
+        if (document.History is { Count: > ReadingHistoryState.MaximumEntries })
+        {
+            throw new InvalidDataException(
+                $"Il documento di stato contiene più di {ReadingHistoryState.MaximumEntries} voci di cronologia.");
+        }
+
         try
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(lastBook.Path);
@@ -143,6 +150,7 @@ public sealed class JsonReadingStateStore
 
             ReadingLocation readingLocation = CreateLocation(location);
             List<ReadingBookmarkSnapshot> bookmarks = [];
+            List<ReadingHistoryEntry> history = [];
 
             if (document.SchemaVersion >= 2 && document.Bookmarks is not null)
             {
@@ -166,12 +174,52 @@ public sealed class JsonReadingStateStore
                 }
             }
 
+            if (document.SchemaVersion >= 3 && document.History is not null)
+            {
+                foreach (HistoryDto item in document.History)
+                {
+                    ArgumentException.ThrowIfNullOrWhiteSpace(item.Path);
+                    ArgumentException.ThrowIfNullOrWhiteSpace(item.BookId);
+                    ArgumentException.ThrowIfNullOrWhiteSpace(item.Title);
+                    if (item.LastOpenedUtc == default)
+                    {
+                        throw new InvalidDataException("Una voce di cronologia non contiene lastOpenedUtc valido.");
+                    }
+                    LocationDto historyLocation = item.Location
+                        ?? throw new InvalidDataException("Una voce di cronologia non contiene location.");
+                    ReadingHistoryEntry historyEntry = new(
+                        item.Path,
+                        new BookId(item.BookId),
+                        item.Title,
+                        item.AuthorLine,
+                        CreateLocation(historyLocation),
+                        item.LastOpenedUtc);
+                    if (history.Any(existing => PathsEqual(existing.BookPath, historyEntry.BookPath)))
+                    {
+                        throw new InvalidDataException("Il documento di stato contiene path duplicati nella cronologia.");
+                    }
+                    history.Add(historyEntry);
+                }
+            }
+            else
+            {
+                string legacyTitle = Path.GetFileNameWithoutExtension(lastBook.Path);
+                history.Add(new ReadingHistoryEntry(
+                    lastBook.Path,
+                    new BookId(lastBook.BookId),
+                    string.IsNullOrWhiteSpace(legacyTitle) ? "Libro recente" : legacyTitle,
+                    null,
+                    readingLocation,
+                    lastBook.LastOpenedUtc));
+            }
+
             return new ReadingStateSnapshot(
                 lastBook.Path,
                 new BookId(lastBook.BookId),
                 readingLocation,
                 lastBook.LastOpenedUtc,
-                bookmarks);
+                bookmarks,
+                history);
         }
         catch (ArgumentException exception)
         {
@@ -208,6 +256,17 @@ public sealed class JsonReadingStateStore
                     Location = ToLocation(bookmark.Location),
                 })
                 .ToList(),
+            History = state.History
+                .Select(item => new HistoryDto
+                {
+                    Path = item.BookPath,
+                    BookId = item.BookId.Value,
+                    Title = item.Title,
+                    AuthorLine = item.AuthorLine,
+                    LastOpenedUtc = item.LastOpenedUtc,
+                    Location = ToLocation(item.Location),
+                })
+                .ToList(),
         };
 
     private static LocationDto ToLocation(ReadingLocation location) =>
@@ -217,6 +276,9 @@ public sealed class JsonReadingStateStore
             BlockId = location.BlockId?.Value,
             CharacterOffset = location.CharacterOffset,
         };
+
+    private static bool PathsEqual(string left, string right) =>
+        string.Equals(left, right, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
 
     private static void DeleteTemporaryFileIfPresent(string path)
     {
@@ -246,6 +308,8 @@ public sealed class JsonReadingStateStore
         public LastBookDto? LastBook { get; init; }
 
         public List<BookmarkDto>? Bookmarks { get; init; }
+
+        public List<HistoryDto>? History { get; init; }
     }
 
     private sealed class LastBookDto
@@ -265,6 +329,16 @@ public sealed class JsonReadingStateStore
 
         public string? BookId { get; init; }
 
+        public LocationDto? Location { get; init; }
+    }
+
+    private sealed class HistoryDto
+    {
+        public string? Path { get; init; }
+        public string? BookId { get; init; }
+        public string? Title { get; init; }
+        public string? AuthorLine { get; init; }
+        public DateTimeOffset LastOpenedUtc { get; init; }
         public LocationDto? Location { get; init; }
     }
 

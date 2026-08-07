@@ -1,14 +1,14 @@
-# Validation — M2.5 Stable Progress
+# Validation — M3.0 Library & Reading History
 
 ## Baseline
 
-M2.4 Hotfix 3 è la baseline autoritativa validata. L'utente ha eseguito il gate completo con esito:
+M2.5 è la baseline autoritativa validata. L'utente ha eseguito il gate completo con esito:
 
 ```text
-M2.4 HOTFIX 3 VALIDATION PASSED
+M2.5 VALIDATION PASSED
 ```
 
-M2.5 è costruita esclusivamente sopra quella baseline.
+M3.0 è costruita esclusivamente sopra quella baseline.
 
 ## Gate Windows
 
@@ -40,18 +40,37 @@ Seguono gli smoke CLI `--help`, `--version`, `--foundation-info` e `--plain test
 - nessun dato percentuale entra in `state.json`;
 - nessuna dipendenza da pagina/riga/viewport nel modulo Progress.
 
+
+## Criteri M3.0
+
+- schema JSON corrente = 3, lettura compatibile schema 1/2;
+- massimo 200 voci history ordinate per `LastOpenedUtc` discendente;
+- una sola voce per path, sostituita quando cambia BookId/contenuto;
+- ogni history entry conserva `ReadingLocation`, mai pagina/riga/viewport/progresso;
+- apertura diretta di un libro recente ripristina la sua location se BookId e location sono validi;
+- `--resume` resta semantica ultimo libro globale;
+- `--history` è non interattivo e non modifica lo stato;
+- `--library` usa Terminal.Gui solo nel CLI e non introduce dipendenze UI in Application;
+- file mancanti restano visibili come `[mancante]` ma non vengono aperti;
+- scrittura atomica e limite state.json da 1 MiB invariati.
+
 ## Suite attesa
 
 ```text
-389 Fact
+397 Fact
 4 Theory
 16 InlineData
 ----------------
-405 casi attesi
+413 casi attesi
 ```
 
 ## Esito atteso
 
 ```text
-M2.5 VALIDATION PASSED
+M3.0 VALIDATION PASSED
 ```
+
+
+## M3.0 — Library & Reading History — CANDIDATE
+
+Gate: `./validate.cmd` / `./validate.sh`. Devono passare restore, build warnings-as-errors, suite completa e smoke CLI. Esito atteso: `M3.0 VALIDATION PASSED`. Verificare inoltre `ereader --history` e manualmente `ereader --library` dopo avere aperto almeno due EPUB.

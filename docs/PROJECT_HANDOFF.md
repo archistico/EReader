@@ -2,10 +2,10 @@
 
 ## Stato
 
-- **Ultima baseline autoritativa validata:** M2.4 Hotfix 3 — Bookmark logici + semantic colors.
-- Gate utente: `M2.4 HOTFIX 3 VALIDATION PASSED` con 395/395 casi.
-- **Candidate corrente:** M2.5 — Stable Progress.
-- M2.5 è costruita esclusivamente sopra `EReader_M2.4_Hotfix3_ArchitectureContract_NET10_Candidate.zip` validata.
+- **Ultima baseline autoritativa validata:** M2.5 — Stable Progress.
+- Gate utente: `M2.5 VALIDATION PASSED`.
+- **Candidate corrente:** M3.0 — Library & Reading History.
+- M3.0 è costruita esclusivamente sopra `EReader_M2.5_StableProgress_NET10_Candidate.zip` validata.
 
 ## M2.5
 
@@ -47,8 +47,17 @@ Esito atteso:
 M2.5 VALIDATION PASSED
 ```
 
-Conteggio statico: 389 `[Fact]` + 16 `[InlineData]` = 405 casi attesi.
+Conteggio M2.5 validato: 405 casi.
 
 ## Prossimo milestone
 
-M3.0 / prossima voce roadmap da definire dopo validazione M2.5. La roadmap originaria prevedeva Library/History dopo il completamento del blocco M2.
+M3.0 implementa ora Library/History sopra la baseline M2.5 validata; M3.1 resta pianificata per ricerca/filtro della libreria.
+
+
+## Checkpoint M3.0
+
+- Baseline di partenza: M2.5 VALIDATED.
+- Candidate: M3.0 Library & Reading History.
+- `state.json` schema 3, massimo 200 history entry.
+- `--library` TUI e `--history` plain.
+- M2.5 resta baseline autoritativa finché M3.0 non supera il gate.
