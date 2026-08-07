@@ -1,86 +1,79 @@
-# Validation — M2.3 Hotfix 1 Search pre-layout
+# Validation — M2.4 Hotfix 3 Architecture contract alignment
 
-## Stato della catena
+## Baseline
 
-Ultima baseline autoritativa validata: **M2.2 — Metadata View** (`M2.2 VALIDATION PASSED`).
+M2.3 Hotfix 1 (`M2.3 HOTFIX 1 VALIDATION PASSED`) resta l’ultima baseline validata. La candidate M2.4 è costruita esclusivamente su quella base; M2.4 Hotfix 1 è costruita esclusivamente sulla candidate M2.4; Hotfix 2 è costruita esclusivamente sopra Hotfix 1 dopo i 6 errori CS0118/CS0103/CS0117 legati all’uso di `Scheme = ...` con Terminal.Gui 2.4.17.
 
-Candidate corrente: **M2.3 Hotfix 1 — Search pre-layout analyzer fix**.
 
-Hotfix 1 è costruita esclusivamente sopra la candidate M2.3 che ha superato restore e quasi tutto il build Release, fermandosi solo su CA1861 nel test `BookTextSearchTests.SearchFindsOverlappingMatches`. Nessun codice produttivo è stato modificato.
+## Hotfix 2
 
-## Gate
+Il sorgente ufficiale del tag Terminal.Gui `v2.4.17` espone `View.SetScheme(Scheme?)` e `View.GetScheme()`, non una proprietà `Scheme` assegnabile. Hotfix 2 sostituisce quindi tutte le assegnazioni `Scheme = ReaderColorPalette...` con chiamate `SetScheme(...)` su `ReaderWindow`, `ReaderBodyView`, header, footer e separatori. Palette, style span e semantica bookmark restano invariati.
 
-Da una estrazione pulita:
+## Hotfix 1
+
+La prima candidate M2.4 ha superato restore e compilazione di Domain/Application/Layout/EPUB ma il CLI si è fermato in `ReaderSession.cs` con CS0103 perché `global::` compariva dentro un'espressione interpolata. Hotfix 1 usa l'import normale `EbookReader.Application.State` e `ReadingBookmarkState.MaximumBookmarksPerBook`.
+
+La stessa hotfix introduce il rendering cromatico richiesto, mantenendo colori e `Terminal.Gui.Drawing.Attribute` confinati in `EbookReader.Cli`. `VisualLine` conserva soltanto `VisualTextSpan`/`VisualTextStyle`.
+
+Criteri aggiuntivi:
+
+- heading cyan/azzurri;
+- strong verdi + bold;
+- emphasis gialli + italic;
+- testo ordinario bianco;
+- cornice e separatori grigi;
+- style span corretti dopo wrapping, quote/list prefix e Unicode;
+- nessun riferimento Terminal.Gui o nome colore in `EbookReader.Layout`;
+- nessuna regressione bookmark/state schema 2.
+
+## Gate Windows
 
 ```bat
-validate.cmd
+.\validate.cmd
 ```
 
-oppure:
+## Gate manuale
 
-```sh
-./validate.sh
+```bat
+dotnet restore EbookReader.sln
+dotnet build EbookReader.sln -c Release --no-restore
+dotnet test --solution EbookReader.sln -c Release --no-build
 ```
 
-Il gate esegue:
+Seguono gli smoke CLI `--help`, `--version`, `--foundation-info` e `--plain test-books\m1.0-smoke.epub`.
 
-1. restore;
-2. build Release con analyzer e warnings-as-errors;
-3. suite completa;
-4. smoke `--help`;
-5. smoke `--version`;
-6. smoke `--foundation-info`;
-7. lettura end-to-end stateless di `test-books/m1.0-smoke.epub` con `--plain`.
-
-Output finale atteso:
+## Esito atteso
 
 ```text
-M2.3 HOTFIX 1 VALIDATION PASSED
+M2.4 HOTFIX 3 VALIDATION PASSED
 ```
 
-## Conteggio statico
+La suite contiene staticamente **379 `[Fact]` + 16 `[InlineData]`**, per **395 casi attesi**.
 
-- **358** `[Fact]`;
-- **4** `[Theory]`;
-- **16** casi `[InlineData]`;
-- **374 casi attesi**.
 
-## Criteri M2.3 Hotfix 1
+## M2.4 Hotfix 3
 
-Il PASS deve confermare, oltre a tutte le regressioni precedenti:
+Il gate della Hotfix 2 ha compilato correttamente tutti i progetti e ha eseguito 395 test: 394 passati e un solo fallimento nel test architetturale `M20Hotfix1ReaderWindowUsesSlidingViewportForLineNavigation`. Il contratto verificava ancora la precedente chiamata `_session.RenderCurrentViewport()`, rimossa intenzionalmente quando M2.4 Hotfix 1 ha introdotto `ReaderBodyView` per preservare gli span semantici e applicare i colori.
 
-- il fix CA1861 usa un campo `static readonly` nel test senza sopprimere analyzer;
-- nessun codice produttivo M2.3 cambia;
-- M2.2 Metadata View resta funzionante e validata;
-- `BookTextSearch` vive nell'Application layer e non referenzia Layout, Terminal.Gui o EPUB;
-- la ricerca usa `ContentText.GetPlainText(ContentBlock)` e produce `ReadingLocation` Domain;
-- confronto case-insensitive deterministico;
-- match che attraversano container inline strong/emphasis/link restano trovabili;
-- offset e lunghezze sono nello spazio UTF-16 Domain;
-- match sovrapposti sono preservati;
-- massimo 256 code unit UTF-16 per query;
-- massimo 10.000 match con `IsTruncated`;
-- `/` apre il prompt inline nella status bar;
-- `Enter` esegue, `Backspace` elimina l'ultimo grapheme, `Esc` annulla;
-- `n/N` navigano avanti/indietro con wrap-around;
-- il primo risultato è il primo non precedente alla location corrente, con wrap quando necessario;
-- nessun risultato cambia al reflow/resize;
-- query e indice del risultato non entrano in `state.json`;
+Hotfix 3 non modifica codice produttivo. Il regression contract ora verifica la pipeline equivalente e corrente `_body.ShowReaderLines(_session.GetCurrentViewportLines())`, mantenendo anche le verifiche sui binding `j/k` e frecce. Analyzer e warnings-as-errors restano invariati.
+
+Gate atteso:
+
+```text
+M2.4 HOTFIX 3 VALIDATION PASSED
+```
+
+## Criteri M2.4
+
+- tutti i test M0→M2.3 restano verdi;
+- `b` toggle bookmark logico e `B` apre l'elenco;
+- bookmark iniziali ordinati secondo reading order;
+- salto/eliminazione non usano coordinate di layout;
+- reflow non modifica le ReadingLocation dei bookmark;
+- JSON schema 2 serializza la libreria bookmark multi-book;
+- schema 1 resta leggibile;
+- bookmark di altri libri vengono preservati;
+- bookmark stale dello stesso path con BookId vecchio non vengono riutilizzati;
+- nessun `PageNumber`, `LineIndex`, `LayoutPosition` o viewport nello stato bookmark;
+- `ReaderWindow` resta priva di persistenza/JSON;
 - `--plain` resta stateless.
-
-## Evidenza precedente
-
-- M0.1 Hotfix 2 — VALIDATED;
-- M0.2 — VALIDATED;
-- M0.3 Hotfix 1 — VALIDATED;
-- M0.4 — VALIDATED;
-- M0.5→M1.0 — VALIDATED;
-- M1.1 — VALIDATED, 286/286;
-- M1.2 Hotfix 1 — VALIDATED;
-- M1.3 Hotfix 1 — VALIDATED;
-- M1.4 Hotfix 2 — VALIDATED;
-- M2.0 — VALIDATED;
-- M2.0 Hotfix 1 — VALIDATED;
-- M2.0 Hotfix 2 — VALIDATED;
-- M2.1 — VALIDATED;
-- M2.2 — `M2.2 VALIDATION PASSED`.

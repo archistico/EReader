@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using EbookReader.Domain.Books;
 using EbookReader.Domain.Content;
 using EbookReader.Domain.Reading;
@@ -17,7 +18,8 @@ public sealed class VisualLine
         BlockId? blockId,
         int? sourceStartOffset = null,
         int? sourceEndOffset = null,
-        int? headingLevel = null)
+        int? headingLevel = null,
+        VisualTextSpan[]? styleSpans = null)
     {
         ArgumentNullException.ThrowIfNull(text);
         ArgumentOutOfRangeException.ThrowIfNegative(displayWidth);
@@ -42,6 +44,19 @@ public sealed class VisualLine
             }
         }
 
+        VisualTextSpan[] spans = styleSpans ?? [];
+        int previousEnd = 0;
+        foreach (VisualTextSpan span in spans)
+        {
+            ArgumentNullException.ThrowIfNull(span);
+            if (span.StartIndex < previousEnd || span.EndIndex > text.Length)
+            {
+                throw new ArgumentException("Gli style span devono essere ordinati, non sovrapposti e contenuti nella riga.", nameof(styleSpans));
+            }
+
+            previousEnd = span.EndIndex;
+        }
+
         Text = text;
         DisplayWidth = displayWidth;
         Kind = kind;
@@ -50,6 +65,7 @@ public sealed class VisualLine
         SourceStartOffset = sourceStartOffset;
         SourceEndOffset = sourceEndOffset;
         HeadingLevel = headingLevel;
+        StyleSpans = new ReadOnlyCollection<VisualTextSpan>(spans.ToArray());
     }
 
     public string Text { get; }
@@ -75,6 +91,8 @@ public sealed class VisualLine
     public int? SourceEndOffset { get; }
 
     public int? HeadingLevel { get; }
+
+    public ReadOnlyCollection<VisualTextSpan> StyleSpans { get; }
 
     public ReadingLocation? StartLocation =>
         SectionId is SectionId sectionId

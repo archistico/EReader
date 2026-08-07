@@ -120,10 +120,12 @@ public sealed class FirstReadableEpubTests
         Assert.Equal(string.Empty, error.ToString());
         Assert.Contains("ereader <libro.epub>", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("ereader --plain <libro.epub>", output.ToString(), StringComparison.Ordinal);
-        Assert.Contains("M2.3 Search pre-layout", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("M2.4 Hotfix 2 Bookmark + colori semantici", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("ereader --resume", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("/              cerca nel testo logico", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("n / N          risultato successivo/precedente", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("b              aggiunge/rimuove bookmark corrente", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("B              apre/chiude elenco bookmark", output.ToString(), StringComparison.Ordinal);
     }
 
     private static string CreateReadableEpub(bool encrypted = false)

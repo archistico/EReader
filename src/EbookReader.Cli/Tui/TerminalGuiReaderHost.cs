@@ -7,16 +7,19 @@ namespace EbookReader.Cli.Tui;
 
 internal static class TerminalGuiReaderHost
 {
-    public static ReadingLocation Run(Book book, ReadingLocation? initialLocation = null)
+    public static ReaderRunResult Run(
+        Book book,
+        ReadingLocation? initialLocation = null,
+        IEnumerable<ReadingLocation>? initialBookmarks = null)
     {
         ArgumentNullException.ThrowIfNull(book);
 
         LayoutViewport viewport = TerminalViewportFactory.CreateForReaderWindow();
-        ReaderSession session = new(book, viewport, initialLocation);
+        ReaderSession session = new(book, viewport, initialLocation, initialBookmarks);
 
         using IApplication app = global::Terminal.Gui.App.Application.Create().Init();
         using ReaderWindow window = new(session);
         app.Run(window);
-        return session.Location;
+        return new ReaderRunResult(session.Location, session.BookmarkLocations);
     }
 }

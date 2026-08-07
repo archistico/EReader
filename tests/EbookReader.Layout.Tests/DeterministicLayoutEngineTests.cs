@@ -83,6 +83,117 @@ public sealed class DeterministicLayoutEngineTests
         Assert.All(lines, line => Assert.Equal(VisualLineKind.Preformatted, line.Kind));
     }
 
+
+    [Fact]
+    public void InlineStrongAndEmphasisSurviveLayoutAsSemanticSpans()
+    {
+        ReadingSection section = Section(
+            new ParagraphBlock(
+                Id("styled"),
+                [
+                    new TextRun("plain "),
+                    new StrongSpan([new TextRun("bold")]),
+                    new TextRun(" "),
+                    new EmphasisSpan([new TextRun("italic")]),
+                ]));
+
+        VisualLine line = Assert.Single(DeterministicLayoutEngine.Layout(section, new LayoutViewport(80, 10)).Pages[0].Lines);
+
+        Assert.Equal("plain bold italic", line.Text);
+        Assert.Collection(
+            line.StyleSpans,
+            span =>
+            {
+                Assert.Equal(6, span.StartIndex);
+                Assert.Equal(4, span.Length);
+                Assert.Equal(VisualTextStyle.Strong, span.Style);
+            },
+            span =>
+            {
+                Assert.Equal(11, span.StartIndex);
+                Assert.Equal(6, span.Length);
+                Assert.Equal(VisualTextStyle.Emphasis, span.Style);
+            });
+    }
+
+    [Fact]
+    public void NestedStrongAndEmphasisPreserveCombinedSemanticStyle()
+    {
+        ReadingSection section = Section(
+            new ParagraphBlock(
+                Id("nested"),
+                [new StrongSpan([new TextRun("bold "), new EmphasisSpan([new TextRun("both")])])]));
+
+        VisualLine line = Assert.Single(DeterministicLayoutEngine.Layout(section, new LayoutViewport(80, 10)).Pages[0].Lines);
+
+        Assert.Equal("bold both", line.Text);
+        Assert.Collection(
+            line.StyleSpans,
+            span =>
+            {
+                Assert.Equal(0, span.StartIndex);
+                Assert.Equal(4, span.Length);
+                Assert.Equal(VisualTextStyle.Strong, span.Style);
+            },
+            span =>
+            {
+                Assert.Equal(5, span.StartIndex);
+                Assert.Equal(4, span.Length);
+                Assert.Equal(VisualTextStyle.Strong | VisualTextStyle.Emphasis, span.Style);
+            });
+    }
+
+    [Fact]
+    public void StyledTextSurvivesWrappingWithLineLocalOffsets()
+    {
+        ReadingSection section = Section(
+            new ParagraphBlock(
+                Id("wrapped-style"),
+                [new TextRun("alpha "), new StrongSpan([new TextRun("beta gamma")])]));
+
+        VisualLine[] lines = DeterministicLayoutEngine.Layout(section, new LayoutViewport(6, 10)).Pages[0].Lines.ToArray();
+
+        Assert.Equal(["alpha", "beta", "gamma"], lines.Select(line => line.Text));
+        Assert.Empty(lines[0].StyleSpans);
+        Assert.All(lines.Skip(1), line =>
+        {
+            VisualTextSpan span = Assert.Single(line.StyleSpans);
+            Assert.Equal(0, span.StartIndex);
+            Assert.Equal(line.Text.Length, span.Length);
+            Assert.Equal(VisualTextStyle.Strong, span.Style);
+        });
+    }
+
+    [Fact]
+    public void QuotePrefixRemainsPlainWhileStrongContentKeepsStyle()
+    {
+        ReadingSection section = Section(
+            new QuoteBlock(Id("quote-style"), [new StrongSpan([new TextRun("bold")])], depth: 1));
+
+        VisualLine line = Assert.Single(DeterministicLayoutEngine.Layout(section, new LayoutViewport(20, 10)).Pages[0].Lines);
+        VisualTextSpan span = Assert.Single(line.StyleSpans);
+
+        Assert.Equal("> bold", line.Text);
+        Assert.Equal(2, span.StartIndex);
+        Assert.Equal(4, span.Length);
+        Assert.Equal(VisualTextStyle.Strong, span.Style);
+    }
+
+    [Fact]
+    public void StyledEmojiUsesUtf16SpanLengthWithoutSplittingGrapheme()
+    {
+        ReadingSection section = Section(
+            new ParagraphBlock(Id("emoji-style"), [new StrongSpan([new TextRun("😀")])]));
+
+        VisualLine line = Assert.Single(DeterministicLayoutEngine.Layout(section, new LayoutViewport(10, 10)).Pages[0].Lines);
+        VisualTextSpan span = Assert.Single(line.StyleSpans);
+
+        Assert.Equal("😀", line.Text);
+        Assert.Equal(0, span.StartIndex);
+        Assert.Equal(2, span.Length);
+        Assert.Equal(VisualTextStyle.Strong, span.Style);
+    }
+
     [Fact]
     public void PaginationHonorsHeightAndNeverStartsWithSpacing()
     {

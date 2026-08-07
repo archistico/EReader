@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using EbookReader.Application.Reading;
 using EbookReader.Application.Search;
+using EbookReader.Application.State;
 using EbookReader.Domain.Books;
 using EbookReader.Domain.Content;
 using EbookReader.Domain.Navigation;
@@ -18,10 +19,17 @@ public sealed class ReaderSession
     private readonly Book _book;
     private readonly ReadOnlyCollection<ReaderTocEntry> _tocEntries;
     private readonly ReadOnlyCollection<ReaderMetadataEntry> _metadataEntries;
+    private readonly List<ReadingLocation> _bookmarks = [];
+    private readonly ReadOnlyCollection<ReadingLocation> _bookmarkLocations;
+    private ReadOnlyCollection<ReaderBookmarkEntry> _bookmarkEntries = new List<ReaderBookmarkEntry>().AsReadOnly();
     private BookSearchResultSet? _searchResults;
     private int _searchMatchIndex = -1;
 
-    public ReaderSession(Book book, LayoutViewport viewport, ReadingLocation? initialLocation = null)
+    public ReaderSession(
+        Book book,
+        LayoutViewport viewport,
+        ReadingLocation? initialLocation = null,
+        IEnumerable<ReadingLocation>? initialBookmarks = null)
     {
         ArgumentNullException.ThrowIfNull(book);
         ArgumentNullException.ThrowIfNull(viewport);
@@ -37,6 +45,8 @@ public sealed class ReaderSession
         _book = book;
         _tocEntries = FlattenTableOfContents(book.TableOfContents);
         _metadataEntries = BuildMetadataEntries(book);
+        _bookmarkLocations = _bookmarks.AsReadOnly();
+        LoadInitialBookmarks(initialBookmarks);
         Layout = DeterministicLayoutEngine.Layout(book, viewport);
         Location = initialLocation ?? InitialLocation(book);
     }
@@ -63,6 +73,14 @@ public sealed class ReaderSession
 
     public ReadOnlyCollection<ReaderMetadataEntry> MetadataEntries => _metadataEntries;
 
+    public ReadOnlyCollection<ReaderBookmarkEntry> BookmarkEntries => _bookmarkEntries;
+
+    public ReadOnlyCollection<ReadingLocation> BookmarkLocations => _bookmarkLocations;
+
+    public int BookmarkCount => _bookmarks.Count;
+
+    public bool IsCurrentLocationBookmarked => _bookmarks.Contains(Location);
+
     public string? SearchQuery => _searchResults?.Query;
 
     public int SearchMatchCount => _searchResults?.Matches.Count ?? 0;
@@ -70,6 +88,35 @@ public sealed class ReaderSession
     public int CurrentSearchMatchNumber => _searchMatchIndex < 0 ? 0 : _searchMatchIndex + 1;
 
     public bool SearchResultsTruncated => _searchResults?.IsTruncated ?? false;
+
+
+    /// <summary>
+    /// Returns the bookmark nearest to, but not after, the current logical reading location.
+    /// </summary>
+    public int SuggestedBookmarkIndex
+    {
+        get
+        {
+            if (_bookmarks.Count == 0)
+            {
+                return -1;
+            }
+
+            int best = 0;
+            for (int index = 0; index < _bookmarks.Count; index++)
+            {
+                if (CompareLocations(_bookmarks[index], Location) <= 0)
+                {
+                    best = index;
+                    continue;
+                }
+
+                break;
+            }
+
+            return best;
+        }
+    }
 
     /// <summary>
     /// Returns the navigable TOC entry nearest to, but not after, the current logical reading location.
@@ -144,15 +191,15 @@ public sealed class ReaderSession
     /// ReadingLocation as the only durable reader position. Synthetic spacing lines are rendered but are
     /// never themselves navigation destinations.
     /// </summary>
-    public string RenderCurrentViewport()
+    public VisualLine[] GetCurrentViewportLines()
     {
         if (!HasReadableContent || Position is not LayoutPosition position)
         {
-            return string.Empty;
+            return [];
         }
 
         int remaining = Layout.Viewport.Height;
-        List<string> lines = [];
+        List<VisualLine> lines = [];
         int pageIndex = position.PageNumber - 1;
         int lineIndex = position.LineIndex;
 
@@ -161,7 +208,7 @@ public sealed class ReaderSession
             LayoutPage page = Layout.Pages[pageIndex];
             for (; lineIndex < page.Lines.Count && remaining > 0; lineIndex++)
             {
-                lines.Add(page.Lines[lineIndex].Text);
+                lines.Add(page.Lines[lineIndex]);
                 remaining--;
             }
 
@@ -169,8 +216,11 @@ public sealed class ReaderSession
             lineIndex = 0;
         }
 
-        return string.Join(Environment.NewLine, lines);
+        return lines.ToArray();
     }
+
+    public string RenderCurrentViewport() =>
+        string.Join(Environment.NewLine, GetCurrentViewportLines().Select(line => line.Text));
 
     /// <summary>
     /// Rebuilds the ephemeral layout for a new viewport while preserving the exact logical ReadingLocation.
@@ -282,6 +332,153 @@ public sealed class ReaderSession
                 return index;
             }
         }
+    }
+
+
+
+    public bool ToggleBookmark()
+    {
+        int existing = _bookmarks.FindIndex(location => location == Location);
+        if (existing >= 0)
+        {
+            _bookmarks.RemoveAt(existing);
+            RebuildBookmarkEntries();
+            return false;
+        }
+
+        if (_bookmarks.Count >= ReadingBookmarkState.MaximumBookmarksPerBook)
+        {
+            return false;
+        }
+
+        _bookmarks.Add(Location);
+        SortBookmarks();
+        RebuildBookmarkEntries();
+        return true;
+    }
+
+    public bool NavigateToBookmark(int index)
+    {
+        if ((uint)index >= (uint)_bookmarks.Count)
+        {
+            throw new ArgumentOutOfRangeException(nameof(index));
+        }
+
+        return Move(_bookmarks[index]);
+    }
+
+    public bool RemoveBookmark(int index)
+    {
+        if ((uint)index >= (uint)_bookmarks.Count)
+        {
+            throw new ArgumentOutOfRangeException(nameof(index));
+        }
+
+        _bookmarks.RemoveAt(index);
+        RebuildBookmarkEntries();
+        return true;
+    }
+
+    public int FindAdjacentBookmark(int currentIndex, int direction)
+    {
+        if (direction is not (-1 or 1))
+        {
+            throw new ArgumentOutOfRangeException(nameof(direction));
+        }
+
+        if (_bookmarks.Count == 0)
+        {
+            return -1;
+        }
+
+        if (currentIndex < -1 || currentIndex >= _bookmarks.Count)
+        {
+            throw new ArgumentOutOfRangeException(nameof(currentIndex));
+        }
+
+        return Math.Clamp(currentIndex + direction, 0, _bookmarks.Count - 1);
+    }
+
+    private void LoadInitialBookmarks(IEnumerable<ReadingLocation>? initialBookmarks)
+    {
+        if (initialBookmarks is null)
+        {
+            return;
+        }
+
+        foreach (ReadingLocation location in initialBookmarks)
+        {
+            ArgumentNullException.ThrowIfNull(location);
+            if (!_book.ContainsLocation(location))
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(initialBookmarks),
+                    location,
+                    "Un bookmark iniziale non appartiene al libro.");
+            }
+
+            if (!_bookmarks.Contains(location))
+            {
+                _bookmarks.Add(location);
+            }
+        }
+
+        if (_bookmarks.Count > ReadingBookmarkState.MaximumBookmarksPerBook)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(initialBookmarks),
+                _bookmarks.Count,
+                $"Sono ammessi al massimo {ReadingBookmarkState.MaximumBookmarksPerBook} bookmark per libro.");
+        }
+
+        SortBookmarks();
+        RebuildBookmarkEntries();
+    }
+
+    private void SortBookmarks() => _bookmarks.Sort(CompareLocations);
+
+    private void RebuildBookmarkEntries()
+    {
+        List<ReaderBookmarkEntry> entries = [];
+        foreach (ReadingLocation location in _bookmarks)
+        {
+            entries.Add(new ReaderBookmarkEntry(BuildBookmarkLabel(location), location));
+        }
+
+        _bookmarkEntries = entries.AsReadOnly();
+    }
+
+    private string BuildBookmarkLabel(ReadingLocation location)
+    {
+        ReadingSection section = _book.FindSection(location.SectionId)
+            ?? throw new InvalidOperationException($"Sezione bookmark non presente nel libro: {location.SectionId}.");
+        string sectionLabel = string.IsNullOrWhiteSpace(section.Title)
+            ? $"Sezione {FindSectionIndex(section.Id) + 1}"
+            : section.Title;
+
+        if (location.BlockId is null)
+        {
+            return sectionLabel;
+        }
+
+        ContentBlock? block = section.FindBlock(location.BlockId);
+        if (block is null)
+        {
+            return sectionLabel;
+        }
+
+        string plainText = ContentText.GetPlainText(block);
+        string normalized = string.Join(' ', plainText.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        if (normalized.Length == 0)
+        {
+            return sectionLabel;
+        }
+
+        const int maximumSnippetLength = 52;
+        string snippet = normalized.Length <= maximumSnippetLength
+            ? normalized
+            : normalized[..(maximumSnippetLength - 1)] + "…";
+        return $"{sectionLabel} — {snippet}";
     }
 
 

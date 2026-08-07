@@ -1,11 +1,12 @@
+using System.Collections.ObjectModel;
 using EbookReader.Domain.Books;
 using EbookReader.Domain.Reading;
 
 namespace EbookReader.Application.State;
 
 /// <summary>
-/// Durable reading state for the single most recently opened book.
-/// It deliberately stores only logical Domain coordinates, never layout/page coordinates.
+/// Durable application reading state. LastBook drives resume; Bookmarks can retain logical positions for multiple books.
+/// No layout/page coordinates are persisted.
 /// </summary>
 public sealed record ReadingStateSnapshot
 {
@@ -13,7 +14,8 @@ public sealed record ReadingStateSnapshot
         string bookPath,
         BookId bookId,
         ReadingLocation location,
-        DateTimeOffset lastOpenedUtc)
+        DateTimeOffset lastOpenedUtc,
+        IEnumerable<ReadingBookmarkSnapshot>? bookmarks = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(bookPath);
         ArgumentNullException.ThrowIfNull(bookId);
@@ -23,6 +25,17 @@ public sealed record ReadingStateSnapshot
         BookId = bookId;
         Location = location;
         LastOpenedUtc = lastOpenedUtc.ToUniversalTime();
+
+        List<ReadingBookmarkSnapshot> bookmarkList = bookmarks?.ToList() ?? [];
+        if (bookmarkList.Count > JsonReadingStateStore.MaximumBookmarks)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(bookmarks),
+                bookmarkList.Count,
+                $"Sono ammessi al massimo {JsonReadingStateStore.MaximumBookmarks} bookmark complessivi.");
+        }
+
+        Bookmarks = bookmarkList.AsReadOnly();
     }
 
     public string BookPath { get; }
@@ -32,4 +45,6 @@ public sealed record ReadingStateSnapshot
     public ReadingLocation Location { get; }
 
     public DateTimeOffset LastOpenedUtc { get; }
+
+    public ReadOnlyCollection<ReadingBookmarkSnapshot> Bookmarks { get; }
 }

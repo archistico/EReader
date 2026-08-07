@@ -1,7 +1,7 @@
 # Architettura di EReader
 
-Stato: **M2.3 Search pre-layout — CANDIDATE**  
-Baseline autoritativa: **M2.2 Metadata View VALIDATED**  
+Stato: **M2.4 Hotfix 2 Terminal.Gui Scheme API compatibility — CANDIDATE**  
+Baseline autoritativa: **M2.3 Hotfix 1 Search pre-layout VALIDATED**  
 Target: **.NET 10 / C# 14**
 
 ## 1. Obiettivo
@@ -434,3 +434,18 @@ BookSearchMatch(ReadingLocation, MatchLength)
 `ReaderSession` conserva query/result set/indice come stato effimero. `ReaderWindow` offre soltanto il prompt `/` nella status bar e traduce `n/N` in navigazione fra match. Nessuna query viene persistita; il resize non ricalcola la ricerca e conserva la stessa `ReadingLocation`.
 
 Dettagli: [`SEARCH.md`](SEARCH.md) e ADR-0039.
+
+
+## M2.4 — Bookmark logici
+
+```text
+Book + ReadingLocation
+        ↓
+ReaderSession bookmark set
+        ↓
+ReadingBookmarkState
+        ↓
+JsonReadingStateStore schema 2
+```
+
+I bookmark sono Application state, non Domain state. `ReaderWindow` opera soltanto sulla proiezione di `ReaderSession`; JSON e filesystem restano fuori dalla View.

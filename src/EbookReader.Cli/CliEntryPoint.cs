@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using System.Reflection;
 using EbookReader.Application.State;
 using EbookReader.Cli.Reading;
@@ -14,7 +15,7 @@ namespace EbookReader.Cli;
 /// </summary>
 public static class CliEntryPoint
 {
-    public const string Milestone = "M2.3";
+    public const string Milestone = "M2.4 Hotfix 2";
     public const string Status = "CANDIDATE";
 
     private const int Success = 0;
@@ -190,11 +191,22 @@ public static class CliEntryPoint
         }
 
         ReadingLocation? initialLocation = ReadingStateRestore.TryGetLocation(book, filePath, savedState);
-        ReadingLocation finalLocation = TerminalGuiReaderHost.Run(book, initialLocation);
+        ReadOnlyCollection<ReadingLocation> initialBookmarks = ReadingBookmarkState.RestoreForBook(book, filePath, savedState);
+        ReaderRunResult runResult = TerminalGuiReaderHost.Run(book, initialLocation, initialBookmarks);
 
         if (store is not null)
         {
-            ReadingStateSnapshot state = new(filePath, book.Id, finalLocation, DateTimeOffset.UtcNow);
+            ReadOnlyCollection<ReadingBookmarkSnapshot> bookmarks = ReadingBookmarkState.ReplaceForBook(
+                book,
+                filePath,
+                savedState?.Bookmarks,
+                runResult.Bookmarks);
+            ReadingStateSnapshot state = new(
+                filePath,
+                book.Id,
+                runResult.Location,
+                DateTimeOffset.UtcNow,
+                bookmarks);
             TrySaveState(store, state, error);
         }
 
@@ -304,12 +316,13 @@ public static class CliEntryPoint
         output.WriteLine("Line scrolling/UI separators: M2.0 Hotfix 1+2 validated");
         output.WriteLine("Interactive TOC: M2.1 hierarchical Domain TOC validated");
         output.WriteLine("Metadata view: M2.2 format-neutral metadata overlay validated");
-        output.WriteLine("Pre-layout search: M2.3 logical-text search candidate");
+        output.WriteLine("Pre-layout search: M2.3 logical-text search validated");
+        output.WriteLine("Logical bookmarks: M2.4 schema 2 + semantic TUI colors Hotfix 1 candidate");
     }
 
     private static void WriteHelp(TextWriter output)
     {
-        output.WriteLine("EReader — M2.3 Search pre-layout");
+        output.WriteLine("EReader — M2.4 Hotfix 2 Bookmark + colori semantici");
         output.WriteLine();
         output.WriteLine("Uso:");
         output.WriteLine("  ereader <libro.epub>          apre il reader fullscreen");
@@ -328,9 +341,11 @@ public static class CliEntryPoint
         output.WriteLine("  t / Tab        apre/chiude indice");
         output.WriteLine("  /              cerca nel testo logico");
         output.WriteLine("  n / N          risultato successivo/precedente");
+        output.WriteLine("  b              aggiunge/rimuove bookmark corrente");
+        output.WriteLine("  B              apre/chiude elenco bookmark");
         output.WriteLine("  m              apre/chiude metadati");
         output.WriteLine("  F1 / ?         aiuto");
         output.WriteLine("  q              esci e salva la ReadingLocation");
-        output.WriteLine("  Esc            annulla ricerca o chiude metadati/indice/aiuto, altrimenti esce");
+        output.WriteLine("  Esc            annulla ricerca o chiude bookmark/metadati/indice/aiuto, altrimenti esce");
     }
 }

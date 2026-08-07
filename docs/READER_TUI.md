@@ -158,3 +158,18 @@ N                 risultato precedente
 ```
 
 Il prompt usa la status bar e non sostituisce il contenuto del libro. Dopo la ricerca, l'header mostra query e indice del match. I risultati sono `ReadingLocation` prodotte dall'Application layer prima del layout; la View non cerca nelle righe visuali.
+
+
+## M2.4 — Bookmark
+
+```text
+b                 aggiunge/rimuove bookmark alla location corrente
+B                 apre/chiude elenco bookmark
+↑/↓ o j/k          selezione elenco
+PgUp/PgDn          scorrimento elenco
+Enter              salta al bookmark
+d                  elimina bookmark selezionato
+Esc                chiude elenco
+```
+
+L'elenco è una proiezione TUI di `ReadingLocation`; JSON e filesystem non sono responsabilità di `ReaderWindow`.

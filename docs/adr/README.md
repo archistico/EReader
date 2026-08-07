@@ -45,6 +45,9 @@ Formato adottato: numero progressivo, titolo, stato, data, contesto, decisione, 
 | [0037](0037-interactive-toc-is-a-projection-over-domain-navigation.md) | TOC interattivo come proiezione della navigazione Domain | Accepted |
 | [0038](0038-metadata-view-projects-only-format-neutral-domain-metadata.md) | Vista metadata solo da BookMetadata format-neutral | Accepted |
 | [0039](0039-search-operates-on-logical-domain-text-before-layout.md) | Ricerca sul testo logico Domain prima del layout | Accepted |
+| [0040](0040-logical-bookmarks-are-multi-book-persistent-state.md) | Bookmark logici persistenti multi-book | Accepted |
+| [0041](0041-semantic-inline-styles-remain-format-neutral-until-tui.md) | Stili inline semantici fino al boundary TUI | Accepted |
+| [0042](0042-terminal-gui-2417-custom-schemes-use-setscheme.md) | Terminal.Gui 2.4.17: schemi custom via SetScheme | Accepted |
 
 ## Stati
 

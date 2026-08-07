@@ -2,11 +2,11 @@
 
 Lettore EPUB da terminale scritto in C# per .NET 10.
 
-**Ultima baseline autoritativa validata:** M2.2 — Metadata View.  
-**Candidate corrente:** M2.3 Hotfix 1 — Search pre-layout.  
-**Stato M2.3:** **CANDIDATE**.
+**Ultima baseline autoritativa validata:** M2.3 Hotfix 1 — Search pre-layout.  
+**Candidate corrente:** M2.4 Hotfix 3 — Terminal.Gui 2.4.17 Scheme API compatibility.  
+**Stato M2.4 Hotfix 3:** **CANDIDATE**.
 
-M2.2 è stata validata dall’utente con `M2.2 VALIDATION PASSED`. M2.3 è costruita esclusivamente sopra quella baseline e aggiunge ricerca full-book sul testo logico Domain, indipendente da wrapping e viewport.
+M2.3 Hotfix 1 è l’ultima baseline validata. La prima candidate M2.4 ha introdotto bookmark logici ma il build locale si è fermato su CS0103 per un alias `global::` dentro un’interpolazione. M2.4 Hotfix 1 ha corretto il build bookmark e introdotto i colori semantici, ma il build locale ha evidenziato che Terminal.Gui 2.4.17 espone `SetScheme(Scheme?)` invece di una proprietà assegnabile `Scheme`. M2.4 Hotfix 3 è costruita esclusivamente sopra Hotfix 1 e corregge solo questa incompatibilità API.
 
 ## Scope autoritativo
 
@@ -64,9 +64,14 @@ M2.1 aggiunge `t`/`Tab` per aprire un indice gerarchico interattivo; `↑/↓` o
 
 M2.2 aggiunge `m` per aprire la vista metadata format-neutral; `↑/↓` o `j/k` scorrono una riga e `PgUp/PgDn` una pagina. M2.2 è validata.
 
-M2.3 aggiunge `/` per il prompt di ricerca sul testo logico; `n` e `N` navigano i risultati avanti/indietro con wrap-around. I risultati sono `ReadingLocation` e non dipendono dal layout.
+M2.3 aggiunge `/` per il prompt di ricerca sul testo logico; `n` e `N` navigano i risultati avanti/indietro con wrap-around. I risultati sono `ReadingLocation` e non dipendono dal layout. M2.3 Hotfix 1 è validata.
 
-Dettagli ricerca: [`docs/SEARCH.md`](docs/SEARCH.md).
+M2.4 aggiunge `b` per aggiungere/rimuovere un bookmark alla posizione corrente e `B` per aprire l'elenco persistente. I bookmark sono multi-book e non contengono pagina/riga.
+
+M2.4 Hotfix 1 aggiunge la palette di lettura: heading azzurri/cyan, strong verdi, emphasis gialli, testo bianco e cornici/separatori grigi. I colori esistono solo nel frontend Terminal.Gui; il layout conserva esclusivamente style span semantici. Hotfix 2 applica gli schemi tramite `View.SetScheme(...)`, API effettiva di Terminal.Gui 2.4.17.
+
+Dettagli ricerca: [`docs/SEARCH.md`](docs/SEARCH.md).  
+Dettagli bookmark: [`docs/BOOKMARKS.md`](docs/BOOKMARKS.md).
 
 ## Pipeline corrente
 
@@ -104,7 +109,8 @@ Interactive TOC → ReadingLocation                    M2.1 VALIDATED
   ↓
 Metadata View → BookMetadata                            M2.2 VALIDATED
   ↓
-BookTextSearch → ReadingLocation                        M2.3 CANDIDATE
+BookTextSearch → ReadingLocation                        M2.3 VALIDATED
+ReadingBookmarkState → JSON schema 2                    M2.4 CANDIDATE
 ```
 
 La facade di ingestione resta:
@@ -192,12 +198,12 @@ Il gate esegue restore, build Release, suite completa, smoke CLI di help/version
 test-books/m1.0-smoke.epub
 ```
 
-La suite contiene staticamente **358 `[Fact]` + 16 casi `[InlineData]` su 4 `[Theory]`**, quindi sono attesi **374 casi**.
+La suite contiene staticamente **379 `[Fact]` + 16 casi `[InlineData]` su 4 `[Theory]`**, quindi sono attesi **395 casi**.
 
 Output finale atteso:
 
 ```text
-M2.3 VALIDATION PASSED
+M2.4 HOTFIX 1 VALIDATION PASSED
 ```
 
 ## Documentazione
@@ -220,6 +226,8 @@ docs/
   INTERACTIVE_TOC.md
   METADATA_VIEW.md
   SEARCH.md
+  BOOKMARKS.md
+  READER_COLORS.md
   ROADMAP.md
   VALIDATION.md
   PROJECT_HANDOFF.md

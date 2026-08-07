@@ -76,7 +76,7 @@ public static class DeterministicLayoutEngine
             case HeadingBlock heading:
                 AddFlowText(
                     target,
-                    ContentText.GetPlainText(heading),
+                    StyledContentText.FromBlock(heading),
                     string.Empty,
                     string.Empty,
                     viewportWidth,
@@ -89,7 +89,7 @@ public static class DeterministicLayoutEngine
             case ParagraphBlock paragraph:
                 AddFlowText(
                     target,
-                    ContentText.GetPlainText(paragraph),
+                    StyledContentText.FromBlock(paragraph),
                     string.Empty,
                     string.Empty,
                     viewportWidth,
@@ -103,7 +103,7 @@ public static class DeterministicLayoutEngine
                 string quotePrefix = string.Concat(Enumerable.Repeat("> ", visibleQuoteDepth));
                 AddFlowText(
                     target,
-                    ContentText.GetPlainText(quote),
+                    StyledContentText.FromBlock(quote),
                     quotePrefix,
                     quotePrefix,
                     viewportWidth,
@@ -160,7 +160,7 @@ public static class DeterministicLayoutEngine
 
         AddFlowText(
             target,
-            ContentText.GetPlainText(item),
+            StyledContentText.FromBlock(item),
             indentation + marker,
             indentation + new string(' ', marker.Length),
             viewportWidth,
@@ -193,7 +193,7 @@ public static class DeterministicLayoutEngine
 
     private static void AddFlowText(
         List<VisualLine> target,
-        string text,
+        StyledLogicalText styledText,
         string firstPrefix,
         string continuationPrefix,
         int viewportWidth,
@@ -202,10 +202,16 @@ public static class DeterministicLayoutEngine
         BlockId blockId,
         int? headingLevel = null)
     {
-        ArgumentNullException.ThrowIfNull(text);
+        ArgumentNullException.ThrowIfNull(styledText);
+        string text = styledText.Text;
         if (text.Length == 0)
         {
             return;
+        }
+
+        if (styledText.Styles.Length != text.Length)
+        {
+            throw new InvalidOperationException("La mappa degli stili deve avere la stessa lunghezza UTF-16 del testo logico.");
         }
 
         int maximumPrefixWidth = Math.Max(0, viewportWidth - 2);
@@ -219,7 +225,7 @@ public static class DeterministicLayoutEngine
 
         foreach (HardLine hardLine in EnumerateHardLines(text))
         {
-            foreach (WrappedSegment segment in WrapFlow(hardLine, contentWidth))
+            foreach (WrappedSegment segment in WrapFlow(hardLine, contentWidth, styledText.Styles))
             {
                 string prefix = firstVisualLine ? firstPrefix : continuationPrefix;
                 AddLine(
@@ -230,7 +236,8 @@ public static class DeterministicLayoutEngine
                     blockId,
                     segment.SourceStartOffset,
                     segment.SourceEndOffset,
-                    headingLevel);
+                    headingLevel,
+                    ShiftSpans(segment.StyleSpans, prefix.Length));
                 firstVisualLine = false;
             }
         }
@@ -244,7 +251,7 @@ public static class DeterministicLayoutEngine
     {
         string displayText = FormatImage(image);
         int logicalLength = ContentText.GetPlainText(image).Length;
-        foreach (WrappedSegment segment in WrapFlow(new HardLine(displayText, 0, displayText.Length), viewportWidth))
+        foreach (WrappedSegment segment in WrapFlow(new HardLine(displayText, 0, displayText.Length), viewportWidth, new VisualTextStyle[displayText.Length]))
         {
             AddLine(
                 target,
@@ -257,16 +264,17 @@ public static class DeterministicLayoutEngine
         }
     }
 
-    private static List<WrappedSegment> WrapFlow(HardLine hardLine, int maximumWidth)
+    private static List<WrappedSegment> WrapFlow(HardLine hardLine, int maximumWidth, VisualTextStyle[] styles)
     {
-        List<FlowWord> words = TokenizeWords(hardLine.Text);
+        List<FlowWord> words = TokenizeWords(hardLine, styles);
         if (words.Count == 0)
         {
-            return [new WrappedSegment(string.Empty, hardLine.StartOffset, hardLine.SeparatorEndOffset)];
+            return [new WrappedSegment(string.Empty, hardLine.StartOffset, hardLine.SeparatorEndOffset, [])];
         }
 
         List<WrappedSegment> lines = [];
         StringBuilder current = new();
+        List<VisualTextSpan> currentSpans = [];
         int currentWidth = 0;
         int lineStart = hardLine.StartOffset;
 
@@ -279,39 +287,36 @@ public static class DeterministicLayoutEngine
             if (current.Length > 0 && currentWidth + 1 + wordWidth <= maximumWidth)
             {
                 current.Append(' ');
-                Append(current, word.Elements);
+                AppendStyled(current, currentSpans, word.Elements);
                 currentWidth += 1 + wordWidth;
                 continue;
             }
 
             if (current.Length > 0)
             {
-                lines.Add(new WrappedSegment(current.ToString(), lineStart, wordStart));
-                current.Clear();
+                AddWrappedSegment(lines, current, currentSpans, lineStart, wordStart);
                 currentWidth = 0;
                 lineStart = wordStart;
             }
 
             for (int elementIndex = 0; elementIndex < word.Elements.Length; elementIndex++)
             {
-                LayoutTextElement element = word.Elements[elementIndex];
+                StyledLayoutTextElement element = word.Elements[elementIndex];
                 int elementStart = hardLine.StartOffset + element.SourceStartOffset;
                 if (currentWidth > 0 && currentWidth + element.Width > maximumWidth)
                 {
-                    lines.Add(new WrappedSegment(current.ToString(), lineStart, elementStart));
-                    current.Clear();
+                    AddWrappedSegment(lines, current, currentSpans, lineStart, elementStart);
                     currentWidth = 0;
                     lineStart = elementStart;
                 }
 
-                current.Append(element.Text);
+                AppendStyled(current, currentSpans, element.Text, element.Style);
                 currentWidth += element.Width;
 
                 if (currentWidth == maximumWidth && elementIndex + 1 < word.Elements.Length)
                 {
                     int nextStart = hardLine.StartOffset + word.Elements[elementIndex + 1].SourceStartOffset;
-                    lines.Add(new WrappedSegment(current.ToString(), lineStart, nextStart));
-                    current.Clear();
+                    AddWrappedSegment(lines, current, currentSpans, lineStart, nextStart);
                     currentWidth = 0;
                     lineStart = nextStart;
                 }
@@ -320,7 +325,7 @@ public static class DeterministicLayoutEngine
 
         if (current.Length > 0)
         {
-            lines.Add(new WrappedSegment(current.ToString(), lineStart, hardLine.SeparatorEndOffset));
+            AddWrappedSegment(lines, current, currentSpans, lineStart, hardLine.SeparatorEndOffset);
         }
 
         return lines;
@@ -331,7 +336,7 @@ public static class DeterministicLayoutEngine
         List<DisplayElement> elements = ExpandTabs(hardLine.Text);
         if (elements.Count == 0)
         {
-            return [new WrappedSegment(string.Empty, hardLine.StartOffset, hardLine.SeparatorEndOffset)];
+            return [new WrappedSegment(string.Empty, hardLine.StartOffset, hardLine.SeparatorEndOffset, [])];
         }
 
         List<WrappedSegment> lines = [];
@@ -345,7 +350,7 @@ public static class DeterministicLayoutEngine
             int elementStart = hardLine.StartOffset + element.SourceStartOffset;
             if (currentWidth > 0 && currentWidth + element.Width > maximumWidth)
             {
-                lines.Add(new WrappedSegment(current.ToString(), lineStart, elementStart));
+                lines.Add(new WrappedSegment(current.ToString(), lineStart, elementStart, []));
                 current.Clear();
                 currentWidth = 0;
                 lineStart = elementStart;
@@ -355,15 +360,15 @@ public static class DeterministicLayoutEngine
             currentWidth += element.Width;
         }
 
-        lines.Add(new WrappedSegment(current.ToString(), lineStart, hardLine.SeparatorEndOffset));
+        lines.Add(new WrappedSegment(current.ToString(), lineStart, hardLine.SeparatorEndOffset, []));
         return lines;
     }
 
-    private static List<FlowWord> TokenizeWords(string value)
+    private static List<FlowWord> TokenizeWords(HardLine hardLine, VisualTextStyle[] styles)
     {
         List<FlowWord> words = [];
-        List<LayoutTextElement> current = [];
-        foreach (LayoutTextElement element in TerminalCellWidth.Enumerate(value))
+        List<StyledLayoutTextElement> current = [];
+        foreach (LayoutTextElement element in TerminalCellWidth.Enumerate(hardLine.Text))
         {
             if (element.IsWhitespace)
             {
@@ -371,14 +376,21 @@ public static class DeterministicLayoutEngine
                 continue;
             }
 
-            current.Add(element);
+            int absoluteStart = hardLine.StartOffset + element.SourceStartOffset;
+            VisualTextStyle style = GetStyle(styles, absoluteStart, element.SourceLength);
+            current.Add(new StyledLayoutTextElement(
+                element.Text,
+                element.Width,
+                element.SourceStartOffset,
+                element.SourceLength,
+                style));
         }
 
         AddWord(words, current);
         return words;
     }
 
-    private static void AddWord(List<FlowWord> words, List<LayoutTextElement> current)
+    private static void AddWord(List<FlowWord> words, List<StyledLayoutTextElement> current)
     {
         if (current.Count == 0)
         {
@@ -389,12 +401,83 @@ public static class DeterministicLayoutEngine
         current.Clear();
     }
 
-    private static void Append(StringBuilder target, IEnumerable<LayoutTextElement> elements)
+    private static VisualTextStyle GetStyle(VisualTextStyle[] styles, int start, int length)
     {
-        foreach (LayoutTextElement element in elements)
+        VisualTextStyle result = VisualTextStyle.None;
+        int end = Math.Min(start + length, styles.Length);
+        for (int index = start; index < end; index++)
         {
-            target.Append(element.Text);
+            result |= styles[index];
         }
+
+        return result;
+    }
+
+    private static void AppendStyled(
+        StringBuilder target,
+        List<VisualTextSpan> spans,
+        StyledLayoutTextElement[] elements)
+    {
+        foreach (StyledLayoutTextElement element in elements)
+        {
+            AppendStyled(target, spans, element.Text, element.Style);
+        }
+    }
+
+    private static void AppendStyled(
+        StringBuilder target,
+        List<VisualTextSpan> spans,
+        string text,
+        VisualTextStyle style)
+    {
+        int start = target.Length;
+        target.Append(text);
+
+        if (style == VisualTextStyle.None || text.Length == 0)
+        {
+            return;
+        }
+
+        if (spans.Count > 0)
+        {
+            VisualTextSpan previous = spans[^1];
+            if (previous.EndIndex == start && previous.Style == style)
+            {
+                spans[^1] = new VisualTextSpan(previous.StartIndex, previous.Length + text.Length, style);
+                return;
+            }
+        }
+
+        spans.Add(new VisualTextSpan(start, text.Length, style));
+    }
+
+    private static void AddWrappedSegment(
+        List<WrappedSegment> lines,
+        StringBuilder text,
+        List<VisualTextSpan> spans,
+        int sourceStartOffset,
+        int sourceEndOffset)
+    {
+        lines.Add(new WrappedSegment(text.ToString(), sourceStartOffset, sourceEndOffset, spans.ToArray()));
+        text.Clear();
+        spans.Clear();
+    }
+
+    private static VisualTextSpan[] ShiftSpans(VisualTextSpan[] spans, int offset)
+    {
+        if (spans.Length == 0 || offset == 0)
+        {
+            return spans;
+        }
+
+        VisualTextSpan[] shifted = new VisualTextSpan[spans.Length];
+        for (int index = 0; index < spans.Length; index++)
+        {
+            VisualTextSpan span = spans[index];
+            shifted[index] = new VisualTextSpan(span.StartIndex + offset, span.Length, span.Style);
+        }
+
+        return shifted;
     }
 
     private static List<DisplayElement> ExpandTabs(string value)
@@ -475,7 +558,8 @@ public static class DeterministicLayoutEngine
         BlockId blockId,
         int sourceStartOffset,
         int sourceEndOffset,
-        int? headingLevel = null)
+        int? headingLevel = null,
+        VisualTextSpan[]? styleSpans = null)
     {
         target.Add(
             new VisualLine(
@@ -486,7 +570,8 @@ public static class DeterministicLayoutEngine
                 blockId,
                 sourceStartOffset,
                 sourceEndOffset,
-                headingLevel));
+                headingLevel,
+                styleSpans));
     }
 
     private static System.Collections.ObjectModel.ReadOnlyCollection<LayoutPage> Paginate(
@@ -521,9 +606,16 @@ public static class DeterministicLayoutEngine
 
     private readonly record struct HardLine(string Text, int StartOffset, int SeparatorEndOffset);
 
-    private readonly record struct WrappedSegment(string Text, int SourceStartOffset, int SourceEndOffset);
+    private readonly record struct WrappedSegment(string Text, int SourceStartOffset, int SourceEndOffset, VisualTextSpan[] StyleSpans);
 
-    private sealed record FlowWord(LayoutTextElement[] Elements, int SourceStartOffset);
+    private sealed record FlowWord(StyledLayoutTextElement[] Elements, int SourceStartOffset);
+
+    private readonly record struct StyledLayoutTextElement(
+        string Text,
+        int Width,
+        int SourceStartOffset,
+        int SourceLength,
+        VisualTextStyle Style);
 
     private readonly record struct DisplayElement(string Text, int Width, int SourceStartOffset);
 }

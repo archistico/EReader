@@ -39,7 +39,7 @@ Esempio:
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "lastBook": {
     "path": "D:\\Ebook\\libro.epub",
     "bookId": "urn:uuid:...",
@@ -103,3 +103,10 @@ ereader --plain libro.epub
 non legge e non modifica lo stato persistente.
 
 Questo mantiene la proiezione CLI deterministica per script, pipe e validation gate.
+
+
+## M2.4 — Bookmark logici
+
+Lo schema corrente è **2**. Oltre a `lastBook` contiene `bookmarks`, una libreria multi-book di path + BookId + ReadingLocation. Il loader continua ad accettare lo schema 1, interpretandolo come stato senza bookmark.
+
+Nessun bookmark contiene pagina, riga, viewport o layout. Vedi [`BOOKMARKS.md`](BOOKMARKS.md).

@@ -445,7 +445,7 @@ public sealed class ArchitectureContractTests
             "Tui",
             "ReaderWindow.cs"));
 
-        Assert.Contains("_session.RenderCurrentViewport()", source, StringComparison.Ordinal);
+        Assert.Contains("_body.ShowReaderLines(_session.GetCurrentViewportLines());", source, StringComparison.Ordinal);
         Assert.Contains("key == Key.CursorDown || IsCharacter(key, 'j')", source, StringComparison.Ordinal);
         Assert.Contains("key == Key.CursorUp || IsCharacter(key, 'k')", source, StringComparison.Ordinal);
     }
@@ -662,6 +662,156 @@ public sealed class ArchitectureContractTests
             Assert.DoesNotContain("SearchQuery", source, StringComparison.Ordinal);
             Assert.DoesNotContain("BookSearchMatch", source, StringComparison.Ordinal);
         }
+    }
+
+    [Fact]
+    public void M24BookmarksPersistOnlyLogicalLocationsAndStayOutsideDomain()
+    {
+        string root = RepositoryRoot.Find();
+        string bookmarkState = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "EbookReader.Application",
+            "State",
+            "ReadingBookmarkSnapshot.cs"));
+        string domainDirectory = Path.Combine(root, "src", "EbookReader.Domain");
+
+        Assert.Contains("ReadingLocation Location", bookmarkState, StringComparison.Ordinal);
+        Assert.DoesNotContain("PageNumber", bookmarkState, StringComparison.Ordinal);
+        Assert.DoesNotContain("LineIndex", bookmarkState, StringComparison.Ordinal);
+        Assert.DoesNotContain("LayoutPosition", bookmarkState, StringComparison.Ordinal);
+
+        foreach (string sourceFile in Directory.EnumerateFiles(domainDirectory, "*.cs", SearchOption.AllDirectories))
+        {
+            string source = File.ReadAllText(sourceFile);
+            Assert.DoesNotContain("ReadingBookmarkSnapshot", source, StringComparison.Ordinal);
+        }
+    }
+
+    [Fact]
+    public void M24ReaderWindowUsesLogicalBookmarkSessionWithoutOwningJsonPersistence()
+    {
+        string root = RepositoryRoot.Find();
+        string window = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "EbookReader.Cli",
+            "Tui",
+            "ReaderWindow.cs"));
+
+        Assert.Contains("IsCharacter(key, 'b')", window, StringComparison.Ordinal);
+        Assert.Contains("IsCharacter(key, 'B')", window, StringComparison.Ordinal);
+        Assert.Contains("_session.ToggleBookmark()", window, StringComparison.Ordinal);
+        Assert.Contains("_session.NavigateToBookmark", window, StringComparison.Ordinal);
+        Assert.Contains("_session.RemoveBookmark", window, StringComparison.Ordinal);
+        Assert.DoesNotContain("JsonReadingStateStore", window, StringComparison.Ordinal);
+        Assert.DoesNotContain("System.Text.Json", window, StringComparison.Ordinal);
+        Assert.DoesNotContain("EbookReader.Epub", window, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void M24StateSchemaSupportsLegacyV1AndWritesV2Bookmarks()
+    {
+        string root = RepositoryRoot.Find();
+        string store = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "EbookReader.Application",
+            "State",
+            "JsonReadingStateStore.cs"));
+
+        Assert.Contains("CurrentSchemaVersion = 2", store, StringComparison.Ordinal);
+        Assert.Contains("document.SchemaVersion is not (1 or CurrentSchemaVersion)", store, StringComparison.Ordinal);
+        Assert.Contains("Bookmarks = state.Bookmarks", store, StringComparison.Ordinal);
+    }
+
+
+    [Fact]
+    public void M24Hotfix1BookmarkLimitAvoidsGlobalAliasInsideInterpolation()
+    {
+        string root = RepositoryRoot.Find();
+        string session = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "EbookReader.Cli",
+            "Tui",
+            "ReaderSession.cs"));
+
+        Assert.Contains("ReadingBookmarkState.MaximumBookmarksPerBook", session, StringComparison.Ordinal);
+        Assert.DoesNotContain("{global::EbookReader.Application.State.ReadingBookmarkState", session, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void M24Hotfix1ReaderPaletteUsesRequestedSemanticColors()
+    {
+        string root = RepositoryRoot.Find();
+        string palette = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "EbookReader.Cli",
+            "Tui",
+            "ReaderColorPalette.cs"));
+
+        Assert.Contains("new(\"White\", \"Black\")", palette, StringComparison.Ordinal);
+        Assert.Contains("new(\"Cyan\", \"Black\")", palette, StringComparison.Ordinal);
+        Assert.Contains("new(\"Green\", \"Black\", TextStyle.Bold)", palette, StringComparison.Ordinal);
+        Assert.Contains("new(\"Yellow\", \"Black\", TextStyle.Italic)", palette, StringComparison.Ordinal);
+        Assert.Contains("new(\"Gray\", \"Black\")", palette, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void M24Hotfix1TerminalColorsStayOutsideLayoutProject()
+    {
+        string root = RepositoryRoot.Find();
+        string layoutRoot = Path.Combine(root, "src", "EbookReader.Layout");
+        string combined = string.Join(
+            Environment.NewLine,
+            Directory.EnumerateFiles(layoutRoot, "*.cs", SearchOption.AllDirectories).Select(path => File.ReadAllText(path)));
+
+        Assert.DoesNotContain("Terminal.Gui", combined, StringComparison.Ordinal);
+        Assert.DoesNotContain("Cyan", combined, StringComparison.Ordinal);
+        Assert.DoesNotContain("Green", combined, StringComparison.Ordinal);
+        Assert.DoesNotContain("Yellow", combined, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void M24Hotfix2WindowUsesSetSchemeForGrayChromeAndWhiteContent()
+    {
+        string root = RepositoryRoot.Find();
+        string window = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "EbookReader.Cli",
+            "Tui",
+            "ReaderWindow.cs"));
+
+        Assert.Contains("SetScheme(ReaderColorPalette.ChromeScheme);", window, StringComparison.Ordinal);
+        Assert.Contains("_header.SetScheme(ReaderColorPalette.PlainScheme);", window, StringComparison.Ordinal);
+        Assert.Contains("_headerSeparator.SetScheme(ReaderColorPalette.ChromeScheme);", window, StringComparison.Ordinal);
+        Assert.Contains("_footerSeparator.SetScheme(ReaderColorPalette.ChromeScheme);", window, StringComparison.Ordinal);
+        Assert.Contains("_footer.SetScheme(ReaderColorPalette.PlainScheme);", window, StringComparison.Ordinal);
+        Assert.DoesNotContain("Scheme = ReaderColorPalette", window, StringComparison.Ordinal);
+        Assert.Contains("_headerSeparator", window, StringComparison.Ordinal);
+        Assert.Contains("_footerSeparator", window, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void M24Hotfix1ReaderBodyUsesSemanticStyleRuns()
+    {
+        string root = RepositoryRoot.Find();
+        string body = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "EbookReader.Cli",
+            "Tui",
+            "ReaderBodyView.cs"));
+
+        Assert.Contains("VisualLineKind.Heading", body, StringComparison.Ordinal);
+        Assert.Contains("line.StyleSpans", body, StringComparison.Ordinal);
+        Assert.Contains("ReaderColorPalette.ForStyle", body, StringComparison.Ordinal);
+        Assert.Contains("SetScheme(ReaderColorPalette.PlainScheme);", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("Scheme = ReaderColorPalette", body, StringComparison.Ordinal);
+        Assert.Contains("OnDrawingContent(DrawContext? context)", body, StringComparison.Ordinal);
     }
 
     private static bool ProjectReferencesAngleSharp(string projectFile)

@@ -12,26 +12,30 @@ namespace EbookReader.Cli.Tui;
 /// </summary>
 internal sealed class ReaderWindow : Window
 {
-    private const string NormalFooter = "↑/k ↓/j riga  PgUp/h PgDn/l/Space pagina  [ ] capitolo  / cerca  n/N risultato  t indice  m metadati  F1/? aiuto  q/Esc esci";
-    private const string TocFooter = "↑/k ↓/j voce  PgUp/PgDn scorri  Enter apri  t/Tab/Esc chiudi  m metadati  q esci";
-    private const string MetadataFooter = "↑/k ↓/j scorri  PgUp/PgDn pagina  m/Esc chiudi  t indice  F1/? aiuto  q esci";
+    private const string NormalFooter = "↑/k ↓/j riga  PgUp/PgDn pagina  [ ] cap.  / cerca  n/N risultato  b segnalibro  B elenco  t indice  m metadati  q/Esc esci";
+    private const string TocFooter = "↑/k ↓/j voce  PgUp/PgDn scorri  Enter apri  t/Tab/Esc chiudi  B segnalibri  m metadati  q esci";
+    private const string MetadataFooter = "↑/k ↓/j scorri  PgUp/PgDn pagina  m/Esc chiudi  B segnalibri  t indice  F1/? aiuto  q esci";
+    private const string BookmarkFooter = "↑/k ↓/j voce  PgUp/PgDn scorri  Enter apri  d elimina  B/Esc chiudi  q esci";
 
     private readonly ReaderSession _session;
     private static readonly string HorizontalRule = new('─', 1024);
 
     private readonly Label _header;
     private readonly Label _headerSeparator;
-    private readonly Label _body;
+    private readonly ReaderBodyView _body;
     private readonly Label _footerSeparator;
     private readonly Label _footer;
     private bool _helpVisible;
     private bool _tocVisible;
     private bool _metadataVisible;
+    private bool _bookmarksVisible;
     private bool _searchInputVisible;
     private readonly StringBuilder _searchInput = new();
     private int _tocSelectedIndex = -1;
     private int _tocScrollOffset;
     private int _metadataScrollOffset;
+    private int _bookmarkSelectedIndex = -1;
+    private int _bookmarkScrollOffset;
     private bool _synchronizingViewport;
 
     public ReaderWindow(ReaderSession session)
@@ -42,6 +46,7 @@ internal sealed class ReaderWindow : Window
         Title = "EReader";
         Width = Dim.Fill();
         Height = Dim.Fill();
+        SetScheme(ReaderColorPalette.ChromeScheme);
 
         _header = new Label
         {
@@ -50,6 +55,7 @@ internal sealed class ReaderWindow : Window
             Width = Dim.Fill(),
             Height = 1,
         };
+        _header.SetScheme(ReaderColorPalette.PlainScheme);
 
         _headerSeparator = new Label
         {
@@ -59,8 +65,9 @@ internal sealed class ReaderWindow : Window
             Height = 1,
             Text = HorizontalRule,
         };
+        _headerSeparator.SetScheme(ReaderColorPalette.ChromeScheme);
 
-        _body = new Label
+        _body = new ReaderBodyView
         {
             X = 0,
             Y = 2,
@@ -76,6 +83,7 @@ internal sealed class ReaderWindow : Window
             Height = 1,
             Text = HorizontalRule,
         };
+        _footerSeparator.SetScheme(ReaderColorPalette.ChromeScheme);
 
         _footer = new Label
         {
@@ -84,6 +92,7 @@ internal sealed class ReaderWindow : Window
             Width = Dim.Fill(),
             Height = 1,
         };
+        _footer.SetScheme(ReaderColorPalette.PlainScheme);
 
         _body.ViewportChanged += (_, _) => SynchronizeViewport();
 
@@ -120,7 +129,11 @@ internal sealed class ReaderWindow : Window
 
         if (key == Key.Esc)
         {
-            if (_metadataVisible)
+            if (_bookmarksVisible)
+            {
+                CloseBookmarks();
+            }
+            else if (_metadataVisible)
             {
                 CloseMetadata();
             }
@@ -153,6 +166,12 @@ internal sealed class ReaderWindow : Window
             return true;
         }
 
+        if (IsCharacter(key, 'B'))
+        {
+            ToggleBookmarks();
+            return true;
+        }
+
         if (_helpVisible)
         {
             return true;
@@ -166,6 +185,18 @@ internal sealed class ReaderWindow : Window
         if (_metadataVisible)
         {
             return HandleMetadataKey(key);
+        }
+
+        if (_bookmarksVisible)
+        {
+            return HandleBookmarkKey(key);
+        }
+
+        if (IsCharacter(key, 'b'))
+        {
+            _session.ToggleBookmark();
+            RefreshReader();
+            return true;
         }
 
         if (IsCharacter(key, 'n'))
@@ -352,6 +383,52 @@ internal sealed class ReaderWindow : Window
         return true;
     }
 
+    private bool HandleBookmarkKey(Key key)
+    {
+        if (key == Key.CursorDown || IsCharacter(key, 'j'))
+        {
+            MoveBookmarkSelection(1);
+            return true;
+        }
+
+        if (key == Key.CursorUp || IsCharacter(key, 'k'))
+        {
+            MoveBookmarkSelection(-1);
+            return true;
+        }
+
+        if (key == Key.PageDown)
+        {
+            MoveBookmarkSelectionByPage(1);
+            return true;
+        }
+
+        if (key == Key.PageUp)
+        {
+            MoveBookmarkSelectionByPage(-1);
+            return true;
+        }
+
+        if (key == Key.Enter)
+        {
+            if (_bookmarkSelectedIndex >= 0)
+            {
+                _session.NavigateToBookmark(_bookmarkSelectedIndex);
+                CloseBookmarks();
+            }
+
+            return true;
+        }
+
+        if (IsCharacter(key, 'd'))
+        {
+            DeleteSelectedBookmark();
+            return true;
+        }
+
+        return true;
+    }
+
     private void Navigate(Func<bool> movement)
     {
         if (movement())
@@ -368,6 +445,7 @@ internal sealed class ReaderWindow : Window
         _helpVisible = false;
         _tocVisible = false;
         _metadataVisible = false;
+        _bookmarksVisible = false;
         _searchInputVisible = true;
         _searchInput.Clear();
         RefreshReader();
@@ -392,6 +470,7 @@ internal sealed class ReaderWindow : Window
         {
             _tocVisible = false;
             _metadataVisible = false;
+            _bookmarksVisible = false;
         }
 
         RefreshReader();
@@ -412,6 +491,7 @@ internal sealed class ReaderWindow : Window
 
         _helpVisible = false;
         _metadataVisible = false;
+        _bookmarksVisible = false;
         _tocVisible = true;
         _tocSelectedIndex = _session.SuggestedTocEntryIndex;
         _tocScrollOffset = 0;
@@ -429,9 +509,109 @@ internal sealed class ReaderWindow : Window
 
         _helpVisible = false;
         _tocVisible = false;
+        _bookmarksVisible = false;
         _metadataVisible = true;
         _metadataScrollOffset = 0;
         RefreshReader();
+    }
+
+    private void ToggleBookmarks()
+    {
+        if (_bookmarksVisible)
+        {
+            CloseBookmarks();
+            return;
+        }
+
+        _helpVisible = false;
+        _tocVisible = false;
+        _metadataVisible = false;
+        _bookmarksVisible = true;
+        _bookmarkSelectedIndex = _session.SuggestedBookmarkIndex;
+        _bookmarkScrollOffset = 0;
+        EnsureBookmarkSelectionVisible();
+        RefreshReader();
+    }
+
+    private void CloseBookmarks()
+    {
+        _bookmarksVisible = false;
+        _bookmarkScrollOffset = 0;
+        RefreshReader();
+    }
+
+    private void MoveBookmarkSelection(int direction)
+    {
+        int next = _session.FindAdjacentBookmark(_bookmarkSelectedIndex, direction);
+        if (next == _bookmarkSelectedIndex)
+        {
+            return;
+        }
+
+        _bookmarkSelectedIndex = next;
+        EnsureBookmarkSelectionVisible();
+        RefreshReader();
+    }
+
+    private void MoveBookmarkSelectionByPage(int direction)
+    {
+        int steps = Math.Max(_body.Viewport.Height - 1, 1);
+        for (int step = 0; step < steps; step++)
+        {
+            int next = _session.FindAdjacentBookmark(_bookmarkSelectedIndex, direction);
+            if (next == _bookmarkSelectedIndex)
+            {
+                break;
+            }
+
+            _bookmarkSelectedIndex = next;
+        }
+
+        EnsureBookmarkSelectionVisible();
+        RefreshReader();
+    }
+
+    private void DeleteSelectedBookmark()
+    {
+        if (_bookmarkSelectedIndex < 0 || _session.BookmarkCount == 0)
+        {
+            return;
+        }
+
+        _session.RemoveBookmark(_bookmarkSelectedIndex);
+        if (_session.BookmarkCount == 0)
+        {
+            _bookmarkSelectedIndex = -1;
+            _bookmarkScrollOffset = 0;
+        }
+        else
+        {
+            _bookmarkSelectedIndex = Math.Min(_bookmarkSelectedIndex, _session.BookmarkCount - 1);
+            EnsureBookmarkSelectionVisible();
+        }
+
+        RefreshReader();
+    }
+
+    private void EnsureBookmarkSelectionVisible()
+    {
+        int height = Math.Max(_body.Viewport.Height, 1);
+        if (_bookmarkSelectedIndex < 0)
+        {
+            _bookmarkScrollOffset = 0;
+            return;
+        }
+
+        if (_bookmarkSelectedIndex < _bookmarkScrollOffset)
+        {
+            _bookmarkScrollOffset = _bookmarkSelectedIndex;
+        }
+        else if (_bookmarkSelectedIndex >= _bookmarkScrollOffset + height)
+        {
+            _bookmarkScrollOffset = _bookmarkSelectedIndex - height + 1;
+        }
+
+        _bookmarkScrollOffset = Math.Max(_bookmarkScrollOffset, 0);
     }
 
     private void CloseMetadata()
@@ -533,6 +713,35 @@ internal sealed class ReaderWindow : Window
         return text.ToString();
     }
 
+    private string BuildBookmarks()
+    {
+        if (_session.BookmarkCount == 0)
+        {
+            return "Nessun segnalibro. Premi Esc o B per tornare al libro.";
+        }
+
+        EnsureBookmarkSelectionVisible();
+        int height = Math.Max(_body.Viewport.Height, 1);
+        int end = Math.Min(_bookmarkScrollOffset + height, _session.BookmarkEntries.Count);
+        StringBuilder text = new();
+
+        for (int index = _bookmarkScrollOffset; index < end; index++)
+        {
+            ReaderBookmarkEntry entry = _session.BookmarkEntries[index];
+            text.Append(index == _bookmarkSelectedIndex ? "> " : "  ");
+            text.Append(index + 1);
+            text.Append(". ");
+            text.Append(entry.Label);
+
+            if (index + 1 < end)
+            {
+                text.AppendLine();
+            }
+        }
+
+        return text.ToString();
+    }
+
     private string BuildMetadata()
     {
         string[] lines = BuildMetadataLines();
@@ -572,6 +781,11 @@ internal sealed class ReaderWindow : Window
                     EnsureTocSelectionVisible();
                 }
 
+                if (_bookmarksVisible)
+                {
+                    EnsureBookmarkSelectionVisible();
+                }
+
                 RefreshReader();
             }
         }
@@ -584,13 +798,27 @@ internal sealed class ReaderWindow : Window
     private void RefreshReader()
     {
         _header.Text = BuildHeader();
-        _body.Text = _helpVisible
-            ? BuildHelp()
-            : _tocVisible
-                ? BuildToc()
-                : _metadataVisible
-                    ? BuildMetadata()
-                    : _session.RenderCurrentViewport();
+        if (_helpVisible)
+        {
+            _body.ShowPlainText(BuildHelp());
+        }
+        else if (_tocVisible)
+        {
+            _body.ShowPlainText(BuildToc());
+        }
+        else if (_metadataVisible)
+        {
+            _body.ShowPlainText(BuildMetadata());
+        }
+        else if (_bookmarksVisible)
+        {
+            _body.ShowPlainText(BuildBookmarks());
+        }
+        else
+        {
+            _body.ShowReaderLines(_session.GetCurrentViewportLines());
+        }
+
         _footer.Text = _searchInputVisible
             ? $"Cerca: {_searchInput}_   Enter cerca   Esc annulla"
             : _helpVisible
@@ -599,7 +827,9 @@ internal sealed class ReaderWindow : Window
                     ? TocFooter
                     : _metadataVisible
                         ? MetadataFooter
-                        : NormalFooter;
+                        : _bookmarksVisible
+                            ? BookmarkFooter
+                            : NormalFooter;
     }
 
     private string BuildHeader()
@@ -608,6 +838,12 @@ internal sealed class ReaderWindow : Window
         if (_metadataVisible)
         {
             return $"{_session.BookTitle}{author}   Metadati   {_session.MetadataEntries.Count} campi";
+        }
+
+        if (_bookmarksVisible)
+        {
+            int selectedOrdinal = _bookmarkSelectedIndex < 0 ? 0 : _bookmarkSelectedIndex + 1;
+            return $"{_session.BookTitle}{author}   Segnalibri   {selectedOrdinal}/{_session.BookmarkCount}";
         }
 
         if (_tocVisible)
@@ -623,7 +859,8 @@ internal sealed class ReaderWindow : Window
             ? $"Cap. {_session.CurrentPrimarySectionNumber}/{_session.PrimarySectionCount}"
             : "Sezione supplementare";
         string search = BuildSearchStatus();
-        return $"{_session.BookTitle}{author}   {chapter}   Pag. {_session.PageNumber}/{_session.PageCount}{search}";
+        string bookmark = _session.IsCurrentLocationBookmarked ? "   ★" : string.Empty;
+        return $"{_session.BookTitle}{author}   {chapter}   Pag. {_session.PageNumber}/{_session.PageCount}{search}{bookmark}";
     }
 
     private string BuildSearchStatus()
@@ -641,7 +878,7 @@ internal sealed class ReaderWindow : Window
 
     private static string BuildHelp() =>
         """
-        EReader — comandi M2.3
+        EReader — comandi M2.4 Hotfix 2
 
         ↑ / k             riga precedente
         ↓ / j             riga successiva
@@ -654,11 +891,14 @@ internal sealed class ReaderWindow : Window
         t / Tab           apre/chiude indice
         /                 cerca nel testo logico
         n / N             risultato successivo / precedente
+        b                 aggiunge/rimuove bookmark corrente
+        B                 apre/chiude elenco bookmark
         m                 apre/chiude metadati
         F1 / ?            mostra/nasconde questo aiuto
         q                 esci
-        Esc               chiude metadati/indice/aiuto, altrimenti esce
+        Esc               chiude bookmark/metadati/indice/aiuto, altrimenti esce
 
+        Nei bookmark: ↑/↓ o j/k selezionano, PgUp/PgDn scorrono, Enter apre, d elimina.
         Nell'indice: ↑/↓ o j/k selezionano, PgUp/PgDn scorrono, Enter apre la voce.
         Nei metadati: ↑/↓ o j/k scorrono una riga, PgUp/PgDn una pagina.
         La ricerca opera sul testo logico prima del wrapping; resize e larghezza terminale non cambiano i risultati.

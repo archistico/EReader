@@ -1,3 +1,4 @@
+using System.Collections.ObjectModel;
 using EbookReader.Application.State;
 using EbookReader.Domain.Books;
 using EbookReader.Domain.Content;
@@ -21,7 +22,7 @@ public sealed class ReadingStateTests
         ReadingStateSnapshot? actual = store.Load();
 
         Assert.NotNull(actual);
-        Assert.Equal(expected, actual);
+        AssertStateEqual(expected, actual);
     }
 
     [Fact]
@@ -63,7 +64,9 @@ public sealed class ReadingStateTests
         store.Save(first);
         store.Save(second);
 
-        Assert.Equal(second, store.Load());
+        ReadingStateSnapshot? actual = store.Load();
+        Assert.NotNull(actual);
+        AssertStateEqual(second, actual);
         Assert.Empty(Directory.EnumerateFiles(temporary.Path, "*.tmp", SearchOption.AllDirectories));
     }
 
@@ -77,7 +80,7 @@ public sealed class ReadingStateTests
         store.Save(CreateState(Path.Combine(temporary.Path, "book.epub")));
         string json = File.ReadAllText(statePath);
 
-        Assert.Contains("\"schemaVersion\": 1", json, StringComparison.Ordinal);
+        Assert.Contains("\"schemaVersion\": 2", json, StringComparison.Ordinal);
         Assert.Contains("\"sectionId\"", json, StringComparison.Ordinal);
         Assert.Contains("\"characterOffset\"", json, StringComparison.Ordinal);
         Assert.DoesNotContain("pageNumber", json, StringComparison.OrdinalIgnoreCase);
@@ -178,6 +181,131 @@ public sealed class ReadingStateTests
             "book-id");
 
         Assert.Null(ReadingStateRestore.TryGetLocation(book, bookPath, state));
+    }
+
+    [Fact]
+    public void SchemaOneStateLoadsWithEmptyBookmarkLibrary()
+    {
+        using TemporaryDirectory temporary = new();
+        string statePath = Path.Combine(temporary.Path, "state.json");
+        string bookPath = Path.Combine(temporary.Path, "book.epub");
+        File.WriteAllText(
+            statePath,
+            $$"""
+            {
+              "schemaVersion": 1,
+              "lastBook": {
+                "path": "{{bookPath.Replace("\\", "\\\\", StringComparison.Ordinal)}}",
+                "bookId": "book-id",
+                "lastOpenedUtc": "2026-08-07T20:00:00+00:00",
+                "location": {
+                  "sectionId": "chapter-1",
+                  "characterOffset": 0
+                }
+              }
+            }
+            """);
+        JsonReadingStateStore store = new(statePath);
+
+        ReadingStateSnapshot? state = store.Load();
+
+        Assert.NotNull(state);
+        Assert.Empty(state.Bookmarks);
+        Assert.Equal(new SectionId("chapter-1"), state.Location.SectionId);
+    }
+
+    [Fact]
+    public void BookmarkRoundTripPreservesMultipleBooksWithoutLayoutCoordinates()
+    {
+        using TemporaryDirectory temporary = new();
+        string statePath = Path.Combine(temporary.Path, "state.json");
+        string firstPath = Path.Combine(temporary.Path, "first.epub");
+        string secondPath = Path.Combine(temporary.Path, "second.epub");
+        ReadingBookmarkSnapshot first = new(
+            firstPath,
+            new BookId("first"),
+            new ReadingLocation(new SectionId("one"), new BlockId("p"), 2));
+        ReadingBookmarkSnapshot second = new(
+            secondPath,
+            new BookId("second"),
+            new ReadingLocation(new SectionId("two")));
+        ReadingStateSnapshot expected = new(
+            firstPath,
+            new BookId("first"),
+            first.Location,
+            new DateTimeOffset(2026, 8, 7, 20, 0, 0, TimeSpan.Zero),
+            [first, second]);
+        JsonReadingStateStore store = new(statePath);
+
+        store.Save(expected);
+        ReadingStateSnapshot? actual = store.Load();
+        string json = File.ReadAllText(statePath);
+
+        Assert.NotNull(actual);
+        Assert.Equal(expected.Bookmarks, actual.Bookmarks);
+        Assert.Contains("\"bookmarks\"", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("pageNumber", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("lineIndex", json, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("viewport", json, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void BookmarkRestoreRequiresPathIdentityAndValidLogicalLocation()
+    {
+        using TemporaryDirectory temporary = new();
+        string currentPath = Path.Combine(temporary.Path, "book.epub");
+        string otherPath = Path.Combine(temporary.Path, "other.epub");
+        Book book = CreateBook("book-id");
+        ReadingLocation valid = new(new SectionId("chapter-2"), new BlockId("p-2"), 3);
+        ReadingStateSnapshot state = new(
+            currentPath,
+            book.Id,
+            ReadingLocation.AtSectionStart(new SectionId("chapter-1")),
+            DateTimeOffset.UtcNow,
+            [
+                new ReadingBookmarkSnapshot(currentPath, book.Id, valid),
+                new ReadingBookmarkSnapshot(currentPath, book.Id, new ReadingLocation(new SectionId("missing"))),
+                new ReadingBookmarkSnapshot(currentPath, new BookId("old-id"), valid),
+                new ReadingBookmarkSnapshot(otherPath, book.Id, valid),
+            ]);
+
+        ReadOnlyCollection<ReadingLocation> restored = ReadingBookmarkState.RestoreForBook(book, currentPath, state);
+
+        ReadingLocation only = Assert.Single(restored);
+        Assert.Equal(valid, only);
+    }
+
+    [Fact]
+    public void ReplacingBookmarksForCurrentPathPreservesOtherBooksAndDropsStaleIdentity()
+    {
+        using TemporaryDirectory temporary = new();
+        string currentPath = Path.Combine(temporary.Path, "book.epub");
+        string otherPath = Path.Combine(temporary.Path, "other.epub");
+        Book book = CreateBook("new-id");
+        ReadingLocation first = ReadingLocation.AtSectionStart(new SectionId("chapter-1"));
+        ReadingLocation second = new(new SectionId("chapter-2"), new BlockId("p-2"), 2);
+        ReadingBookmarkSnapshot other = new(otherPath, new BookId("other-id"), first);
+        ReadingBookmarkSnapshot stale = new(currentPath, new BookId("old-id"), first);
+
+        ReadOnlyCollection<ReadingBookmarkSnapshot> merged = ReadingBookmarkState.ReplaceForBook(
+            book,
+            currentPath,
+            [other, stale],
+            [first, second]);
+
+        Assert.Equal(3, merged.Count);
+        Assert.Contains(other, merged);
+        Assert.DoesNotContain(stale, merged);
+        Assert.Equal(2, merged.Count(item => item.BookId == book.Id));
+    }
+
+    private static void AssertStateEqual(ReadingStateSnapshot expected, ReadingStateSnapshot actual)
+    {
+        Assert.Equal(expected.BookPath, actual.BookPath);
+        Assert.Equal(expected.BookId, actual.BookId);
+        Assert.Equal(expected.Location, actual.Location);
+        Assert.Equal(expected.LastOpenedUtc, actual.LastOpenedUtc);
+        Assert.Equal(expected.Bookmarks, actual.Bookmarks);
     }
 
     private static ReadingStateSnapshot CreateState(

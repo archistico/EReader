@@ -405,6 +405,78 @@ public sealed class ReaderSessionTests
         Assert.Equal(1, session.CurrentSearchMatchNumber);
     }
 
+    [Fact]
+    public void BookmarkToggleAddsAndRemovesExactLogicalLocation()
+    {
+        Book book = CreateBook();
+        ReaderSession session = new(book, new LayoutViewport(20, 5));
+        ReadingLocation location = session.Location;
+
+        Assert.True(session.ToggleBookmark());
+        Assert.True(session.IsCurrentLocationBookmarked);
+        Assert.Equal(1, session.BookmarkCount);
+        Assert.Equal(location, Assert.Single(session.BookmarkLocations));
+
+        Assert.False(session.ToggleBookmark());
+        Assert.False(session.IsCurrentLocationBookmarked);
+        Assert.Empty(session.BookmarkLocations);
+    }
+
+    [Fact]
+    public void InitialBookmarksAreSortedByReadingOrderAndCanBeNavigated()
+    {
+        Book book = CreateBook();
+        ReadingLocation later = new(new SectionId("two"), new BlockId("p3"), 2);
+        ReadingLocation earlier = new(new SectionId("one"), new BlockId("p1"), 6);
+        ReaderSession session = new(
+            book,
+            new LayoutViewport(20, 5),
+            initialBookmarks: [later, earlier]);
+
+        Assert.Equal(2, session.BookmarkCount);
+        Assert.Equal(earlier, session.BookmarkLocations[0]);
+        Assert.Equal(later, session.BookmarkLocations[1]);
+
+        Assert.True(session.NavigateToBookmark(1));
+        Assert.Equal(later, session.Location);
+    }
+
+    [Fact]
+    public void BookmarkLocationsSurviveReflowAndDoNotDependOnPages()
+    {
+        Book book = CreateBook();
+        ReadingLocation bookmark = new(new SectionId("one"), new BlockId("p1"), 10);
+        ReaderSession session = new(
+            book,
+            new LayoutViewport(12, 3),
+            initialBookmarks: [bookmark]);
+
+        Assert.True(session.Reflow(new LayoutViewport(80, 24)));
+
+        ReadingLocation only = Assert.Single(session.BookmarkLocations);
+        Assert.Equal(bookmark, only);
+        Assert.Contains(session.BookmarkEntries, entry => entry.Location == bookmark);
+    }
+
+    [Fact]
+    public void RemovingBookmarkFromListDoesNotMoveReadingLocation()
+    {
+        Book book = CreateBook();
+        ReadingLocation first = new(new SectionId("one"), new BlockId("p1"), 5);
+        ReadingLocation second = new(new SectionId("two"), new BlockId("p3"), 1);
+        ReaderSession session = new(
+            book,
+            new LayoutViewport(20, 5),
+            initialBookmarks: [first, second]);
+        ReadingLocation before = session.Location;
+
+        Assert.True(session.RemoveBookmark(0));
+
+        Assert.Equal(before, session.Location);
+        ReadingLocation only = Assert.Single(session.BookmarkLocations);
+        Assert.Equal(second, only);
+    }
+
     private static Book CreateBook(bool includeSupplementary = false)
     {
         ReadingSection one = new(

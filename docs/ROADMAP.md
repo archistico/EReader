@@ -232,7 +232,7 @@ Implementato:
 - nessun metadata EPUB-specifico o stato UI persistito;
 - ADR-0038 e `METADATA_VIEW.md`.
 
-### M2.3 — Search pre-layout — CANDIDATE
+### M2.3 — Search pre-layout — VALIDATED
 
 - `BookTextSearch` in Application opera su `ContentText.GetPlainText`;
 - risultati ordinati come `ReadingLocation` + lunghezza UTF-16;
@@ -245,7 +245,19 @@ Implementato:
 - ricerca non persistita in `state.json`;
 - ADR-0039 e `SEARCH.md`.
 
-- M2.4 Bookmark logici;
+### M2.4 — Bookmark logici + Hotfix 2 colori semantici compatibili Terminal.Gui 2.4.17 — CANDIDATE
+
+- `b` toggle bookmark alla `ReadingLocation` corrente;
+- `B` elenco bookmark navigabile in TUI;
+- `Enter` salto al bookmark selezionato, `d` eliminazione;
+- bookmark ordinati in reading order;
+- persistenza multi-book in JSON schema 2;
+- lettura retrocompatibile dello schema 1;
+- nessuna pagina/riga/viewport persistita;
+- ADR-0040 e `BOOKMARKS.md`;
+- Hotfix 1: style span Strong/Emphasis preservati nel layout, palette TUI e cornici/separatori grigi; ADR-0041 e `READER_COLORS.md`.
+- Hotfix 2: applicazione degli schemi via `View.SetScheme(...)`, API effettiva di Terminal.Gui 2.4.17; ADR-0042.
+
 - M2.5 Stable Progress.
 
 ## M3 — Library e personalizzazione
