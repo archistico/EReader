@@ -1,6 +1,6 @@
 # Architettura di EReader
 
-Stato: **M3.0 Library & Reading History — CANDIDATE**  
+Stato: **M3.1 Library Search — CANDIDATE**  
 Baseline autoritativa: **M2.5 Stable Progress VALIDATED**  
 Target: **.NET 10 / C# 14**
 
@@ -457,6 +457,10 @@ I bookmark sono Application state, non Domain state. `ReaderWindow` opera soltan
 `EbookReader.Application.Progress.BookProgressIndex` indicizza una sola volta il testo logico del `Book.ReadingOrder`. Il mapping usa `ContentText.GetPlainText(block).Length` e `ReadingLocation.CharacterOffset`, entrambi in code unit UTF-16. Il modulo non dipende da `EbookReader.Layout` e non conosce pagine, righe visuali, celle o viewport. `ReaderSession` conserva l'indice e `ReaderWindow` mostra la percentuale derivata accanto al numero pagina. `state.json` continua a persistere soltanto coordinate logiche, non la percentuale.
 
 
-### Library / History M3.0
+### Library / History M3.0 — VALIDATED
 
 `EbookReader.Application.Library` mantiene una cronologia bounded di `ReadingHistoryEntry`, senza Terminal.Gui, EPUB o coordinate di layout. `JsonReadingStateStore` persiste le entry nello schema 3. `LibraryWindow` e `TerminalGuiLibraryHost` appartengono esclusivamente al CLI/TUI.
+
+### Library Search M3.1
+
+`ReadingHistorySearch` vive nello stesso Application layer della cronologia e classifica `ReadingHistoryEntry` per titolo, autore, nome file e path. Il filtro è transiente e la `LibraryWindow` delega completamente matching/ranking all'Application layer. Nessun dato di ricerca viene scritto nello schema JSON.

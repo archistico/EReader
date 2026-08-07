@@ -32,4 +32,4 @@ EREADER_STATE_FILE="${TMPDIR:-/tmp}/ereader-m30-validation-$$.json" dotnet run -
 rm -f "${TMPDIR:-/tmp}/ereader-m30-validation-$$.json"
 
 echo
-echo "M3.0 VALIDATION PASSED"
+echo "M3.1 HOTFIX 1 VALIDATION PASSED"

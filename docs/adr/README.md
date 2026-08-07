@@ -52,6 +52,7 @@ Formato adottato: numero progressivo, titolo, stato, data, contesto, decisione, 
 | [0043](0043-stable-progress-uses-logical-utf16-content.md) | Progresso stabile dal contenuto logico UTF-16 | Accepted |
 
 | [0044](0044-recent-library-is-bounded-logical-json-state.md) | Libreria recente come stato JSON logico bounded | Accepted |
+| [0045](0045-library-search-is-transient-ranked-application-state.md) | Ricerca libreria transiente e classificata nell’Application layer | Accepted |
 
 ## Stati
 

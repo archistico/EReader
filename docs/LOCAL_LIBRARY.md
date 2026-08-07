@@ -42,5 +42,8 @@ Gli schema 1 e 2 vengono ancora letti. Non avendo una lista `history`, il loro `
 - scansione di directory;
 - import di librerie Calibre;
 - database;
-- fuzzy search (M3.1);
 - copertine/thumbnail.
+
+## M3.1 — Ricerca libreria
+
+La libreria M3.0 rimane la fonte persistente. M3.1 aggiunge soltanto un filtro transiente tramite `ReadingHistorySearch`; la query non viene serializzata e lo schema JSON resta 3. Per dettagli vedere [`LIBRARY_SEARCH.md`](LIBRARY_SEARCH.md).

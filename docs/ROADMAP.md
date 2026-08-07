@@ -271,7 +271,7 @@ Implementato:
 
 ## M3 — Library e personalizzazione
 
-### M3.0 — Library & Reading History — CANDIDATE
+### M3.0 — Library & Reading History — VALIDATED
 
 - cronologia bounded degli ultimi 200 EPUB realmente aperti;
 - stato JSON schema 3 con path, BookId, titolo/autore, ultimo accesso e ReadingLocation;
@@ -282,12 +282,26 @@ Implementato:
 - schema 1/2 retrocompatibili e promossi dal lastBook;
 - ADR-0044 e `LOCAL_LIBRARY.md`.
 
-### M3.1 — Library Search — PLANNED
+### M3.1 — Library Search — HOTFIX 1 CANDIDATE
 
-- ricerca/filtro fuzzy nella libreria;
-- temi;
-- keymap configurabile;
-- immagini con placeholder/apertura viewer esterno.
+- `/` apre il filtro live nella libreria;
+- matching case/accent-insensitive su titolo, autore, nome file e path;
+- fallback fuzzy per sottosequenza con ranking deterministico;
+- `Enter` applica, `Esc` annulla durante l'input o cancella un filtro attivo;
+- query transiente, non persistita;
+- ADR-0045 e `LIBRARY_SEARCH.md`.
+
+### M3.2 — Themes — PLANNED
+
+- temi selezionabili mantenendo i ruoli semantici.
+
+### M3.3 — Configurable Keymap — PLANNED
+
+- keymap configurabile senza spostare la logica nella View.
+
+### M3.4 — Images — PLANNED
+
+- placeholder migliorati e apertura viewer esterno.
 
 ## M4 — Navigazione editoriale avanzata
 

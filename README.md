@@ -3,10 +3,11 @@
 Lettore EPUB da terminale scritto in C# per .NET 10.
 
 **Ultima baseline autoritativa validata:** M2.5 — Stable Progress.  
-**Candidate corrente:** M3.0 — Library & Reading History.  
-**Stato M3.0:** **CANDIDATE**.
+**Baseline validata:** M3.0 — Library & Reading History.  
+**Candidate corrente:** M3.1 Hotfix 1 — Library Search false-positive fix.  
+**Stato M3.1 Hotfix 1:** **CANDIDATE**.
 
-M2.5 ha superato il gate completo. M3.0 è costruita esclusivamente sopra quella baseline e aggiunge una libreria recente bounded, sempre basata su `ReadingLocation` logiche e sullo stesso JSON atomico.
+M3.0 ha superato il gate completo. M3.1 Hotfix 1 è costruita sulla candidate M3.1 dopo che il gate ha rilevato due falsi positivi fuzzy causati dal path completo; il path resta ricercabile per exact/prefix/substring ma non partecipa più al fuzzy-subsequence. Lo schema JSON 3 resta invariato.
 
 ## Scope autoritativo
 
@@ -118,7 +119,8 @@ ReadingBookmarkState → JSON schema 3                    M2.4 VALIDATED
   ↓
 BookProgressIndex → percentuale logica UTF-16                M2.5 VALIDATED
   ↓
-ReadingHistoryState → libreria recente / --library             M3.0 CANDIDATE
+ReadingHistoryState → libreria recente / --library             M3.0 VALIDATED
+ReadingHistorySearch → filtro fuzzy libreria                     M3.1 CANDIDATE
 ```
 
 La facade di ingestione resta:
@@ -206,7 +208,7 @@ Il gate esegue restore, build Release, suite completa, smoke CLI di help/version
 test-books/m1.0-smoke.epub
 ```
 
-La candidate M3.0 contiene staticamente **397 `[Fact]` + 16 casi `[InlineData]` su 4 `[Theory]`**, quindi sono attesi **413 casi**.
+La candidate M3.1 contiene staticamente **407 `[Fact]` + 16 casi `[InlineData]` su 4 `[Theory]`**, quindi sono attesi **423 casi**. Il gate locale resta autoritativo.
 
 Output finale atteso:
 
@@ -262,3 +264,10 @@ ereader --resume    # ultimo libro globale
 ```
 
 La cronologia conserva soltanto metadata format-neutral e `ReadingLocation`; non salva pagina, riga, viewport o percentuale.
+
+
+## M3.1 Hotfix 1 — Library Search
+
+M3.1 aggiunge filtro fuzzy live a `ereader --library`. Premi `/`, digita titolo/autore/path e i risultati vengono aggiornati mentre scrivi. `Enter` applica il filtro; `Esc` durante l'input annulla, mentre `Esc` con un filtro già applicato lo cancella.
+
+La policy di ranking vive in `EbookReader.Application.Library.ReadingHistorySearch`, non nella View Terminal.Gui. La query non viene persistita. Vedi [`docs/LIBRARY_SEARCH.md`](docs/LIBRARY_SEARCH.md).

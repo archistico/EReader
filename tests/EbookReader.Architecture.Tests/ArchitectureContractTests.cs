@@ -868,6 +868,27 @@ public sealed class ArchitectureContractTests
         Assert.DoesNotContain("progress", state, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void M31LibrarySearchIsTransientAndLivesOutsideTerminalGui()
+    {
+        string root = RepositoryRoot.Find();
+        string search = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Application", "Library", "ReadingHistorySearch.cs"));
+        string window = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Cli", "Tui", "LibraryWindow.cs"));
+        string state = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Application", "State", "JsonReadingStateStore.cs"));
+
+        Assert.Contains("ReadingHistorySearch.Filter", window, StringComparison.Ordinal);
+        Assert.Contains("GetPrintableText", window, StringComparison.Ordinal);
+        Assert.Contains("StringInfo.ParseCombiningCharacters", window, StringComparison.Ordinal);
+        Assert.DoesNotContain("Terminal.Gui", search, StringComparison.Ordinal);
+        Assert.DoesNotContain("BookLayout", search, StringComparison.Ordinal);
+        Assert.DoesNotContain("ReadingLocation", search, StringComparison.Ordinal);
+        Assert.DoesNotContain("filterQuery", state, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("libraryQuery", state, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static bool ProjectReferencesAngleSharp(string projectFile)
     {
         XDocument document = XDocument.Load(projectFile);

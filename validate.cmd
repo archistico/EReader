@@ -44,5 +44,5 @@ set "EREADER_STATE_FILE="
 if not "%_history_rc%"=="0" exit /b %_history_rc%
 
 echo.
-echo M3.0 VALIDATION PASSED
+echo M3.1 HOTFIX 1 VALIDATION PASSED
 exit /b 0

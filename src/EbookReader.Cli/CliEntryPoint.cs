@@ -17,7 +17,7 @@ namespace EbookReader.Cli;
 /// </summary>
 public static class CliEntryPoint
 {
-    public const string Milestone = "M3.0";
+    public const string Milestone = "M3.1";
     public const string Status = "CANDIDATE";
 
     private const int Success = 0;
@@ -410,17 +410,19 @@ public static class CliEntryPoint
         output.WriteLine("Pre-layout search: M2.3 logical-text search validated");
         output.WriteLine("Logical bookmarks: M2.4 schema 2 + semantic TUI colors validated");
         output.WriteLine("Stable progress: M2.5 logical UTF-16 progress independent of layout validated");
-        output.WriteLine("Library/history: M3.0 recent-book JSON library with --library/--history candidate");
+        output.WriteLine("Library/history: M3.0 recent-book JSON library with --library/--history validated");
+        output.WriteLine("Library search: M3.1 transient fuzzy title/author/path filter candidate");
     }
 
     private static void WriteHelp(TextWriter output)
     {
-        output.WriteLine("EReader — M3.0 Library & Reading History");
+        output.WriteLine("EReader — M3.1 Library Search");
         output.WriteLine();
         output.WriteLine("Uso:");
         output.WriteLine("  ereader <libro.epub>          apre il reader fullscreen");
         output.WriteLine("  ereader --resume              riapre l'ultimo libro e la posizione salvata");
         output.WriteLine("  ereader --library             apre la libreria recente interattiva");
+        output.WriteLine("                               nella libreria: / cerca, Esc cancella filtro");
         output.WriteLine("  ereader --history             stampa la cronologia recente su stdout");
         output.WriteLine("  ereader --plain <libro.epub> stampa il reading order su stdout");
         output.WriteLine("  ereader --help");

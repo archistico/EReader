@@ -4,8 +4,9 @@
 
 - **Ultima baseline autoritativa validata:** M2.5 — Stable Progress.
 - Gate utente: `M2.5 VALIDATION PASSED`.
-- **Candidate corrente:** M3.0 — Library & Reading History.
-- M3.0 è costruita esclusivamente sopra `EReader_M2.5_StableProgress_NET10_Candidate.zip` validata.
+- **Baseline autoritativa validata:** M3.0 — Library & Reading History.
+- **Candidate corrente:** M3.1 Hotfix 1 — Library Search false-positive fix.
+- M3.0 è stata validata dall’utente. M3.1 ha compilato ma il gate ha fallito 2/422 test per falsi positivi fuzzy del path completo; Hotfix 1 corregge esclusivamente tale policy di matching e aggiunge un regression test.
 
 ## M2.5
 
@@ -51,13 +52,14 @@ Conteggio M2.5 validato: 405 casi.
 
 ## Prossimo milestone
 
-M3.0 implementa ora Library/History sopra la baseline M2.5 validata; M3.1 resta pianificata per ricerca/filtro della libreria.
+M3.0 Library/History è validata. M3.1 implementa ora ricerca/filtro fuzzy transiente della libreria senza cambiare schema JSON.
 
 
-## Checkpoint M3.0
+## Checkpoint M3.1
 
 - Baseline di partenza: M2.5 VALIDATED.
-- Candidate: M3.0 Library & Reading History.
+- Baseline: M3.0 Library & Reading History — VALIDATED.
+- Candidate: M3.1 Library Search.
 - `state.json` schema 3, massimo 200 history entry.
 - `--library` TUI e `--history` plain.
-- M2.5 resta baseline autoritativa finché M3.0 non supera il gate.
+- M3.0 resta baseline autoritativa finché M3.1 Hotfix 1 non supera il gate.

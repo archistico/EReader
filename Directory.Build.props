@@ -9,6 +9,6 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <Deterministic>true</Deterministic>
     <VersionPrefix>1.0.0</VersionPrefix>
-    <VersionSuffix>m3.0-library-history-candidate</VersionSuffix>
+    <VersionSuffix>m3.1-hotfix1-library-search-candidate</VersionSuffix>
   </PropertyGroup>
 </Project>
