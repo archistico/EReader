@@ -858,9 +858,10 @@ internal sealed class ReaderWindow : Window
         string chapter = _session.CurrentPrimarySectionNumber > 0
             ? $"Cap. {_session.CurrentPrimarySectionNumber}/{_session.PrimarySectionCount}"
             : "Sezione supplementare";
+        string progress = _session.Progress.Percentage.ToString("0.0", CultureInfo.InvariantCulture) + "%";
         string search = BuildSearchStatus();
         string bookmark = _session.IsCurrentLocationBookmarked ? "   ★" : string.Empty;
-        return $"{_session.BookTitle}{author}   {chapter}   Pag. {_session.PageNumber}/{_session.PageCount}{search}{bookmark}";
+        return $"{_session.BookTitle}{author}   {chapter}   Pag. {_session.PageNumber}/{_session.PageCount}   {progress}{search}{bookmark}";
     }
 
     private string BuildSearchStatus()
@@ -878,7 +879,7 @@ internal sealed class ReaderWindow : Window
 
     private static string BuildHelp() =>
         """
-        EReader — comandi M2.4 Hotfix 2
+        EReader — comandi M2.5
 
         ↑ / k             riga precedente
         ↓ / j             riga successiva
@@ -904,5 +905,6 @@ internal sealed class ReaderWindow : Window
         La ricerca opera sul testo logico prima del wrapping; resize e larghezza terminale non cambiano i risultati.
         Il resize ricostruisce il layout mantenendo la stessa ReadingLocation logica.
         Numero pagina e riga possono cambiare dopo il reflow e restano coordinate effimere.
+        La percentuale usa il testo logico UTF-16 del Book e resta stabile dopo resize/reflow.
         """;
 }

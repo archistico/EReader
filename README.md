@@ -2,11 +2,11 @@
 
 Lettore EPUB da terminale scritto in C# per .NET 10.
 
-**Ultima baseline autoritativa validata:** M2.3 Hotfix 1 — Search pre-layout.  
-**Candidate corrente:** M2.4 Hotfix 3 — Terminal.Gui 2.4.17 Scheme API compatibility.  
-**Stato M2.4 Hotfix 3:** **CANDIDATE**.
+**Ultima baseline autoritativa validata:** M2.4 Hotfix 3 — Bookmark logici + colori semantici.  
+**Candidate corrente:** M2.5 — Stable Progress.  
+**Stato M2.5:** **CANDIDATE**.
 
-M2.3 Hotfix 1 è l’ultima baseline validata. La prima candidate M2.4 ha introdotto bookmark logici ma il build locale si è fermato su CS0103 per un alias `global::` dentro un’interpolazione. M2.4 Hotfix 1 ha corretto il build bookmark e introdotto i colori semantici, ma il build locale ha evidenziato che Terminal.Gui 2.4.17 espone `SetScheme(Scheme?)` invece di una proprietà assegnabile `Scheme`. M2.4 Hotfix 3 è costruita esclusivamente sopra Hotfix 1 e corregge solo questa incompatibilità API.
+M2.4 Hotfix 3 ha superato il gate completo con 395/395 casi. M2.5 è costruita esclusivamente sopra quella baseline e aggiunge una percentuale di avanzamento logica basata sul testo Domain UTF-16, separata dalle coordinate effimere di pagina/riga.
 
 ## Scope autoritativo
 
@@ -73,6 +73,10 @@ M2.4 Hotfix 1 aggiunge la palette di lettura: heading azzurri/cyan, strong verdi
 Dettagli ricerca: [`docs/SEARCH.md`](docs/SEARCH.md).  
 Dettagli bookmark: [`docs/BOOKMARKS.md`](docs/BOOKMARKS.md).
 
+M2.5 aggiunge una percentuale stabile calcolata da `ReadingLocation` e testo logico UTF-16. Pagina e percentuale sono mostrate insieme ma hanno semantica distinta: la pagina può cambiare al resize, la percentuale no.
+
+Dettagli progresso: [`docs/STABLE_PROGRESS.md`](docs/STABLE_PROGRESS.md).
+
 ## Pipeline corrente
 
 ```text
@@ -110,7 +114,9 @@ Interactive TOC → ReadingLocation                    M2.1 VALIDATED
 Metadata View → BookMetadata                            M2.2 VALIDATED
   ↓
 BookTextSearch → ReadingLocation                        M2.3 VALIDATED
-ReadingBookmarkState → JSON schema 2                    M2.4 CANDIDATE
+ReadingBookmarkState → JSON schema 2                    M2.4 VALIDATED
+  ↓
+BookProgressIndex → percentuale logica UTF-16                M2.5 CANDIDATE
 ```
 
 La facade di ingestione resta:
@@ -198,12 +204,12 @@ Il gate esegue restore, build Release, suite completa, smoke CLI di help/version
 test-books/m1.0-smoke.epub
 ```
 
-La suite contiene staticamente **379 `[Fact]` + 16 casi `[InlineData]` su 4 `[Theory]`**, quindi sono attesi **395 casi**.
+La suite contiene staticamente **389 `[Fact]` + 16 casi `[InlineData]` su 4 `[Theory]`**, quindi sono attesi **405 casi**.
 
 Output finale atteso:
 
 ```text
-M2.4 HOTFIX 1 VALIDATION PASSED
+M2.5 VALIDATION PASSED
 ```
 
 ## Documentazione
@@ -228,6 +234,7 @@ docs/
   SEARCH.md
   BOOKMARKS.md
   READER_COLORS.md
+  STABLE_PROGRESS.md
   ROADMAP.md
   VALIDATION.md
   PROJECT_HANDOFF.md

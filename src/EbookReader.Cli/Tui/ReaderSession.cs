@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using EbookReader.Application.Progress;
 using EbookReader.Application.Reading;
 using EbookReader.Application.Search;
 using EbookReader.Application.State;
@@ -17,6 +18,7 @@ namespace EbookReader.Cli.Tui;
 public sealed class ReaderSession
 {
     private readonly Book _book;
+    private readonly BookProgressIndex _progressIndex;
     private readonly ReadOnlyCollection<ReaderTocEntry> _tocEntries;
     private readonly ReadOnlyCollection<ReaderMetadataEntry> _metadataEntries;
     private readonly List<ReadingLocation> _bookmarks = [];
@@ -43,6 +45,7 @@ public sealed class ReaderSession
         }
 
         _book = book;
+        _progressIndex = new BookProgressIndex(book);
         _tocEntries = FlattenTableOfContents(book.TableOfContents);
         _metadataEntries = BuildMetadataEntries(book);
         _bookmarkLocations = _bookmarks.AsReadOnly();
@@ -88,6 +91,8 @@ public sealed class ReaderSession
     public int CurrentSearchMatchNumber => _searchMatchIndex < 0 ? 0 : _searchMatchIndex + 1;
 
     public bool SearchResultsTruncated => _searchResults?.IsTruncated ?? false;
+
+    public BookProgress Progress => _progressIndex.Locate(Location);
 
 
     /// <summary>

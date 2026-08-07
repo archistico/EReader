@@ -15,7 +15,7 @@ namespace EbookReader.Cli;
 /// </summary>
 public static class CliEntryPoint
 {
-    public const string Milestone = "M2.4 Hotfix 2";
+    public const string Milestone = "M2.5";
     public const string Status = "CANDIDATE";
 
     private const int Success = 0;
@@ -317,12 +317,13 @@ public static class CliEntryPoint
         output.WriteLine("Interactive TOC: M2.1 hierarchical Domain TOC validated");
         output.WriteLine("Metadata view: M2.2 format-neutral metadata overlay validated");
         output.WriteLine("Pre-layout search: M2.3 logical-text search validated");
-        output.WriteLine("Logical bookmarks: M2.4 schema 2 + semantic TUI colors Hotfix 1 candidate");
+        output.WriteLine("Logical bookmarks: M2.4 schema 2 + semantic TUI colors validated");
+        output.WriteLine("Stable progress: M2.5 logical UTF-16 progress independent of layout candidate");
     }
 
     private static void WriteHelp(TextWriter output)
     {
-        output.WriteLine("EReader — M2.4 Hotfix 2 Bookmark + colori semantici");
+        output.WriteLine("EReader — M2.5 Stable Progress");
         output.WriteLine();
         output.WriteLine("Uso:");
         output.WriteLine("  ereader <libro.epub>          apre il reader fullscreen");

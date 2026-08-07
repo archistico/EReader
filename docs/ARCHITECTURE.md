@@ -1,7 +1,7 @@
 # Architettura di EReader
 
-Stato: **M2.4 Hotfix 2 Terminal.Gui Scheme API compatibility — CANDIDATE**  
-Baseline autoritativa: **M2.3 Hotfix 1 Search pre-layout VALIDATED**  
+Stato: **M2.5 Stable Progress — CANDIDATE**  
+Baseline autoritativa: **M2.4 Hotfix 3 Bookmark + semantic colors VALIDATED**  
 Target: **.NET 10 / C# 14**
 
 ## 1. Obiettivo
@@ -85,6 +85,7 @@ Casi d'uso indipendenti dalla UI:
 - navigazione;
 - ricerca;
 - bookmark;
+- progresso logico stabile;
 - storia e stato;
 - impostazioni.
 
@@ -449,3 +450,8 @@ JsonReadingStateStore schema 2
 ```
 
 I bookmark sono Application state, non Domain state. `ReaderWindow` opera soltanto sulla proiezione di `ReaderSession`; JSON e filesystem restano fuori dalla View.
+
+
+## M2.5 — Stable Progress
+
+`EbookReader.Application.Progress.BookProgressIndex` indicizza una sola volta il testo logico del `Book.ReadingOrder`. Il mapping usa `ContentText.GetPlainText(block).Length` e `ReadingLocation.CharacterOffset`, entrambi in code unit UTF-16. Il modulo non dipende da `EbookReader.Layout` e non conosce pagine, righe visuali, celle o viewport. `ReaderSession` conserva l'indice e `ReaderWindow` mostra la percentuale derivata accanto al numero pagina. `state.json` continua a persistere soltanto coordinate logiche, non la percentuale.

@@ -9,6 +9,6 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <Deterministic>true</Deterministic>
     <VersionPrefix>1.0.0</VersionPrefix>
-    <VersionSuffix>m2.4-hotfix3-architecture-contract-candidate</VersionSuffix>
+    <VersionSuffix>m2.5-stable-progress-candidate</VersionSuffix>
   </PropertyGroup>
 </Project>

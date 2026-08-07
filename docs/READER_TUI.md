@@ -173,3 +173,8 @@ Esc                chiude elenco
 ```
 
 L'elenco è una proiezione TUI di `ReadingLocation`; JSON e filesystem non sono responsabilità di `ReaderWindow`.
+
+
+## M2.5 — Stable Progress
+
+La vista normale aggiunge una percentuale logica accanto alla pagina, ad esempio `Pag. 12/84   37.4%`. La pagina deriva dal `BookLayout` e può cambiare dopo resize; la percentuale deriva da `BookProgressIndex` e dalla `ReadingLocation` e deve restare identica. Le overlay TOC/metadata/bookmark mantengono i propri header specializzati.

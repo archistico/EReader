@@ -36,5 +36,5 @@ dotnet run --project src\EbookReader.Cli\EbookReader.Cli.csproj -c Release --no-
 if errorlevel 1 exit /b 1
 
 echo.
-echo M2.4 HOTFIX 3 VALIDATION PASSED
+echo M2.5 VALIDATION PASSED
 exit /b 0

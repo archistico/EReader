@@ -1,3 +1,4 @@
+using EbookReader.Application.Progress;
 using EbookReader.Cli.Tui;
 using EbookReader.Domain.Books;
 using EbookReader.Domain.Content;
@@ -475,6 +476,34 @@ public sealed class ReaderSessionTests
         Assert.Equal(before, session.Location);
         ReadingLocation only = Assert.Single(session.BookmarkLocations);
         Assert.Equal(second, only);
+    }
+
+    [Fact]
+    public void StableProgressAdvancesWithLogicalReadingLocation()
+    {
+        Book book = CreateBook();
+        ReaderSession session = new(book, new LayoutViewport(20, 5));
+
+        Assert.Equal(0m, session.Progress.Percentage);
+        Assert.True(session.Search("epsilon"));
+        Assert.True(session.Progress.ConsumedUnits > 0);
+        Assert.True(session.Progress.Percentage > 0m);
+        Assert.True(session.Progress.Percentage < 100m);
+    }
+
+    [Fact]
+    public void StableProgressDoesNotChangeAcrossReflow()
+    {
+        Book book = CreateBook();
+        ReaderSession session = new(book, new LayoutViewport(12, 3));
+
+        Assert.True(session.Search("epsilon"));
+        BookProgress before = session.Progress;
+        Assert.True(session.Reflow(new LayoutViewport(80, 24)));
+
+        Assert.Equal(before, session.Progress);
+        Assert.Equal(before.Percentage, session.Progress.Percentage);
+        Assert.Equal(new LayoutViewport(80, 24), session.Layout.Viewport);
     }
 
     private static Book CreateBook(bool includeSupplementary = false)

@@ -814,6 +814,37 @@ public sealed class ArchitectureContractTests
         Assert.Contains("OnDrawingContent(DrawContext? context)", body, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void M25StableProgressUsesLogicalDomainTextAndNeverPersistsLayoutCoordinates()
+    {
+        string root = RepositoryRoot.Find();
+        string progress = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "EbookReader.Application",
+            "Progress",
+            "BookProgressIndex.cs"));
+        string window = File.ReadAllText(Path.Combine(
+            root,
+            "src",
+            "EbookReader.Cli",
+            "Tui",
+            "ReaderWindow.cs"));
+        string stateDirectory = Path.Combine(root, "src", "EbookReader.Application", "State");
+        string state = string.Join(
+            Environment.NewLine,
+            Directory.EnumerateFiles(stateDirectory, "*.cs", SearchOption.AllDirectories).Select(File.ReadAllText));
+
+        Assert.Contains("ContentText.GetPlainText(block).Length", progress, StringComparison.Ordinal);
+        Assert.Contains("location.CharacterOffset", progress, StringComparison.Ordinal);
+        Assert.DoesNotContain("BookLayout", progress, StringComparison.Ordinal);
+        Assert.DoesNotContain("PageNumber", progress, StringComparison.Ordinal);
+        Assert.DoesNotContain("Viewport", progress, StringComparison.Ordinal);
+        Assert.Contains("_session.Progress.Percentage", window, StringComparison.Ordinal);
+        Assert.DoesNotContain("Progress", state, StringComparison.Ordinal);
+        Assert.DoesNotContain("Percentage", state, StringComparison.Ordinal);
+    }
+
     private static bool ProjectReferencesAngleSharp(string projectFile)
     {
         XDocument document = XDocument.Load(projectFile);

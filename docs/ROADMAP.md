@@ -245,7 +245,7 @@ Implementato:
 - ricerca non persistita in `state.json`;
 - ADR-0039 e `SEARCH.md`.
 
-### M2.4 — Bookmark logici + Hotfix 2 colori semantici compatibili Terminal.Gui 2.4.17 — CANDIDATE
+### M2.4 — Bookmark logici + colori semantici — VALIDATED
 
 - `b` toggle bookmark alla `ReadingLocation` corrente;
 - `B` elenco bookmark navigabile in TUI;
@@ -258,7 +258,16 @@ Implementato:
 - Hotfix 1: style span Strong/Emphasis preservati nel layout, palette TUI e cornici/separatori grigi; ADR-0041 e `READER_COLORS.md`.
 - Hotfix 2: applicazione degli schemi via `View.SetScheme(...)`, API effettiva di Terminal.Gui 2.4.17; ADR-0042.
 
-- M2.5 Stable Progress.
+### M2.5 — Stable Progress — CANDIDATE
+
+- `BookProgressIndex` precomputa il peso logico del `Book.ReadingOrder`;
+- unità = code unit UTF-16 di `ContentText.GetPlainText(block)`;
+- `ReadingLocation.CharacterOffset` è usato direttamente nello stesso spazio di coordinate;
+- percentuale indipendente da pagina, wrapping, viewport e resize;
+- sezioni supplementary incluse perché fanno parte del reading order format-neutral;
+- nessuna percentuale persistita in `state.json`;
+- header TUI mostra pagina effimera e percentuale stabile come informazioni distinte;
+- ADR-0043 e `STABLE_PROGRESS.md`.
 
 ## M3 — Library e personalizzazione
 

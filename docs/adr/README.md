@@ -49,6 +49,8 @@ Formato adottato: numero progressivo, titolo, stato, data, contesto, decisione, 
 | [0041](0041-semantic-inline-styles-remain-format-neutral-until-tui.md) | Stili inline semantici fino al boundary TUI | Accepted |
 | [0042](0042-terminal-gui-2417-custom-schemes-use-setscheme.md) | Terminal.Gui 2.4.17: schemi custom via SetScheme | Accepted |
 
+| [0043](0043-stable-progress-uses-logical-utf16-content.md) | Progresso stabile dal contenuto logico UTF-16 | Accepted |
+
 ## Stati
 
 - **Proposed** — in discussione.
