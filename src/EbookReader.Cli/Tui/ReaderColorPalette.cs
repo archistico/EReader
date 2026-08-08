@@ -18,6 +18,8 @@ internal static class ReaderColorPalette
 
     public static TuiAttribute Chrome { get; } = new("Gray", "Black");
 
+    public static TuiAttribute HighlightText { get; } = new("Black", "Yellow");
+
     public static Scheme PlainScheme { get; } = new(PlainText);
 
     public static Scheme ChromeScheme { get; } = new(Chrome);

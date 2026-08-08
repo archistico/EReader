@@ -85,12 +85,7 @@ This is not EPUB archive extraction: the EPUB adapter still never calls `Extract
 
 ## Persistence
 
-M3.4 does not change either persisted schema:
-
-```text
-state.json   schema 3  → reading state/history/bookmarks
-config.json  schema 1  → theme/keymap
-```
+M3.4 non modificava gli schemi allora correnti (`state.json` schema 3 e `config.json` schema 1). Da M3.7 lo stato di lettura è evoluto a schema 4 per highlight/note, mentre il contratto immagini resta invariato e `config.json` rimane schema 1.
 
 No image bytes, temporary path, media viewer state or image layout coordinate is persisted.
 

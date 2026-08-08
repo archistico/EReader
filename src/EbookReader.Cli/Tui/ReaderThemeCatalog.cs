@@ -17,7 +17,8 @@ internal static class ReaderThemeCatalog
             ReaderColorPalette.StrongText,
             ReaderColorPalette.EmphasisText,
             ReaderColorPalette.StrongEmphasisText,
-            ReaderColorPalette.Chrome),
+            ReaderColorPalette.Chrome,
+            ReaderColorPalette.HighlightText),
         new ReaderTheme(
             ReaderThemeIds.PaperLight,
             "Carta chiara",
@@ -26,7 +27,8 @@ internal static class ReaderThemeCatalog
             new TuiAttribute("Green", "White", TextStyle.Bold),
             new TuiAttribute("Black", "White", TextStyle.Italic),
             new TuiAttribute("Green", "White", TextStyle.Bold | TextStyle.Italic),
-            new TuiAttribute("Gray", "White")),
+            new TuiAttribute("Gray", "White"),
+            new TuiAttribute("Black", "Yellow")),
         new ReaderTheme(
             ReaderThemeIds.Monochrome,
             "Monocromatico",
@@ -35,7 +37,8 @@ internal static class ReaderThemeCatalog
             new TuiAttribute("White", "Black", TextStyle.Bold),
             new TuiAttribute("White", "Black", TextStyle.Italic),
             new TuiAttribute("White", "Black", TextStyle.Bold | TextStyle.Italic),
-            new TuiAttribute("Gray", "Black")),
+            new TuiAttribute("Gray", "Black"),
+            new TuiAttribute("Black", "White")),
     ];
 
     public static ReadOnlyCollection<ReaderTheme> All { get; } = Array.AsReadOnly(ThemeArray);

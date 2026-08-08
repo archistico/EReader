@@ -19,7 +19,8 @@ internal sealed class ReaderTheme
         TuiAttribute strongText,
         TuiAttribute emphasisText,
         TuiAttribute strongEmphasisText,
-        TuiAttribute chrome)
+        TuiAttribute chrome,
+        TuiAttribute highlightText)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(id);
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
@@ -36,6 +37,7 @@ internal sealed class ReaderTheme
         EmphasisText = emphasisText;
         StrongEmphasisText = strongEmphasisText;
         Chrome = chrome;
+        HighlightText = highlightText;
         PlainScheme = new Scheme(plainText);
         ChromeScheme = new Scheme(chrome);
     }
@@ -55,6 +57,8 @@ internal sealed class ReaderTheme
     public TuiAttribute StrongEmphasisText { get; }
 
     public TuiAttribute Chrome { get; }
+
+    public TuiAttribute HighlightText { get; }
 
     public Scheme PlainScheme { get; }
 

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using EbookReader.Application.Annotations;
 using EbookReader.Application.Library;
 using EbookReader.Domain.Books;
 using EbookReader.Domain.Content;
@@ -8,12 +9,12 @@ using EbookReader.Domain.Reading;
 namespace EbookReader.Application.State;
 
 /// <summary>
-/// Versioned JSON persistence for resume state, logical bookmarks and bounded recent-book history. Writes use a temporary file in the same
-/// directory, flush it to disk, then replace the destination with a same-volume rename.
+/// Versioned JSON persistence for resume state, logical bookmarks, bounded recent-book history and logical annotations.
+/// Writes use a temporary file in the same directory, flush it to disk, then replace the destination with a same-volume rename.
 /// </summary>
 public sealed class JsonReadingStateStore
 {
-    public const int CurrentSchemaVersion = 3;
+    public const int CurrentSchemaVersion = 4;
     public const int MaximumBookmarks = 10_000;
     public const long MaximumStateBytes = 1_048_576;
 
@@ -116,7 +117,7 @@ public sealed class JsonReadingStateStore
 
     private static ReadingStateSnapshot FromDocument(StateDocumentDto document)
     {
-        if (document.SchemaVersion is not (1 or 2 or CurrentSchemaVersion))
+        if (document.SchemaVersion is not (1 or 2 or 3 or CurrentSchemaVersion))
         {
             throw new InvalidDataException(
                 $"Versione schema stato non supportata: {document.SchemaVersion}.");
@@ -139,6 +140,18 @@ public sealed class JsonReadingStateStore
                 $"Il documento di stato contiene più di {ReadingHistoryState.MaximumEntries} voci di cronologia.");
         }
 
+        if (document.Highlights is { Count: > ReadingAnnotationState.MaximumHighlights })
+        {
+            throw new InvalidDataException(
+                $"Il documento di stato contiene più di {ReadingAnnotationState.MaximumHighlights} evidenziazioni.");
+        }
+
+        if (document.Notes is { Count: > ReadingAnnotationState.MaximumNotes })
+        {
+            throw new InvalidDataException(
+                $"Il documento di stato contiene più di {ReadingAnnotationState.MaximumNotes} note personali.");
+        }
+
         try
         {
             ArgumentException.ThrowIfNullOrWhiteSpace(lastBook.Path);
@@ -151,6 +164,8 @@ public sealed class JsonReadingStateStore
             ReadingLocation readingLocation = CreateLocation(location);
             List<ReadingBookmarkSnapshot> bookmarks = [];
             List<ReadingHistoryEntry> history = [];
+            List<ReadingHighlightSnapshot> highlights = [];
+            List<ReadingPersonalNoteSnapshot> notes = [];
 
             if (document.SchemaVersion >= 2 && document.Bookmarks is not null)
             {
@@ -213,13 +228,98 @@ public sealed class JsonReadingStateStore
                     lastBook.LastOpenedUtc));
             }
 
+
+            if (document.SchemaVersion >= 4)
+            {
+                if (document.Highlights is not null)
+                {
+                    foreach (HighlightDto item in document.Highlights)
+                    {
+                        ArgumentException.ThrowIfNullOrWhiteSpace(item.Path);
+                        ArgumentException.ThrowIfNullOrWhiteSpace(item.BookId);
+                        LocationDto start = item.Start
+                            ?? throw new InvalidDataException("Un'evidenziazione non contiene start.");
+                        LocationDto end = item.End
+                            ?? throw new InvalidDataException("Un'evidenziazione non contiene end.");
+                        ReadingHighlightSnapshot snapshot = new(
+                            item.Path,
+                            new BookId(item.BookId),
+                            new ReadingHighlightRange(CreateLocation(start), CreateLocation(end)));
+                        if (highlights.Contains(snapshot))
+                        {
+                            throw new InvalidDataException("Il documento di stato contiene evidenziazioni duplicate.");
+                        }
+
+                        int sameBookHighlightCount = highlights.Count(existing =>
+                            PathsEqual(existing.BookPath, snapshot.BookPath)
+                            && existing.BookId == snapshot.BookId);
+                        if (sameBookHighlightCount >= ReadingAnnotationState.MaximumHighlightsPerBook)
+                        {
+                            throw new InvalidDataException(
+                                $"Un libro contiene più di {ReadingAnnotationState.MaximumHighlightsPerBook} evidenziazioni.");
+                        }
+
+                        highlights.Add(snapshot);
+                    }
+                }
+
+                if (document.Notes is not null)
+                {
+                    foreach (NoteDto item in document.Notes)
+                    {
+                        ArgumentException.ThrowIfNullOrWhiteSpace(item.Path);
+                        ArgumentException.ThrowIfNullOrWhiteSpace(item.BookId);
+                        ArgumentException.ThrowIfNullOrWhiteSpace(item.Text);
+                        if (item.UpdatedUtc == default)
+                        {
+                            throw new InvalidDataException("Una nota personale non contiene updatedUtc valido.");
+                        }
+
+                        LocationDto noteLocation = item.Location
+                            ?? throw new InvalidDataException("Una nota personale non contiene location.");
+                        ReadingPersonalNoteSnapshot snapshot = new(
+                            item.Path,
+                            new BookId(item.BookId),
+                            CreateLocation(noteLocation),
+                            item.Text,
+                            item.UpdatedUtc);
+                        if (notes.Any(existing =>
+                            PathsEqual(existing.BookPath, snapshot.BookPath)
+                            && existing.BookId == snapshot.BookId
+                            && existing.Note.Location == snapshot.Note.Location))
+                        {
+                            throw new InvalidDataException("Il documento di stato contiene note duplicate alla stessa posizione.");
+                        }
+
+                        int sameBookNoteCount = notes.Count(existing =>
+                            PathsEqual(existing.BookPath, snapshot.BookPath)
+                            && existing.BookId == snapshot.BookId);
+                        if (sameBookNoteCount >= ReadingAnnotationState.MaximumNotesPerBook)
+                        {
+                            throw new InvalidDataException(
+                                $"Un libro contiene più di {ReadingAnnotationState.MaximumNotesPerBook} note personali.");
+                        }
+
+                        notes.Add(snapshot);
+                    }
+                }
+
+                if (notes.Sum(item => item.Note.Text.Length) > ReadingAnnotationState.MaximumTotalNoteTextLength)
+                {
+                    throw new InvalidDataException(
+                        $"Il testo complessivo delle note supera {ReadingAnnotationState.MaximumTotalNoteTextLength} code unit UTF-16.");
+                }
+            }
+
             return new ReadingStateSnapshot(
                 lastBook.Path,
                 new BookId(lastBook.BookId),
                 readingLocation,
                 lastBook.LastOpenedUtc,
                 bookmarks,
-                history);
+                history,
+                highlights,
+                notes);
         }
         catch (ArgumentException exception)
         {
@@ -267,6 +367,25 @@ public sealed class JsonReadingStateStore
                     Location = ToLocation(item.Location),
                 })
                 .ToList(),
+            Highlights = state.Highlights
+                .Select(item => new HighlightDto
+                {
+                    Path = item.BookPath,
+                    BookId = item.BookId.Value,
+                    Start = ToLocation(item.Range.Start),
+                    End = ToLocation(item.Range.End),
+                })
+                .ToList(),
+            Notes = state.Notes
+                .Select(item => new NoteDto
+                {
+                    Path = item.BookPath,
+                    BookId = item.BookId.Value,
+                    Location = ToLocation(item.Note.Location),
+                    Text = item.Note.Text,
+                    UpdatedUtc = item.Note.UpdatedUtc,
+                })
+                .ToList(),
         };
 
     private static LocationDto ToLocation(ReadingLocation location) =>
@@ -310,6 +429,10 @@ public sealed class JsonReadingStateStore
         public List<BookmarkDto>? Bookmarks { get; init; }
 
         public List<HistoryDto>? History { get; init; }
+
+        public List<HighlightDto>? Highlights { get; init; }
+
+        public List<NoteDto>? Notes { get; init; }
     }
 
     private sealed class LastBookDto
@@ -340,6 +463,23 @@ public sealed class JsonReadingStateStore
         public string? AuthorLine { get; init; }
         public DateTimeOffset LastOpenedUtc { get; init; }
         public LocationDto? Location { get; init; }
+    }
+
+    private sealed class HighlightDto
+    {
+        public string? Path { get; init; }
+        public string? BookId { get; init; }
+        public LocationDto? Start { get; init; }
+        public LocationDto? End { get; init; }
+    }
+
+    private sealed class NoteDto
+    {
+        public string? Path { get; init; }
+        public string? BookId { get; init; }
+        public LocationDto? Location { get; init; }
+        public string? Text { get; init; }
+        public DateTimeOffset UpdatedUtc { get; init; }
     }
 
     private sealed class LocationDto

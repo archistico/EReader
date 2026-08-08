@@ -36,9 +36,4 @@ A publication that does not mark note links with `epub:type="noteref"` is unchan
 
 ## Persistence
 
-M3.6 changes neither persisted schema:
-
-- `state.json`: schema 3;
-- `config.json`: schema 1.
-
-No note popup state, EPUB semantic token, page number, line number or back-stack entry is persisted.
+M3.6 non modificava gli schemi allora correnti. Da M3.7 `state.json` è schema 4 per highlight/note personali e `config.json` resta schema 1; la UX footnote/endnote non aggiunge propri campi persistenti. Nessuno stato popup, token semantico EPUB, numero pagina/riga o elemento di back-stack viene serializzato.

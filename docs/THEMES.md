@@ -59,7 +59,7 @@ La TUI li mappa tramite `ReaderTheme`.
 
 ## Persistenza
 
-In M3.2 la scelta tema nasce transiente e non viene scritta in `state.json` schema 3. **M3.3 implementa il boundary previsto**: il tema viene persistito in `config.json` schema 1, sempre separato dallo stato dei libri. Vedi `CONFIGURATION_KEYMAP.md` e ADR-0047.
+In M3.2 la scelta tema nasce transiente e non viene scritta nello stato di lettura. **M3.3 implementa il boundary previsto**: il tema viene persistito in `config.json` schema 1, sempre separato da `state.json` (che da M3.7 è schema 4). Vedi `CONFIGURATION_KEYMAP.md` e ADR-0047.
 
 ## Invarianti
 

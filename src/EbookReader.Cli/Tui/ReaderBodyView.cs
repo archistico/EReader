@@ -1,3 +1,7 @@
+using EbookReader.Application.Annotations;
+using EbookReader.Domain.Books;
+using EbookReader.Domain.Content;
+using EbookReader.Domain.Reading;
 using EbookReader.Layout;
 using Terminal.Gui.Drawing;
 using Terminal.Gui.ViewBase;
@@ -13,6 +17,7 @@ internal sealed class ReaderBodyView : View
     private VisualLine[] _readerLines = [];
     private string[] _plainLines = [];
     private bool _readerMode;
+    private ReadingHighlightRange[] _highlights = [];
     private ReaderTheme _theme = ReaderThemeCatalog.Default;
 
     public ReaderBodyView()
@@ -25,6 +30,13 @@ internal sealed class ReaderBodyView : View
         ArgumentNullException.ThrowIfNull(theme);
         _theme = theme;
         SetScheme(theme.PlainScheme);
+        SetNeedsDraw();
+    }
+
+    public void SetHighlights(IReadOnlyList<ReadingHighlightRange> highlights)
+    {
+        ArgumentNullException.ThrowIfNull(highlights);
+        _highlights = highlights.ToArray();
         SetNeedsDraw();
     }
 
@@ -72,6 +84,13 @@ internal sealed class ReaderBodyView : View
 
     private void DrawReaderLine(VisualLine line)
     {
+        if (IsHighlighted(line))
+        {
+            SetAttribute(_theme.HighlightText);
+            AddStr(line.Text);
+            return;
+        }
+
         if (line.Kind == VisualLineKind.Heading)
         {
             SetAttribute(_theme.ChapterHeading);
@@ -98,5 +117,21 @@ internal sealed class ReaderBodyView : View
             SetAttribute(_theme.PlainText);
             AddStr(line.Text[cursor..]);
         }
+    }
+
+    private bool IsHighlighted(VisualLine line)
+    {
+        if (line.SectionId is not SectionId sectionId
+            || line.BlockId is not BlockId blockId
+            || line.SourceStartOffset is not int start
+            || line.SourceEndOffset is not int end
+            || end <= start)
+        {
+            return false;
+        }
+
+        ReadingLocation lineStart = new(sectionId, blockId, start);
+        ReadingLocation lineEnd = new(sectionId, blockId, end);
+        return _highlights.Any(highlight => highlight.Intersects(lineStart, lineEnd));
     }
 }

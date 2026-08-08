@@ -60,6 +60,8 @@ Formato adottato: numero progressivo, titolo, stato, data, contesto, decisione, 
 
 | [0050](0050-note-references-are-format-neutral-hyperlink-roles.md) | I rimandi nota sono ruoli hyperlink format-neutral | Accepted |
 
+| [0051](0051-annotations-use-logical-ranges-and-state-schema-v4.md) | Annotazioni su range logici e stato schema 4 | Accepted |
+
 ## Stati
 
 - **Proposed** — in discussione.

@@ -1,7 +1,7 @@
 # Architettura di EReader
 
-Stato: **M3.6 Footnotes / Endnotes UX — CANDIDATE sopra M3.5 Hotfix 1 VALIDATED**  
-Baseline autoritativa: **M3.1 Hotfix 1 Library Search VALIDATED**  
+Stato: **M3.7 Hotfix 1 — Compilation Integration CANDIDATE; funzionalità M3.7 sopra M3.6 Hotfix 1 VALIDATED**  
+Baseline autoritativa: **M3.6 Hotfix 1 Footnotes / Endnotes UX VALIDATED**  
 Target: **.NET 10 / C# 14**
 
 ## 1. Obiettivo
@@ -521,3 +521,8 @@ Gli hyperlink restano semantica Domain (`HyperlinkSpan` + `LinkTarget`) e vengon
 ## M3.6 — Boundary semantico note
 
 `epub:type="noteref"` viene letto esclusivamente da `EbookReader.Epub` e tradotto in `HyperlinkRole.NoteReference`, definito nel Domain senza riferimenti EPUB. `EbookReader.Application.Links` conserva il ruolo insieme ai range UTF-16 M3.5. La TUI sceglie soltanto il wording `NOTA` / `Enter nota`; la navigazione usa ancora `InternalLinkTarget.Location` e lo stack Backspace transiente. Layout e persistenza non conoscono il vocabolario EPUB.
+
+
+## M3.7 — Annotation boundary
+
+`EbookReader.Application.Annotations` possiede il modello logico di highlight/note e la policy di restore/replace. `EbookReader.Layout` non conosce annotazioni. Il CLI/TUI riceve i range già logici e applica soltanto la resa terminale. `state.json` schema 4 persiste annotazioni; `config.json` schema 1 resta separato.

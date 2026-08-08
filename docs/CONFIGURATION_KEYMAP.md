@@ -115,3 +115,8 @@ Il tema non entra mai nel `Book`, nel `BookLayout` o nella `ReadingLocation`.
 - file assente = configurazione predefinita;
 - file invalido = warning e fallback ai default per la sessione, senza bloccare la lettura;
 - una configurazione invalida non viene sovrascritta automaticamente dalla sessione.
+
+
+## M3.7 fixed annotation keys
+
+F2 (highlight), F3 (personal note) e F4 (annotations list) sono special keys fissi, come F1/Enter/Esc. `config.json` resta schema 1 e i binding stampabili M3.3 non cambiano. Questa scelta evita collisioni/migrazioni per configurazioni create prima di M3.7.

@@ -2,10 +2,10 @@
 
 Lettore EPUB da terminale scritto in C# per .NET 10.
 
-**Ultima baseline autoritativa validata:** M3.5 Hotfix 1 — Interactive Hyperlinks + XHTML Smoke Fixture Alignment.  
-**Candidate corrente:** `EReader_M3.6_FootnotesEndnotesUX_NET10_Candidate.zip` — M3.6 Footnotes / Endnotes UX.
-**Stato M3.5 Hotfix 1:** **VALIDATED**.  
-**Stato M3.6:** **CANDIDATE** sopra M3.5 Hotfix 1 VALIDATED.
+**Ultima baseline autoritativa validata:** M3.6 Hotfix 1 — Footnotes / Endnotes UX + Help Contract Alignment.  
+**Candidate corrente:** `EReader_M3.7_Hotfix1_CompilationIntegration_NET10_Candidate.zip` — M3.7 Hotfix 1 Compilation Integration.  
+**Stato M3.6 Hotfix 1:** **VALIDATED**.  
+**Stato M3.7:** **HOTFIX 1 CANDIDATE** sopra M3.7 originale, a sua volta costruita su M3.6 Hotfix 1 VALIDATED.
 
 M3.5 rende azionabili gli hyperlink Domain: salti interni su `ReadingLocation`, Backspace su stack transiente e handoff esplicito di `http`/`https`/`mailto` al sistema operativo, senza network client o browser embedded.
 
@@ -132,7 +132,7 @@ Interactive TOC → ReadingLocation                    M2.1 VALIDATED
 Metadata View → BookMetadata                            M2.2 VALIDATED
   ↓
 BookTextSearch → ReadingLocation                        M2.3 VALIDATED
-ReadingBookmarkState → JSON schema 3                    M2.4 VALIDATED
+ReadingBookmarkState → bookmark logici multi-book              M2.4 VALIDATED
   ↓
 BookProgressIndex → percentuale logica UTF-16                M2.5 VALIDATED
   ↓
@@ -145,7 +145,11 @@ JsonReaderPreferencesStore → theme + printable keymap            M3.3 VALIDATE
   ↓
 EpubImageResourceReader → preview raster locale bounded          M3.4 VALIDATED
   ↓
-BookHyperlinkIndex → internal ReadingLocation / external OS handoff M3.5 CANDIDATE
+BookHyperlinkIndex → internal ReadingLocation / external OS handoff M3.5 VALIDATED
+  ↓
+HyperlinkRole.NoteReference → note/endnote UX                    M3.6 VALIDATED
+  ↓
+ReadingAnnotationState → highlight/note logici → JSON schema 4   M3.7 CANDIDATE
 ```
 
 La facade di ingestione resta:
@@ -316,3 +320,12 @@ Documentazione decisionale: **50 ADR** totali con ADR-0050 per M3.6.
 Hotfix 1 riallinea il test `HelpDocumentsReadableEpubCommand` alla formulazione help M3.6 `Enter segue link/rimando nota corrente`. Nessun file produttivo sotto `src/` cambia rispetto alla candidate M3.6.
 
 Nota temi: il tema scelto è persistito in `config.json`. `semantic-dark` usa heading cyan, strong verde e emphasis giallo; `monochrome` usa intenzionalmente bianco/grigio e stili Bold/Italic. In TUI premere `c` per ciclare i temi oppure usare `ereader --config-path` per individuare la configurazione.
+
+
+## M3.7 — Highlights & Personal Notes
+
+M3.7 evolve `state.json` a schema 4 e aggiunge annotazioni logiche book-scoped. F2 evidenzia la riga logica corrente, F3 modifica una nota personale alla posizione esatta e F4 apre l'elenco annotazioni. Le coordinate restano `ReadingLocation`/UTF-16; nessuna pagina, riga o viewport viene persistita.
+
+Audit statico candidate: **454 Fact + 4 Theory + 16 InlineData = 470 casi attesi**.
+
+Documentazione decisionale: **51 ADR numerati** con ADR-0051 per il modello annotazioni/schema 4.

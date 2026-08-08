@@ -142,7 +142,7 @@ public sealed class ReadingHistoryTests
 
         Assert.NotNull(loaded);
         Assert.Equal(item, Assert.Single(loaded.History));
-        Assert.Contains("\"schemaVersion\": 3", json, StringComparison.Ordinal);
+        Assert.Contains("\"schemaVersion\": 4", json, StringComparison.Ordinal);
         Assert.Contains("\"history\"", json, StringComparison.Ordinal);
         Assert.DoesNotContain("pageNumber", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("lineIndex", json, StringComparison.OrdinalIgnoreCase);

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using EbookReader.Application.Annotations;
 using EbookReader.Cli.Configuration;
 using EbookReader.Application.Links;
 using EbookReader.Cli.Images;
@@ -32,13 +33,18 @@ internal sealed class ReaderWindow : Window
     private bool _tocVisible;
     private bool _metadataVisible;
     private bool _bookmarksVisible;
+    private bool _annotationsVisible;
     private bool _searchInputVisible;
+    private bool _noteInputVisible;
     private readonly StringBuilder _searchInput = new();
+    private readonly StringBuilder _noteInput = new();
     private int _tocSelectedIndex = -1;
     private int _tocScrollOffset;
     private int _metadataScrollOffset;
     private int _bookmarkSelectedIndex = -1;
     private int _bookmarkScrollOffset;
+    private int _annotationSelectedIndex = -1;
+    private int _annotationScrollOffset;
     private bool _synchronizingViewport;
     private int _themeIndex;
     private string? _statusMessage;
@@ -128,6 +134,11 @@ internal sealed class ReaderWindow : Window
             _statusMessage = null;
         }
 
+        if (_noteInputVisible)
+        {
+            return HandleNoteInputKey(key);
+        }
+
         if (_searchInputVisible)
         {
             return HandleSearchInputKey(key);
@@ -159,7 +170,11 @@ internal sealed class ReaderWindow : Window
 
         if (key == Key.Esc)
         {
-            if (_bookmarksVisible)
+            if (_annotationsVisible)
+            {
+                CloseAnnotations();
+            }
+            else if (_bookmarksVisible)
             {
                 CloseBookmarks();
             }
@@ -202,6 +217,12 @@ internal sealed class ReaderWindow : Window
             return true;
         }
 
+        if (key == Key.F4)
+        {
+            ToggleAnnotations();
+            return true;
+        }
+
         if (_helpVisible)
         {
             return true;
@@ -220,6 +241,23 @@ internal sealed class ReaderWindow : Window
         if (_bookmarksVisible)
         {
             return HandleBookmarkKey(key);
+        }
+
+        if (_annotationsVisible)
+        {
+            return HandleAnnotationKey(key);
+        }
+
+        if (key == Key.F2)
+        {
+            ToggleCurrentHighlight();
+            return true;
+        }
+
+        if (key == Key.F3)
+        {
+            OpenNoteInput();
+            return true;
         }
 
         if (key == Key.Enter && _session.CurrentHyperlink is BookHyperlink hyperlink)
@@ -312,6 +350,51 @@ internal sealed class ReaderWindow : Window
         return base.OnKeyDown(key);
     }
 
+    private bool HandleNoteInputKey(Key key)
+    {
+        if (key == Key.Esc)
+        {
+            _noteInputVisible = false;
+            _noteInput.Clear();
+            RefreshReader();
+            return true;
+        }
+
+        if (key == Key.Enter)
+        {
+            bool hadExisting = _session.CurrentNote is not null;
+            string text = _noteInput.ToString();
+            _noteInputVisible = false;
+            _noteInput.Clear();
+            bool saved = _session.SetNoteAtCurrentLocation(text, DateTimeOffset.UtcNow);
+            _statusMessage = saved
+                ? hadExisting ? "Nota personale aggiornata." : "Nota personale aggiunta."
+                : hadExisting && string.IsNullOrWhiteSpace(text)
+                    ? "Nota personale eliminata."
+                    : "Nota non salvata: limite raggiunto o testo vuoto.";
+            RefreshReader();
+            return true;
+        }
+
+        if (key == Key.Backspace)
+        {
+            RemoveLastTextElement(_noteInput);
+            RefreshReader();
+            return true;
+        }
+
+        string printable = key.GetPrintableText();
+        if (!string.IsNullOrEmpty(printable)
+            && printable.All(character => !char.IsControl(character))
+            && _noteInput.Length + printable.Length <= ReadingAnnotationState.MaximumNoteTextLength)
+        {
+            _noteInput.Append(printable);
+            RefreshReader();
+        }
+
+        return true;
+    }
+
     private bool HandleSearchInputKey(Key key)
     {
         if (key == Key.Esc)
@@ -339,7 +422,7 @@ internal sealed class ReaderWindow : Window
 
         if (key == Key.Backspace)
         {
-            RemoveLastSearchTextElement();
+            RemoveLastTextElement(_searchInput);
             RefreshReader();
             return true;
         }
@@ -554,21 +637,24 @@ internal sealed class ReaderWindow : Window
         _tocVisible = false;
         _metadataVisible = false;
         _bookmarksVisible = false;
+        _annotationsVisible = false;
+        _noteInputVisible = false;
         _searchInputVisible = true;
         _searchInput.Clear();
         RefreshReader();
     }
 
-    private void RemoveLastSearchTextElement()
+    private static void RemoveLastTextElement(StringBuilder input)
     {
-        if (_searchInput.Length == 0)
+        ArgumentNullException.ThrowIfNull(input);
+        if (input.Length == 0)
         {
             return;
         }
 
-        string current = _searchInput.ToString();
+        string current = input.ToString();
         int[] starts = StringInfo.ParseCombiningCharacters(current);
-        _searchInput.Length = starts[^1];
+        input.Length = starts[^1];
     }
 
     private void ToggleHelp()
@@ -579,6 +665,7 @@ internal sealed class ReaderWindow : Window
             _tocVisible = false;
             _metadataVisible = false;
             _bookmarksVisible = false;
+            _annotationsVisible = false;
         }
 
         RefreshReader();
@@ -600,6 +687,7 @@ internal sealed class ReaderWindow : Window
         _helpVisible = false;
         _metadataVisible = false;
         _bookmarksVisible = false;
+        _annotationsVisible = false;
         _tocVisible = true;
         _tocSelectedIndex = _session.SuggestedTocEntryIndex;
         _tocScrollOffset = 0;
@@ -618,6 +706,7 @@ internal sealed class ReaderWindow : Window
         _helpVisible = false;
         _tocVisible = false;
         _bookmarksVisible = false;
+        _annotationsVisible = false;
         _metadataVisible = true;
         _metadataScrollOffset = 0;
         RefreshReader();
@@ -634,6 +723,7 @@ internal sealed class ReaderWindow : Window
         _helpVisible = false;
         _tocVisible = false;
         _metadataVisible = false;
+        _annotationsVisible = false;
         _bookmarksVisible = true;
         _bookmarkSelectedIndex = _session.SuggestedBookmarkIndex;
         _bookmarkScrollOffset = 0;
@@ -720,6 +810,212 @@ internal sealed class ReaderWindow : Window
         }
 
         _bookmarkScrollOffset = Math.Max(_bookmarkScrollOffset, 0);
+    }
+
+    private void ToggleCurrentHighlight()
+    {
+        HighlightToggleResult result = _session.ToggleCurrentLineHighlight();
+        _statusMessage = result switch
+        {
+            HighlightToggleResult.Added => "Evidenziazione aggiunta alla riga logica corrente.",
+            HighlightToggleResult.Removed => "Evidenziazione rimossa.",
+            HighlightToggleResult.LimitReached => "Limite evidenziazioni del libro raggiunto.",
+            _ => "La riga corrente non contiene testo logico evidenziabile.",
+        };
+        RefreshReader();
+    }
+
+    private void OpenNoteInput()
+    {
+        _helpVisible = false;
+        _tocVisible = false;
+        _metadataVisible = false;
+        _bookmarksVisible = false;
+        _annotationsVisible = false;
+        _searchInputVisible = false;
+        _noteInputVisible = true;
+        _noteInput.Clear();
+        if (_session.CurrentNote is ReadingPersonalNote note)
+        {
+            _noteInput.Append(note.Text);
+        }
+
+        RefreshReader();
+    }
+
+    private void ToggleAnnotations()
+    {
+        if (_annotationsVisible)
+        {
+            CloseAnnotations();
+            return;
+        }
+
+        _helpVisible = false;
+        _tocVisible = false;
+        _metadataVisible = false;
+        _bookmarksVisible = false;
+        _searchInputVisible = false;
+        _noteInputVisible = false;
+        _annotationsVisible = true;
+        _annotationSelectedIndex = _session.SuggestedAnnotationIndex;
+        _annotationScrollOffset = 0;
+        EnsureAnnotationSelectionVisible();
+        RefreshReader();
+    }
+
+    private void CloseAnnotations()
+    {
+        _annotationsVisible = false;
+        _annotationScrollOffset = 0;
+        RefreshReader();
+    }
+
+    private bool HandleAnnotationKey(Key key)
+    {
+        if (key == Key.CursorDown || Matches(ReaderCommand.NextLine, key))
+        {
+            MoveAnnotationSelection(1);
+            return true;
+        }
+
+        if (key == Key.CursorUp || Matches(ReaderCommand.PreviousLine, key))
+        {
+            MoveAnnotationSelection(-1);
+            return true;
+        }
+
+        if (key == Key.PageDown)
+        {
+            MoveAnnotationSelectionByPage(1);
+            return true;
+        }
+
+        if (key == Key.PageUp)
+        {
+            MoveAnnotationSelectionByPage(-1);
+            return true;
+        }
+
+        if (key == Key.Enter)
+        {
+            if (_annotationSelectedIndex >= 0)
+            {
+                _session.NavigateToAnnotation(_annotationSelectedIndex);
+                CloseAnnotations();
+            }
+
+            return true;
+        }
+
+        if (Matches(ReaderCommand.DeleteBookmark, key))
+        {
+            DeleteSelectedAnnotation();
+            return true;
+        }
+
+        return true;
+    }
+
+    private void MoveAnnotationSelection(int direction)
+    {
+        int next = _session.FindAdjacentAnnotation(_annotationSelectedIndex, direction);
+        if (next == _annotationSelectedIndex)
+        {
+            return;
+        }
+
+        _annotationSelectedIndex = next;
+        EnsureAnnotationSelectionVisible();
+        RefreshReader();
+    }
+
+    private void MoveAnnotationSelectionByPage(int direction)
+    {
+        int steps = Math.Max(_body.Viewport.Height - 1, 1);
+        for (int step = 0; step < steps; step++)
+        {
+            int next = _session.FindAdjacentAnnotation(_annotationSelectedIndex, direction);
+            if (next == _annotationSelectedIndex)
+            {
+                break;
+            }
+
+            _annotationSelectedIndex = next;
+        }
+
+        EnsureAnnotationSelectionVisible();
+        RefreshReader();
+    }
+
+    private void DeleteSelectedAnnotation()
+    {
+        if (_annotationSelectedIndex < 0 || _session.AnnotationCount == 0)
+        {
+            return;
+        }
+
+        _session.RemoveAnnotation(_annotationSelectedIndex);
+        if (_session.AnnotationCount == 0)
+        {
+            _annotationSelectedIndex = -1;
+            _annotationScrollOffset = 0;
+        }
+        else
+        {
+            _annotationSelectedIndex = Math.Min(_annotationSelectedIndex, _session.AnnotationCount - 1);
+            EnsureAnnotationSelectionVisible();
+        }
+
+        RefreshReader();
+    }
+
+    private void EnsureAnnotationSelectionVisible()
+    {
+        int height = Math.Max(_body.Viewport.Height, 1);
+        if (_annotationSelectedIndex < 0)
+        {
+            _annotationScrollOffset = 0;
+            return;
+        }
+
+        if (_annotationSelectedIndex < _annotationScrollOffset)
+        {
+            _annotationScrollOffset = _annotationSelectedIndex;
+        }
+        else if (_annotationSelectedIndex >= _annotationScrollOffset + height)
+        {
+            _annotationScrollOffset = _annotationSelectedIndex - height + 1;
+        }
+
+        _annotationScrollOffset = Math.Max(_annotationScrollOffset, 0);
+    }
+
+    private string BuildAnnotations()
+    {
+        if (_session.AnnotationCount == 0)
+        {
+            return "Nessuna annotazione. Premi F2 per evidenziare o F3 per aggiungere una nota.";
+        }
+
+        EnsureAnnotationSelectionVisible();
+        int height = Math.Max(_body.Viewport.Height, 1);
+        int end = Math.Min(_annotationScrollOffset + height, _session.AnnotationEntries.Count);
+        StringBuilder text = new();
+        for (int index = _annotationScrollOffset; index < end; index++)
+        {
+            ReaderAnnotationEntry entry = _session.AnnotationEntries[index];
+            text.Append(index == _annotationSelectedIndex ? "> " : "  ");
+            text.Append(index + 1);
+            text.Append(". ");
+            text.Append(entry.Label);
+            if (index + 1 < end)
+            {
+                text.AppendLine();
+            }
+        }
+
+        return text.ToString();
     }
 
     private void CloseMetadata()
@@ -894,6 +1190,11 @@ internal sealed class ReaderWindow : Window
                     EnsureBookmarkSelectionVisible();
                 }
 
+                if (_annotationsVisible)
+                {
+                    EnsureAnnotationSelectionVisible();
+                }
+
                 RefreshReader();
             }
         }
@@ -922,13 +1223,20 @@ internal sealed class ReaderWindow : Window
         {
             _body.ShowPlainText(BuildBookmarks());
         }
+        else if (_annotationsVisible)
+        {
+            _body.ShowPlainText(BuildAnnotations());
+        }
         else
         {
+            _body.SetHighlights(_session.HighlightRanges);
             _body.ShowReaderLines(_session.GetCurrentViewportLines());
         }
 
-        _footer.Text = _searchInputVisible
-            ? $"Cerca: {_searchInput}_   Enter cerca   Esc annulla"
+        _footer.Text = _noteInputVisible
+            ? $"Nota: {_noteInput}_   Enter salva   Esc annulla   nota vuota = elimina"
+            : _searchInputVisible
+                ? $"Cerca: {_searchInput}_   Enter cerca   Esc annulla"
             : _statusMessage is not null
                 ? $"{_statusMessage}   {Binding(ReaderCommand.Quit)}/Esc esci"
                 : _helpVisible
@@ -939,7 +1247,9 @@ internal sealed class ReaderWindow : Window
                             ? BuildMetadataFooter()
                             : _bookmarksVisible
                                 ? BuildBookmarkFooter()
-                                : BuildNormalFooter();
+                                : _annotationsVisible
+                                    ? BuildAnnotationFooter()
+                                    : BuildNormalFooter();
     }
 
     private string BuildHeader()
@@ -954,6 +1264,12 @@ internal sealed class ReaderWindow : Window
         {
             int selectedOrdinal = _bookmarkSelectedIndex < 0 ? 0 : _bookmarkSelectedIndex + 1;
             return $"{_session.BookTitle}{author}   Segnalibri   {selectedOrdinal}/{_session.BookmarkCount}";
+        }
+
+        if (_annotationsVisible)
+        {
+            int selectedOrdinal = _annotationSelectedIndex < 0 ? 0 : _annotationSelectedIndex + 1;
+            return $"{_session.BookTitle}{author}   Annotazioni   {selectedOrdinal}/{_session.AnnotationCount}";
         }
 
         if (_tocVisible)
@@ -982,7 +1298,9 @@ internal sealed class ReaderWindow : Window
         string image = _session.CurrentImage is ReaderImageInfo currentImage
             ? $"   IMG {currentImage.MediaType}"
             : string.Empty;
-        return $"{_session.BookTitle}{author}   {chapter}   Pag. {_session.PageNumber}/{_session.PageCount}   {progress}{search}{bookmark}{link}{image}";
+        string highlight = _session.IsCurrentLineHighlighted ? "   EVID" : string.Empty;
+        string personalNote = _session.CurrentNote is not null ? "   NOTA PERSONALE" : string.Empty;
+        return $"{_session.BookTitle}{author}   {chapter}   Pag. {_session.PageNumber}/{_session.PageCount}   {progress}{search}{bookmark}{link}{image}{highlight}{personalNote}";
     }
 
     private string BuildSearchStatus()
@@ -1015,6 +1333,7 @@ internal sealed class ReaderWindow : Window
             + $"{Binding(ReaderCommand.Search)} cerca  {Binding(ReaderCommand.NextSearchResult)}/{Binding(ReaderCommand.PreviousSearchResult)} risultato  "
             + $"{Binding(ReaderCommand.ToggleBookmark)} segnalibro  {Binding(ReaderCommand.OpenBookmarks)} elenco  "
             + $"{Binding(ReaderCommand.ToggleToc)} indice  {Binding(ReaderCommand.ToggleMetadata)} metadati  "
+            + $"F2 evidenzia  F3 nota  F4 annotazioni  "
             + $"{Binding(ReaderCommand.CycleTheme)} tema  {Binding(ReaderCommand.Quit)}/Esc esci";
     }
 
@@ -1033,9 +1352,13 @@ internal sealed class ReaderWindow : Window
         + $"{Binding(ReaderCommand.DeleteBookmark)} elimina  {Binding(ReaderCommand.OpenBookmarks)}/Esc chiudi  "
         + $"{Binding(ReaderCommand.Quit)} esci";
 
+    private string BuildAnnotationFooter() =>
+        $"↑/{Binding(ReaderCommand.PreviousLine)} ↓/{Binding(ReaderCommand.NextLine)} voce  PgUp/PgDn scorri  Enter apri  "
+        + $"{Binding(ReaderCommand.DeleteBookmark)} elimina  F4/Esc chiudi  {Binding(ReaderCommand.Quit)} esci";
+
     private string BuildHelp() =>
         $"""
-        EReader — comandi M3.6
+        EReader — comandi M3.7
 
         ↑ / {Binding(ReaderCommand.PreviousLine)}             riga precedente
         ↓ / {Binding(ReaderCommand.NextLine)}             riga successiva
@@ -1054,11 +1377,14 @@ internal sealed class ReaderWindow : Window
         {Binding(ReaderCommand.CycleTheme)}                 cambia tema
         Enter             segue il link corrente/visibile; i rimandi nota sono indicati come NOTA; se non c'è link apre l'immagine corrente
         Backspace         torna alla posizione precedente dopo un link interno
+        F2                aggiunge/rimuove evidenziazione della riga logica corrente
+        F3                aggiunge/modifica nota personale alla ReadingLocation corrente
+        F4                apre/chiude elenco evidenziazioni e note
         F1 / {Binding(ReaderCommand.Help)}            mostra/nasconde questo aiuto
         {Binding(ReaderCommand.Quit)}                 esci
         Esc               chiude bookmark/metadati/indice/aiuto, altrimenti esce
 
-        I tasti stampabili sopra riflettono config.json; frecce, PgUp/PgDn, Space, Tab, Enter, Backspace, Esc e F1 restano sempre disponibili.
+        I tasti stampabili sopra riflettono config.json; frecce, PgUp/PgDn, Space, Tab, Enter, Backspace, Esc e F1-F4 restano sempre disponibili.
         Nei bookmark: ↑/↓ o i binding riga selezionano, PgUp/PgDn scorrono, Enter apre, {Binding(ReaderCommand.DeleteBookmark)} elimina.
         Nell'indice: ↑/↓ o i binding riga selezionano, PgUp/PgDn scorrono, Enter apre la voce.
         Nei metadati: ↑/↓ o i binding riga scorrono una riga, PgUp/PgDn una pagina.
@@ -1066,6 +1392,8 @@ internal sealed class ReaderWindow : Window
         Il resize ricostruisce il layout mantenendo la stessa ReadingLocation logica.
         Numero pagina e riga possono cambiare dopo il reflow e restano coordinate effimere.
         La percentuale usa il testo logico UTF-16 del Book e resta stabile dopo resize/reflow.
+        Le evidenziazioni M3.7 persistono come range logici UTF-16 nello stesso blocco; il rendering evidenzia le righe visuali che intersecano il range.
+        Le note personali persistono come testo bounded ancorato a ReadingLocation; F3 modifica la nota esatta della posizione corrente.
         I rimandi nota EPUB3 epub:type="noteref" diventano HyperlinkRole.NoteReference; Enter apre la nota e Backspace torna al testo.
         Gli altri link interni usano ReadingLocation e lo stesso stack Backspace transiente; http/https/mailto vengono delegati al sistema operativo solo su Enter.
         Le immagini restano placeholder nel layout; Enter le apre solo quando la riga non offre un link azionabile. SVG e risorse remote non vengono avviati.

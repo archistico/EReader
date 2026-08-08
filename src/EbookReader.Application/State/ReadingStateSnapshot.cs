@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using EbookReader.Application.Annotations;
 using EbookReader.Application.Library;
 using EbookReader.Domain.Books;
 using EbookReader.Domain.Reading;
@@ -17,7 +18,9 @@ public sealed record ReadingStateSnapshot
         ReadingLocation location,
         DateTimeOffset lastOpenedUtc,
         IEnumerable<ReadingBookmarkSnapshot>? bookmarks = null,
-        IEnumerable<ReadingHistoryEntry>? history = null)
+        IEnumerable<ReadingHistoryEntry>? history = null,
+        IEnumerable<ReadingHighlightSnapshot>? highlights = null,
+        IEnumerable<ReadingPersonalNoteSnapshot>? notes = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(bookPath);
         ArgumentNullException.ThrowIfNull(bookId);
@@ -49,6 +52,36 @@ public sealed record ReadingStateSnapshot
         }
 
         History = historyList.AsReadOnly();
+
+        List<ReadingHighlightSnapshot> highlightList = highlights?.ToList() ?? [];
+        if (highlightList.Count > ReadingAnnotationState.MaximumHighlights)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(highlights),
+                highlightList.Count,
+                $"Sono ammesse al massimo {ReadingAnnotationState.MaximumHighlights} evidenziazioni complessive.");
+        }
+
+        List<ReadingPersonalNoteSnapshot> noteList = notes?.ToList() ?? [];
+        if (noteList.Count > ReadingAnnotationState.MaximumNotes)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(notes),
+                noteList.Count,
+                $"Sono ammesse al massimo {ReadingAnnotationState.MaximumNotes} note complessive.");
+        }
+
+        int totalNoteTextLength = noteList.Sum(item => item.Note.Text.Length);
+        if (totalNoteTextLength > ReadingAnnotationState.MaximumTotalNoteTextLength)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(notes),
+                totalNoteTextLength,
+                $"Il testo complessivo delle note supera {ReadingAnnotationState.MaximumTotalNoteTextLength} code unit UTF-16.");
+        }
+
+        Highlights = highlightList.AsReadOnly();
+        Notes = noteList.AsReadOnly();
     }
 
     public string BookPath { get; }
@@ -62,4 +95,8 @@ public sealed record ReadingStateSnapshot
     public ReadOnlyCollection<ReadingBookmarkSnapshot> Bookmarks { get; }
 
     public ReadOnlyCollection<ReadingHistoryEntry> History { get; }
+
+    public ReadOnlyCollection<ReadingHighlightSnapshot> Highlights { get; }
+
+    public ReadOnlyCollection<ReadingPersonalNoteSnapshot> Notes { get; }
 }

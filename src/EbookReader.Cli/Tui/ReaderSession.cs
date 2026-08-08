@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using EbookReader.Application.Annotations;
 using EbookReader.Application.Links;
 using EbookReader.Application.Progress;
 using EbookReader.Application.Reading;
@@ -30,6 +31,11 @@ public sealed class ReaderSession
     private readonly List<ReadingLocation> _bookmarks = [];
     private readonly ReadOnlyCollection<ReadingLocation> _bookmarkLocations;
     private ReadOnlyCollection<ReaderBookmarkEntry> _bookmarkEntries = new List<ReaderBookmarkEntry>().AsReadOnly();
+    private readonly List<ReadingHighlightRange> _highlights = [];
+    private readonly ReadOnlyCollection<ReadingHighlightRange> _highlightRanges;
+    private readonly List<ReadingPersonalNote> _notes = [];
+    private readonly ReadOnlyCollection<ReadingPersonalNote> _personalNotes;
+    private ReadOnlyCollection<ReaderAnnotationEntry> _annotationEntries = new List<ReaderAnnotationEntry>().AsReadOnly();
     private BookSearchResultSet? _searchResults;
     private int _searchMatchIndex = -1;
 
@@ -37,7 +43,9 @@ public sealed class ReaderSession
         Book book,
         LayoutViewport viewport,
         ReadingLocation? initialLocation = null,
-        IEnumerable<ReadingLocation>? initialBookmarks = null)
+        IEnumerable<ReadingLocation>? initialBookmarks = null,
+        IEnumerable<ReadingHighlightRange>? initialHighlights = null,
+        IEnumerable<ReadingPersonalNote>? initialNotes = null)
     {
         ArgumentNullException.ThrowIfNull(book);
         ArgumentNullException.ThrowIfNull(viewport);
@@ -56,7 +64,10 @@ public sealed class ReaderSession
         _tocEntries = FlattenTableOfContents(book.TableOfContents);
         _metadataEntries = BuildMetadataEntries(book);
         _bookmarkLocations = _bookmarks.AsReadOnly();
+        _highlightRanges = _highlights.AsReadOnly();
+        _personalNotes = _notes.AsReadOnly();
         LoadInitialBookmarks(initialBookmarks);
+        LoadInitialAnnotations(initialHighlights, initialNotes);
         Layout = DeterministicLayoutEngine.Layout(book, viewport);
         Location = initialLocation ?? InitialLocation(book);
     }
@@ -90,6 +101,36 @@ public sealed class ReaderSession
     public int BookmarkCount => _bookmarks.Count;
 
     public bool IsCurrentLocationBookmarked => _bookmarks.Contains(Location);
+
+    public ReadOnlyCollection<ReadingHighlightRange> HighlightRanges => _highlightRanges;
+
+    public ReadOnlyCollection<ReadingPersonalNote> PersonalNotes => _personalNotes;
+
+    public ReadOnlyCollection<ReaderAnnotationEntry> AnnotationEntries => _annotationEntries;
+
+    public int AnnotationCount => _annotationEntries.Count;
+
+    public ReadingPersonalNote? CurrentNote => _notes.FirstOrDefault(note => note.Location == Location);
+
+    public bool IsCurrentLineHighlighted
+    {
+        get
+        {
+            VisualLine? line = GetCurrentMappedVisualLine();
+            if (line?.SectionId is not SectionId sectionId
+                || line.BlockId is not BlockId blockId
+                || line.SourceStartOffset is not int start
+                || line.SourceEndOffset is not int end
+                || end <= start)
+            {
+                return false;
+            }
+
+            ReadingLocation lineStart = new(sectionId, blockId, start);
+            ReadingLocation lineEnd = new(sectionId, blockId, end);
+            return _highlights.Any(highlight => highlight.Intersects(lineStart, lineEnd));
+        }
+    }
 
     public string? SearchQuery => _searchResults?.Query;
 
@@ -176,6 +217,34 @@ public sealed class ReaderSession
         }
     }
 
+
+    /// <summary>
+    /// Returns the annotation nearest to, but not after, the current logical reading location.
+    /// </summary>
+    public int SuggestedAnnotationIndex
+    {
+        get
+        {
+            if (_annotationEntries.Count == 0)
+            {
+                return -1;
+            }
+
+            int best = 0;
+            for (int index = 0; index < _annotationEntries.Count; index++)
+            {
+                if (CompareLocations(_annotationEntries[index].Location, Location) <= 0)
+                {
+                    best = index;
+                    continue;
+                }
+
+                break;
+            }
+
+            return best;
+        }
+    }
 
     /// <summary>
     /// Returns the bookmark nearest to, but not after, the current logical reading location.
@@ -515,6 +584,234 @@ public sealed class ReaderSession
         }
 
         return Math.Clamp(currentIndex + direction, 0, _bookmarks.Count - 1);
+    }
+
+    public HighlightToggleResult ToggleCurrentLineHighlight()
+    {
+        VisualLine? line = GetCurrentMappedVisualLine();
+        if (line?.SectionId is not SectionId sectionId
+            || line.BlockId is not BlockId blockId
+            || line.SourceStartOffset is not int start
+            || line.SourceEndOffset is not int end
+            || end <= start)
+        {
+            return HighlightToggleResult.Unavailable;
+        }
+
+        ReadingLocation lineStart = new(sectionId, blockId, start);
+        ReadingLocation lineEnd = new(sectionId, blockId, end);
+        int removed = _highlights.RemoveAll(highlight => highlight.Intersects(lineStart, lineEnd));
+        if (removed > 0)
+        {
+            RebuildAnnotationEntries();
+            return HighlightToggleResult.Removed;
+        }
+
+        if (_highlights.Count >= ReadingAnnotationState.MaximumHighlightsPerBook)
+        {
+            return HighlightToggleResult.LimitReached;
+        }
+
+        _highlights.Add(new ReadingHighlightRange(lineStart, lineEnd));
+        _highlights.Sort((left, right) => CompareLocations(left.Start, right.Start));
+        RebuildAnnotationEntries();
+        return HighlightToggleResult.Added;
+    }
+
+    public bool SetNoteAtCurrentLocation(string text, DateTimeOffset updatedUtc)
+    {
+        ArgumentNullException.ThrowIfNull(text);
+        string normalized = text.Trim();
+        int existingIndex = _notes.FindIndex(note => note.Location == Location);
+        if (normalized.Length == 0)
+        {
+            if (existingIndex >= 0)
+            {
+                _notes.RemoveAt(existingIndex);
+                RebuildAnnotationEntries();
+            }
+
+            return false;
+        }
+
+        if (normalized.Length > ReadingAnnotationState.MaximumNoteTextLength)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(text),
+                normalized.Length,
+                $"Una nota può contenere al massimo {ReadingAnnotationState.MaximumNoteTextLength} code unit UTF-16.");
+        }
+
+        if (existingIndex < 0 && _notes.Count >= ReadingAnnotationState.MaximumNotesPerBook)
+        {
+            return false;
+        }
+
+        ReadingPersonalNote note = new(Location, normalized, updatedUtc);
+        if (existingIndex >= 0)
+        {
+            _notes[existingIndex] = note;
+        }
+        else
+        {
+            _notes.Add(note);
+        }
+
+        _notes.Sort((left, right) => CompareLocations(left.Location, right.Location));
+        RebuildAnnotationEntries();
+        return true;
+    }
+
+    public bool NavigateToAnnotation(int index)
+    {
+        if ((uint)index >= (uint)_annotationEntries.Count)
+        {
+            throw new ArgumentOutOfRangeException(nameof(index));
+        }
+
+        return Move(_annotationEntries[index].Location);
+    }
+
+    public bool RemoveAnnotation(int index)
+    {
+        if ((uint)index >= (uint)_annotationEntries.Count)
+        {
+            throw new ArgumentOutOfRangeException(nameof(index));
+        }
+
+        ReaderAnnotationEntry entry = _annotationEntries[index];
+        bool removed = entry.Kind switch
+        {
+            ReaderAnnotationKind.Highlight when entry.Highlight is not null => _highlights.Remove(entry.Highlight),
+            ReaderAnnotationKind.Note when entry.Note is not null => _notes.Remove(entry.Note),
+            _ => false,
+        };
+        if (removed)
+        {
+            RebuildAnnotationEntries();
+        }
+
+        return removed;
+    }
+
+    public int FindAdjacentAnnotation(int currentIndex, int direction)
+    {
+        if (direction is not (-1 or 1))
+        {
+            throw new ArgumentOutOfRangeException(nameof(direction));
+        }
+
+        if (_annotationEntries.Count == 0)
+        {
+            return -1;
+        }
+
+        if (currentIndex < -1 || currentIndex >= _annotationEntries.Count)
+        {
+            throw new ArgumentOutOfRangeException(nameof(currentIndex));
+        }
+
+        return Math.Clamp(currentIndex + direction, 0, _annotationEntries.Count - 1);
+    }
+
+    private VisualLine? GetCurrentMappedVisualLine()
+    {
+        if (Position is not LayoutPosition position)
+        {
+            return null;
+        }
+
+        VisualLine line = Layout.Pages[position.PageNumber - 1].Lines[position.LineIndex];
+        return line.StartLocation is null ? null : line;
+    }
+
+    private void LoadInitialAnnotations(
+        IEnumerable<ReadingHighlightRange>? initialHighlights,
+        IEnumerable<ReadingPersonalNote>? initialNotes)
+    {
+        if (initialHighlights is not null)
+        {
+            foreach (ReadingHighlightRange highlight in initialHighlights)
+            {
+                ArgumentNullException.ThrowIfNull(highlight);
+                if (!_book.ContainsLocation(highlight.Start) || !_book.ContainsLocation(highlight.End))
+                {
+                    throw new ArgumentOutOfRangeException(nameof(initialHighlights), highlight, "Evidenziazione iniziale non appartenente al libro.");
+                }
+
+                if (!_highlights.Contains(highlight))
+                {
+                    _highlights.Add(highlight);
+                }
+            }
+        }
+
+        if (_highlights.Count > ReadingAnnotationState.MaximumHighlightsPerBook)
+        {
+            throw new ArgumentOutOfRangeException(nameof(initialHighlights));
+        }
+
+        if (initialNotes is not null)
+        {
+            foreach (ReadingPersonalNote note in initialNotes)
+            {
+                ArgumentNullException.ThrowIfNull(note);
+                if (!_book.ContainsLocation(note.Location))
+                {
+                    throw new ArgumentOutOfRangeException(nameof(initialNotes), note, "Nota iniziale non appartenente al libro.");
+                }
+
+                int existing = _notes.FindIndex(candidate => candidate.Location == note.Location);
+                if (existing < 0)
+                {
+                    _notes.Add(note);
+                }
+                else if (_notes[existing].UpdatedUtc < note.UpdatedUtc)
+                {
+                    _notes[existing] = note;
+                }
+            }
+        }
+
+        if (_notes.Count > ReadingAnnotationState.MaximumNotesPerBook)
+        {
+            throw new ArgumentOutOfRangeException(nameof(initialNotes));
+        }
+
+        _highlights.Sort((left, right) => CompareLocations(left.Start, right.Start));
+        _notes.Sort((left, right) => CompareLocations(left.Location, right.Location));
+        RebuildAnnotationEntries();
+    }
+
+    private void RebuildAnnotationEntries()
+    {
+        List<ReaderAnnotationEntry> entries = [];
+        entries.AddRange(_highlights.Select(highlight => new ReaderAnnotationEntry(
+            ReaderAnnotationKind.Highlight,
+            $"[E] {BuildBookmarkLabel(highlight.Start)}",
+            highlight.Start,
+            highlight)));
+        entries.AddRange(_notes.Select(note => new ReaderAnnotationEntry(
+            ReaderAnnotationKind.Note,
+            $"[N] {BuildNoteLabel(note)}",
+            note.Location,
+            Note: note)));
+        entries.Sort((left, right) =>
+        {
+            int locationComparison = CompareLocations(left.Location, right.Location);
+            return locationComparison != 0 ? locationComparison : left.Kind.CompareTo(right.Kind);
+        });
+        _annotationEntries = entries.AsReadOnly();
+    }
+
+    private string BuildNoteLabel(ReadingPersonalNote note)
+    {
+        const int maximumNoteSnippetLength = 36;
+        string normalized = string.Join(' ', note.Text.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+        string snippet = normalized.Length <= maximumNoteSnippetLength
+            ? normalized
+            : normalized[..(maximumNoteSnippetLength - 1)] + "…";
+        return $"{BuildBookmarkLabel(note.Location)} — {snippet}";
     }
 
     private void PushLinkOrigin(ReadingLocation origin)

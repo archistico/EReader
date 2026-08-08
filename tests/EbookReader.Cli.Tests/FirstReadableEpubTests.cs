@@ -120,7 +120,7 @@ public sealed class FirstReadableEpubTests
         Assert.Equal(string.Empty, error.ToString());
         Assert.Contains("ereader <libro.epub>", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("ereader --plain <libro.epub>", output.ToString(), StringComparison.Ordinal);
-        Assert.Contains("M3.6 Footnotes & Endnotes UX", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("M3.7 Highlights & Personal Notes", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("nella libreria: / cerca, Esc cancella filtro", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("ereader --resume", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("/              cerca nel testo logico", output.ToString(), StringComparison.Ordinal);
@@ -130,6 +130,9 @@ public sealed class FirstReadableEpubTests
         Assert.Contains("c              cambia tema", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("Enter          segue link/rimando nota corrente", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("Backspace      torna alla posizione precedente", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("F2             aggiunge/rimuove evidenziazione", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("F3             aggiunge/modifica nota personale", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("F4             apre/chiude elenco annotazioni", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("epub:type=\"noteref\"", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("ereader --config-path", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("ereader --init-config", output.ToString(), StringComparison.Ordinal);

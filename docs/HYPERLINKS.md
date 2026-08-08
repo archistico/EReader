@@ -58,12 +58,7 @@ Rejected/non-actionable schemes include `file`, `javascript`, `data` and any sch
 
 ## Persistence
 
-M3.5 changes neither persisted schema:
-
-- `state.json`: schema 3;
-- `config.json`: schema 1.
-
-The back stack and currently offered hyperlink are runtime-only state.
+M3.5 non modificava gli schemi allora correnti. Da M3.7 `state.json` è schema 4 per le annotazioni e `config.json` resta schema 1; gli hyperlink non aggiungono campi a nessuno dei due. Il back stack e il link attualmente offerto restano runtime-only.
 
 ## Deliberate limitation
 

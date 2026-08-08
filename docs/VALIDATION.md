@@ -1,36 +1,52 @@
-# Validation — M3.6 Footnotes / Endnotes UX
+# Validation — M3.7 Hotfix 1 — Compilation Integration
 
-M3.6 deve essere costruita esclusivamente dalla baseline validata M3.5 Hotfix 1.
+La funzionalità M3.7 deriva esclusivamente dalla baseline validata M3.6 Hotfix 1. Hotfix 1 applica soltanto correzioni di compilazione/integrazione alla candidate M3.7 originale che ha fallito il primo build locale.
 
 ## Gate
+
+Windows:
 
 ```bat
 .\validate.cmd
 ```
 
-oppure:
+Linux/macOS:
 
 ```sh
 ./validate.sh
 ```
 
-Esito atteso:
+Esito richiesto:
 
 ```text
-M3.6 VALIDATION PASSED
+M3.7 HOTFIX 1 VALIDATION PASSED
 ```
 
-## Criteri M3.6
+## Correzioni Hotfix 1
 
-- restore e build Release senza warning/errori;
-- suite completa xUnit/MTP;
-- `CliEntryPoint.Milestone == "M3.6"`;
-- `HyperlinkRole.NoteReference` resta format-neutral nel Domain;
-- `epub:type="noteref"` viene interpretato solo dall'adapter EPUB;
-- `BookHyperlinkIndex` conserva ruolo e range UTF-16;
-- note interne usano lo stesso stack Backspace bounded M3.5;
-- `state.json` schema 3 e `config.json` schema 1 invariati;
-- smoke EPUB M3.6 passa in `--plain` senza avviare browser/viewer.
+- test architetturale M3.7 dentro la classe xUnit corretta;
+- helper `TemporaryDirectory` disponibile in `ReadingAnnotationTests`;
+- namespace `EbookReader.Domain.Content` importato in `ReaderBodyView` per `BlockId`.
 
+## Criteri M3.7
 
-Audit statico M3.6: **444 Fact + 4 Theory + 16 InlineData = 460 casi attesi**.
+- restore/build Release senza warning/errori;
+- suite completa: 454 Fact + 16 InlineData = 470 casi attesi;
+- `CliEntryPoint.Milestone == "M3.7"`;
+- state schema corrente = 4 e loader compatibile 1/2/3;
+- round-trip highlight/note senza page/line/viewport;
+- restore/replace annotation book-scoped;
+- F2/F3/F4 presenti nel TUI/help come special keys;
+- `ReaderBodyView` applica highlight fuori dal Layout;
+- `config.json` resta schema 1;
+- smoke EPUB M1.0/M3.4/M3.5/M3.6 continuano a passare in `--plain`;
+- smoke library/config non scrivono nei file reali dell'utente.
+
+## Prova manuale consigliata
+
+1. aprire un EPUB con la TUI;
+2. premere F2 su una riga di testo e verificare il background highlight;
+3. fare resize e verificare che il contenuto logico evidenziato resti associato al testo;
+4. premere F3, inserire una nota, Enter;
+5. premere F4, verificare `[E]` e `[N]`, Enter per saltare e `d` per eliminare;
+6. uscire e riaprire lo stesso EPUB: highlight e nota devono essere ripristinati.

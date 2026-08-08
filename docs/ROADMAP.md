@@ -340,7 +340,7 @@ Implementato:
 - ADR-0049 e `HYPERLINKS.md`.
 - Hotfix 1: smoke EPUB riallineato a XHTML/XML senza DOCTYPE; nessuna modifica produttiva.
 
-### M3.6 — Footnotes / Endnotes UX — CANDIDATE
+### M3.6 — Footnotes / Endnotes UX — VALIDATED
 
 - `epub:type="noteref"` mappato al ruolo Domain format-neutral `HyperlinkRole.NoteReference`;
 - header/footer `NOTA` / `Enter nota`;
@@ -350,11 +350,19 @@ Implementato:
 - nessuna coordinata di layout, modalità nota o stack persistito;
 - ADR-0050 e `FOOTNOTES_ENDNOTES.md`.
 
-### M3.7 — Highlights & Personal Notes — PLANNED
+### M3.7 — Highlights & Personal Notes — HOTFIX 1 CANDIDATE
 
-- intervalli logici di ReadingLocation;
-- note utente persistenti e book-scoped;
-- schema state versionato soltanto quando il modello sarà definito.
+Hotfix 1 corregge esclusivamente tre problemi di compilazione/integrazione rilevati nel primo build locale della candidate M3.7: collocazione del test architetturale, helper `TemporaryDirectory` mancante nei test annotazioni e namespace `BlockId` mancante nel TUI.
+
+
+- F2 highlight della riga logica corrente;
+- F3 nota personale alla ReadingLocation corrente;
+- F4 elenco annotazioni con navigazione/eliminazione;
+- range UTF-16 same-block e note book-scoped;
+- state schema 4 retrocompatibile con 1/2/3;
+- config schema 1 invariato;
+- rendering highlight line-level confinato al CLI/TUI;
+- ADR-0051 e `HIGHLIGHTS_NOTES.md`.
 
 ## M4 — Libreria gestita
 

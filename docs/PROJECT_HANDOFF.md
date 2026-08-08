@@ -1,35 +1,57 @@
-# Project Handoff — EReader M3.6 — Footnotes / Endnotes UX
+# Project Handoff — EReader M3.7 Hotfix 1 — Compilation Integration
 
 ## Baseline
 
-- Baseline autoritativa validata: `EReader_M3.5_Hotfix1_XhtmlSmokeFixture_NET10_Candidate.zip`.
-- Gate baseline: `M3.5 HOTFIX 1 VALIDATION PASSED`.
-- Candidate corrente: `EReader_M3.6_FootnotesEndnotesUX_NET10_Candidate.zip`.
+- Baseline autoritativa validata: `EReader_M3.6_Hotfix1_HelpContract_NET10_Candidate.zip`.
+- Gate baseline: `M3.6 HOTFIX 1 VALIDATION PASSED`.
+- Candidate M3.7 originale testata localmente: `EReader_M3.7_HighlightsPersonalNotes_NET10_Candidate.zip`; build fallita con 6 errori di integrazione/compilazione.
+- Candidate corrente: `EReader_M3.7_Hotfix1_CompilationIntegration_NET10_Candidate.zip`.
+- Hotfix 1 è costruita esclusivamente sopra la candidate M3.7 originale, a sua volta costruita sopra M3.6 Hotfix 1.
 
-## M3.6
+## M3.7 Hotfix 1
 
-- Domain: nuovo `HyperlinkRole.Generic/NoteReference`; `HyperlinkSpan` conserva il ruolo con default `Generic`.
-- EPUB: `epub:type="noteref"` viene riconosciuto come token whitespace-separated e tradotto a `NoteReference`; nessuna stringa EPUB passa in Application.
-- Application: `BookHyperlink` / `BookHyperlinkIndex` conservano il ruolo insieme ai range logici UTF-16.
-- TUI: `NOTA` nell'header, `Enter nota` nel footer, messaggio di ritorno specifico; la navigazione usa `ReadingLocation` e lo stack Backspace M3.5.
-- Persistenza: invariata (`state.json` schema 3, `config.json` schema 1).
-- Fixture: `test-books/m3.6-notes-smoke.epub`.
-- ADR: 0050.
+Correzioni strettamente di compilazione/integrazione:
 
-## Gate atteso
+- `M37AnnotationsStayLogicalAndOutsideLayoutAndConfiguration` riportato dentro `ArchitectureContractTests` invece che nella classe statica `RepositoryRoot`;
+- aggiunto a `ReadingAnnotationTests` l'helper privato `TemporaryDirectory`, coerente con gli altri test di stato;
+- aggiunto `using EbookReader.Domain.Content;` a `ReaderBodyView` per risolvere `BlockId`;
+- nessuna modifica al modello persistente, ai comandi F2/F3/F4 o al comportamento runtime previsto da M3.7.
 
-```text
-M3.6 VALIDATION PASSED
+## Funzionalità M3.7
+
+- `state.json` evolve a schema 4; schema 1/2/3 restano leggibili.
+- F2: toggle highlight sulla riga logica corrente.
+- F3: add/edit nota personale alla `ReadingLocation` corrente.
+- F4: lista combinata annotazioni.
+- Highlight persistiti come intervalli UTF-16 half-open nello stesso blocco Domain.
+- Note persistite come `ReadingLocation + Text + UpdatedUtc`.
+- Restore richiede path + BookId + location valida.
+- `config.json` resta schema 1; F2-F4 sono special keys fissi.
+- Layout/EPUB restano annotation-unaware.
+- Rendering highlight line-level nel CLI/TUI; range persistito preciso.
+- Limiti: 1.000 highlight complessivi / 250 per libro; 500 note / 100 per libro; 2.048 UTF-16 per nota; 131.072 UTF-16 testo note complessivo; state file max 1 MiB.
+
+## Validation
+
+Eseguire da estrazione pulita:
+
+```bat
+.\validate.cmd
 ```
 
-M3.6 resta CANDIDATE fino al gate locale dell'utente.
+Gate atteso:
 
+```text
+M3.7 HOTFIX 1 VALIDATION PASSED
+```
 
-Audit statico M3.6: **444 Fact + 4 Theory + 16 InlineData = 460 casi attesi**.
+Audit statico candidate:
 
+- 454 `[Fact]`;
+- 4 `[Theory]`;
+- 16 `[InlineData]`;
+- 470 casi attesi;
+- 51 ADR numerati;
+- nessun `bin/`, `obj/`, `graphify-out/` nel package.
 
-## M3.6 Hotfix 1
-
-- Corregge esclusivamente il contratto del test help M3.6; `src/` resta byte-identical alla candidate M3.6.
-- Gate atteso: `M3.6 HOTFIX 1 VALIDATION PASSED`.
-- Diagnostica temi: `semantic-dark` = testo bianco, heading cyan, strong verde, emphasis giallo; `monochrome` = bianco/grigio con Bold/Italic. Il tema è persistito in `config.json`.
+M3.7 Hotfix 1 resta CANDIDATE fino al gate locale dell'utente.

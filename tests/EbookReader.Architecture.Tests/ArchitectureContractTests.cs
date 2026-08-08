@@ -710,7 +710,7 @@ public sealed class ArchitectureContractTests
     }
 
     [Fact]
-    public void M30StateSchemaSupportsLegacyV1V2AndWritesV3History()
+    public void M37StateSchemaSupportsLegacyV1V2V3AndWritesV4Annotations()
     {
         string root = RepositoryRoot.Find();
         string store = File.ReadAllText(Path.Combine(
@@ -720,10 +720,12 @@ public sealed class ArchitectureContractTests
             "State",
             "JsonReadingStateStore.cs"));
 
-        Assert.Contains("CurrentSchemaVersion = 3", store, StringComparison.Ordinal);
-        Assert.Contains("document.SchemaVersion is not (1 or 2 or CurrentSchemaVersion)", store, StringComparison.Ordinal);
+        Assert.Contains("CurrentSchemaVersion = 4", store, StringComparison.Ordinal);
+        Assert.Contains("document.SchemaVersion is not (1 or 2 or 3 or CurrentSchemaVersion)", store, StringComparison.Ordinal);
         Assert.Contains("Bookmarks = state.Bookmarks", store, StringComparison.Ordinal);
         Assert.Contains("History = state.History", store, StringComparison.Ordinal);
+        Assert.Contains("Highlights = state.Highlights", store, StringComparison.Ordinal);
+        Assert.Contains("Notes = state.Notes", store, StringComparison.Ordinal);
     }
 
 
@@ -865,7 +867,7 @@ public sealed class ArchitectureContractTests
         Assert.DoesNotContain("Viewport", library, StringComparison.Ordinal);
         Assert.DoesNotContain("Terminal.Gui", library, StringComparison.Ordinal);
         Assert.Contains("ViewportChanged", window, StringComparison.Ordinal);
-        Assert.Contains("CurrentSchemaVersion = 3", state, StringComparison.Ordinal);
+        Assert.Contains("CurrentSchemaVersion = 4", state, StringComparison.Ordinal);
         Assert.DoesNotContain("progress", state, StringComparison.OrdinalIgnoreCase);
     }
 
@@ -1099,6 +1101,36 @@ public sealed class ArchitectureContractTests
         Assert.Contains("hyperlink.Role", applicationIndex, StringComparison.Ordinal);
         Assert.Contains("Enter nota", window, StringComparison.Ordinal);
         Assert.DoesNotContain("epub:type", applicationIndex, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void M37AnnotationsStayLogicalAndOutsideLayoutAndConfiguration()
+    {
+        string root = RepositoryRoot.Find();
+        string annotationsDirectory = Path.Combine(root, "src", "EbookReader.Application", "Annotations");
+        string annotations = string.Join(
+            Environment.NewLine,
+            Directory.EnumerateFiles(annotationsDirectory, "*.cs", SearchOption.AllDirectories).Select(File.ReadAllText));
+        string state = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Application", "State", "JsonReadingStateStore.cs"));
+        string body = File.ReadAllText(Path.Combine(root, "src", "EbookReader.Cli", "Tui", "ReaderBodyView.cs"));
+        string preferences = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Cli", "Configuration", "JsonReaderPreferencesStore.cs"));
+
+        Assert.Contains("ReadingLocation", annotations, StringComparison.Ordinal);
+        Assert.Contains("ReadingHighlightRange", annotations, StringComparison.Ordinal);
+        Assert.DoesNotContain("BookLayout", annotations, StringComparison.Ordinal);
+        Assert.DoesNotContain("PageNumber", annotations, StringComparison.Ordinal);
+        Assert.DoesNotContain("Viewport", annotations, StringComparison.Ordinal);
+        Assert.DoesNotContain("Terminal.Gui", annotations, StringComparison.Ordinal);
+        Assert.Contains("CurrentSchemaVersion = 4", state, StringComparison.Ordinal);
+        Assert.Contains("Highlights = state.Highlights", state, StringComparison.Ordinal);
+        Assert.Contains("Notes = state.Notes", state, StringComparison.Ordinal);
+        Assert.Contains("SetHighlights", body, StringComparison.Ordinal);
+        Assert.Contains("_theme.HighlightText", body, StringComparison.Ordinal);
+        Assert.Contains("CurrentSchemaVersion = 1", preferences, StringComparison.Ordinal);
+        Assert.DoesNotContain("highlight", preferences, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("personalNote", preferences, StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool ProjectReferencesAngleSharp(string projectFile)

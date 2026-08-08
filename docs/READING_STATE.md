@@ -39,7 +39,7 @@ Esempio:
 
 ```json
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "lastBook": {
     "path": "D:\\Ebook\\libro.epub",
     "bookId": "urn:uuid:...",
@@ -107,7 +107,7 @@ Questo mantiene la proiezione CLI deterministica per script, pipe e validation g
 
 ## M2.4 — Bookmark logici
 
-Lo schema corrente è **2**. Oltre a `lastBook` contiene `bookmarks`, una libreria multi-book di path + BookId + ReadingLocation. Il loader continua ad accettare lo schema 1, interpretandolo come stato senza bookmark.
+In M2.4 lo schema è passato a **2**. Oltre a `lastBook` contieneva `bookmarks`, una libreria multi-book di path + BookId + ReadingLocation. Il loader continua ad accettare lo schema 1, interpretandolo come stato senza bookmark.
 
 Nessun bookmark contiene pagina, riga, viewport o layout. Vedi [`BOOKMARKS.md`](BOOKMARKS.md).
 
@@ -115,3 +115,8 @@ Nessun bookmark contiene pagina, riga, viewport o layout. Vedi [`BOOKMARKS.md`](
 ## Cronologia M3.0
 
 Lo schema 3 aggiunge `history`, una lista bounded di massimo 200 libri recenti. Ogni voce contiene path assoluto, BookId, titolo, autore opzionale, ultimo accesso e ReadingLocation. Gli schema 1 e 2 restano leggibili; il loro `lastBook` viene promosso a una voce di cronologia in memoria.
+
+
+## M3.7 — schema 4 annotations
+
+Schema 4 aggiunge `highlights` e `notes`. Gli schema 1/2/3 restano leggibili e producono collezioni annotazioni vuote. Gli highlight sono `Start` inclusivo / `End` esclusivo in UTF-16 e M3.7 li crea nello stesso blocco; le note sono ancorate a `ReadingLocation`. Nessuna coordinata di layout viene aggiunta allo stato. Vedi `HIGHLIGHTS_NOTES.md` e ADR-0051.

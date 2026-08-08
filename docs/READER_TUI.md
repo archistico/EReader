@@ -202,3 +202,12 @@ Nella lettura normale `Enter` dà priorità a un hyperlink azionabile. La `Readi
 ## M3.6 — Note e rimandi
 
 Un hyperlink Domain con `HyperlinkRole.NoteReference` viene mostrato come `NOTA`; `Enter` apre la nota e `Backspace` ritorna al testo attraverso lo stesso stack logico M3.5. Nessun popup o layout speciale viene persistito.
+
+
+## M3.7 — Highlights & Personal Notes
+
+- F2: toggle highlight della riga logica corrente.
+- F3: prompt inline per nota personale alla ReadingLocation corrente; Enter salva, Esc annulla, testo vuoto elimina.
+- F4: overlay annotazioni; frecce/jk selezionano, PgUp/PgDn scorrono, Enter salta, `d` (binding delete corrente) elimina.
+- Header: `EVID` se la riga corrente interseca un highlight e `NOTA PERSONALE` se esiste una nota esatta alla posizione.
+- Il rendering highlight è line-level, ma il range persistito resta preciso e indipendente dal layout.
