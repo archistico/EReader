@@ -1,8 +1,8 @@
 # Architettura di EReader
 
-Stato: **M3.8 Hotfix 1 — Diagnostics Foundation & CA1859 Analyzer Alignment CANDIDATE**  
-Baseline autoritativa: **M3.7 Hotfix 1 — `M3.7 HOTFIX 1 VALIDATION PASSED` (08/08/2026)**  
-Base documentale: **M3.7 Docs1 — reliability/security roadmap**  
+Stato: **M3.9 — Defensive EPUB Loading & Input Security CANDIDATE**  
+Baseline autoritativa: **M3.8 Hotfix 1 — `M3.8 HOTFIX 1 VALIDATION PASSED` (08/08/2026)**  
+Base documentale: **M3.7 Docs1 — reliability/security roadmap, consolidata nella baseline M3.8**  
 Target: **.NET 10 / C# 14**
 
 ## 1. Obiettivo
@@ -534,7 +534,7 @@ Gli hyperlink restano semantica Domain (`HyperlinkSpan` + `LinkTarget`) e vengon
 
 La prossima fase non modifica la separazione dei layer: estende i contratti di errore e recovery senza introdurre semantica EPUB nel Domain o coordinate di layout nella persistenza.
 
-M3.8 implementa la foundation; M3.9–M3.13 ne estendono sicurezza, recovery e containment. Principi architetturali:
+M3.8 implementa la foundation ed è validata; M3.9 aggiunge il defensive input boundary ZIP/OCF senza spostarlo fuori da `EbookReader.Epub`; M3.10–M3.13 estendono recovery e containment. Principi architetturali:
 
 - `EpubPublicationValidator` conserva il contratto M0.7 `Valid` / `Invalid` / `Unsupported`;
 - `EbookReader.Application.Diagnostics` distingue information, warning, recovery, documento irrecuperabile e guasto interno senza dipendere da EPUB/UI/Layout;

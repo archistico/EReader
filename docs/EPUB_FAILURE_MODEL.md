@@ -1,7 +1,7 @@
 # EPUB Failure Model
 
-**Stato:** foundation M3.8 implementata; casi concreti/recovery estesi pianificati M3.9–M3.13.  
-**Baseline:** M3.7 Hotfix 1 VALIDATED.
+**Stato:** foundation M3.8 validata; hardening input M3.9 candidate; recovery/containment M3.10–M3.13 pianificati.  
+**Baseline:** M3.8 Hotfix 1 VALIDATED; M3.9 Defensive EPUB Input Security è la candidate corrente.
 
 ## Obiettivo
 

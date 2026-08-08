@@ -163,3 +163,14 @@ Questi confini mantengono M0.6 concentrata sulla trasformazione del contenuto so
 
 
 Da M3.6 il token EPUB `noteref` viene consumato esclusivamente in questo adapter e non attraversa il boundary come stringa EPUB.
+
+## Evoluzione M3.9 — decoding XHTML strict
+
+Prima del parsing AngleSharp, i Content Document restano soggetti al limite bounded esistente e vengono ora decodificati in modalità strict:
+
+- UTF-8 senza BOM oppure con BOM;
+- UTF-16 LE/BE quando riconosciuto dal BOM;
+- sequenze di byte invalide → `EpubContentErrorCode.InvalidXhtml`;
+- caratteri di controllo XML sotto U+0020 diversi da TAB, LF e CR → `InvalidXhtml`.
+
+Il parser non esegue script, non effettua fetch di rete e non trasforma path XHTML in path filesystem host.

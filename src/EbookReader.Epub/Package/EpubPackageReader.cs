@@ -312,8 +312,17 @@ public static class EpubPackageReader
         {
             HashSet<string> visited = new(StringComparer.Ordinal) { item.Id };
             string? next = item.FallbackId;
+            int depth = 0;
             while (next is not null)
             {
+                depth++;
+                if (depth > EpubPackageLimits.MaxFallbackDepth)
+                {
+                    throw Error(
+                        EpubPackageErrorCode.FallbackDepthExceeded,
+                        $"La catena fallback a partire da '{item.Id}' supera la profondità massima {EpubPackageLimits.MaxFallbackDepth}.");
+                }
+
                 if (!visited.Add(next))
                 {
                     throw Error(
@@ -395,6 +404,14 @@ public static class EpubPackageReader
             if (absoluteUri.IsFile)
             {
                 throw Error(EpubPackageErrorCode.InvalidManifestHref, "Gli URL file: non sono ammessi nel manifest EPUB.");
+            }
+
+            if (!string.Equals(absoluteUri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(absoluteUri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            {
+                throw Error(
+                    EpubPackageErrorCode.UnsupportedRemoteResourceScheme,
+                    $"Lo schema URI '{absoluteUri.Scheme}' non è ammesso per una risorsa remota del manifest EPUB. Sono consentiti solo http e https.");
             }
 
             return (null, absoluteUri, $"remote:{absoluteUri.AbsoluteUri}");

@@ -1012,19 +1012,49 @@ public static class EpubBookReader
         }
 
         byte[] bytes = buffer.ToArray();
-        if (bytes.Length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE)
+        try
         {
-            return Encoding.Unicode.GetString(bytes, 2, bytes.Length - 2);
-        }
+            string text;
+            if (bytes.Length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE)
+            {
+                text = new UnicodeEncoding(bigEndian: false, byteOrderMark: false, throwOnInvalidBytes: true)
+                    .GetString(bytes, 2, bytes.Length - 2);
+            }
+            else if (bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF)
+            {
+                text = new UnicodeEncoding(bigEndian: true, byteOrderMark: false, throwOnInvalidBytes: true)
+                    .GetString(bytes, 2, bytes.Length - 2);
+            }
+            else
+            {
+                int offset = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF ? 3 : 0;
+                text = new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true)
+                    .GetString(bytes, offset, bytes.Length - offset);
+            }
 
-        if (bytes.Length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF)
+            ValidateXmlCharacterRange(text, sourcePath);
+            return text;
+        }
+        catch (DecoderFallbackException exception)
         {
-            return Encoding.BigEndianUnicode.GetString(bytes, 2, bytes.Length - 2);
+            throw new EpubContentException(
+                EpubContentErrorCode.InvalidXhtml,
+                $"Il Content Document '{sourcePath.Value}' contiene una sequenza di byte non valida per UTF-8/UTF-16.",
+                exception);
         }
+    }
 
-        int offset = bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF ? 3 : 0;
-        return new UTF8Encoding(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true)
-            .GetString(bytes, offset, bytes.Length - offset);
+    private static void ValidateXmlCharacterRange(string text, OcfPath sourcePath)
+    {
+        foreach (char value in text)
+        {
+            if (value < 0x20 && value != '\t' && value != '\n' && value != '\r')
+            {
+                throw Error(
+                    EpubContentErrorCode.InvalidXhtml,
+                    $"Il Content Document '{sourcePath.Value}' contiene caratteri di controllo non ammessi in XHTML/XML.");
+            }
+        }
     }
 
     private static void ValidateNodeBudget(IElement body, OcfPath sourcePath)

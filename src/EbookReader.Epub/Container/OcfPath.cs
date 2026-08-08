@@ -57,9 +57,9 @@ public sealed record OcfPath
         }
 
         string[] rawSegments = input.Split('/');
-        if (decodePercentEscapes && rawSegments[0].Contains(':'))
+        if (rawSegments[0].Contains(':'))
         {
-            throw InvalidPath($"Il riferimento OCF non può contenere uno schema URL: '{input}'.");
+            throw InvalidPath($"Il path OCF non può contenere uno schema URL o un prefisso drive: '{input}'.");
         }
 
         List<string> normalized = new(rawSegments.Length);
@@ -75,6 +75,11 @@ public sealed record OcfPath
             string segment = decodePercentEscapes
                 ? DecodeSegment(rawSegment, input)
                 : rawSegment;
+
+            if (index == 0 && segment.Contains(':'))
+            {
+                throw InvalidPath($"Il path OCF non può contenere uno schema URL o un prefisso drive: '{input}'.");
+            }
 
             if (segment is "." && allowDotSegments)
             {

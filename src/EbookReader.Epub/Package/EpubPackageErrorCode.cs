@@ -35,4 +35,6 @@ public enum EpubPackageErrorCode
     SpineManifestItemNotFound = 27,
     NoLinearSpineItem = 28,
     InvalidPageProgressionDirection = 29,
+    UnsupportedRemoteResourceScheme = 30,
+    FallbackDepthExceeded = 31,
 }

@@ -1154,6 +1154,36 @@ public sealed class ArchitectureContractTests
         Assert.Contains("EpubValidationStatus.Unsupported => ReaderOperationStatus.DocumentUnreadable", bridge, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void M39InputSecurityStaysInsideEpubAdapter()
+    {
+        string root = RepositoryRoot.Find();
+        string containerLimits = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Epub", "Container", "EpubContainerLimits.cs"));
+        string validatedEntryStream = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Epub", "Container", "ValidatedZipEntryStream.cs"));
+        string packageReader = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Epub", "Package", "EpubPackageReader.cs"));
+        string validator = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Epub", "Validation", "EpubPublicationValidator.cs"));
+        string domainAndApplication = string.Join(
+            Environment.NewLine,
+            Directory.EnumerateFiles(Path.Combine(root, "src", "EbookReader.Domain"), "*.cs", SearchOption.AllDirectories)
+                .Concat(Directory.EnumerateFiles(Path.Combine(root, "src", "EbookReader.Application"), "*.cs", SearchOption.AllDirectories))
+                .Select(File.ReadAllText));
+
+        Assert.Contains("MaxEntryUncompressedBytes", containerLimits, StringComparison.Ordinal);
+        Assert.Contains("MaxTotalUncompressedBytes", containerLimits, StringComparison.Ordinal);
+        Assert.Contains("MaxCompressionRatio", containerLimits, StringComparison.Ordinal);
+        Assert.Contains("InconsistentArchiveEntry", validatedEntryStream, StringComparison.Ordinal);
+        Assert.Contains("Uri.UriSchemeHttp", packageReader, StringComparison.Ordinal);
+        Assert.Contains("Uri.UriSchemeHttps", packageReader, StringComparison.Ordinal);
+        Assert.Contains("UnsupportedRemoteResourceScheme", packageReader, StringComparison.Ordinal);
+        Assert.Contains("catch (EpubContainerException exception)", validator, StringComparison.Ordinal);
+        Assert.DoesNotContain("System.IO.Compression", domainAndApplication, StringComparison.Ordinal);
+        Assert.DoesNotContain("ZipArchive", domainAndApplication, StringComparison.Ordinal);
+    }
+
     private static bool ProjectReferencesAngleSharp(string projectFile)
     {
         XDocument document = XDocument.Load(projectFile);

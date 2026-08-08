@@ -6,4 +6,5 @@ internal static class EpubPackageLimits
     public const int MaxManifestItems = 20_000;
     public const int MaxSpineItems = 20_000;
     public const int MaxMetadataEntries = 10_000;
+    public const int MaxFallbackDepth = 64;
 }

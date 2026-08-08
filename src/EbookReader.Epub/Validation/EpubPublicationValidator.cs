@@ -57,6 +57,11 @@ public static class EpubPublicationValidator
             diagnostics.Add(ProtectionDiagnostic(exception));
             return Invalid(diagnostics);
         }
+        catch (EpubContainerException exception)
+        {
+            diagnostics.Add(ContainerDiagnostic(exception));
+            return Invalid(diagnostics);
+        }
 
         AddProtectionInformation(protection, diagnostics);
 
@@ -86,6 +91,11 @@ public static class EpubPublicationValidator
             diagnostics.Add(ProtectionDiagnostic(exception));
             return Invalid(protection, diagnostics);
         }
+        catch (EpubContainerException exception)
+        {
+            diagnostics.Add(ContainerDiagnostic(exception));
+            return Invalid(protection, diagnostics);
+        }
 
         EpubNavigationDocument navigation;
         try
@@ -97,6 +107,11 @@ public static class EpubPublicationValidator
             diagnostics.Add(NavigationDiagnostic(exception));
             return Invalid(protection, diagnostics);
         }
+        catch (EpubContainerException exception)
+        {
+            diagnostics.Add(ContainerDiagnostic(exception));
+            return Invalid(protection, diagnostics);
+        }
 
         Book book;
         try
@@ -106,6 +121,11 @@ public static class EpubPublicationValidator
         catch (EpubContentException exception)
         {
             diagnostics.Add(ContentDiagnostic(exception));
+            return Invalid(protection, diagnostics);
+        }
+        catch (EpubContainerException exception)
+        {
+            diagnostics.Add(ContainerDiagnostic(exception));
             return Invalid(protection, diagnostics);
         }
 

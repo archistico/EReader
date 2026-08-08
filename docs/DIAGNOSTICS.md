@@ -1,14 +1,14 @@
 # M3.8 — Diagnostics Foundation & Failure Taxonomy
 
-**Stato:** candidate.  
-**Baseline di partenza:** M3.7 Hotfix 1 VALIDATED.  
-**Gate candidate:** `M3.8 HOTFIX 1 VALIDATION PASSED`.
+**Stato:** M3.8 Hotfix 1 VALIDATED; M3.9 usa questa foundation senza cambiarne il contratto.  
+**Baseline autoritativa corrente:** M3.8 Hotfix 1 VALIDATED.  
+**Gate validato:** `M3.8 HOTFIX 1 VALIDATION PASSED`.
 
 ## Principio guida
 
 > Un EPUB può essere illeggibile. EReader no.
 
-M3.8 introduce il linguaggio comune con cui i boundary EReader descrivono problemi e risultati. Non aggiunge ancora repair EPUB, nuovi limiti ZIP, recovery di capitoli o crash containment globale: questi aspetti restano M3.9–M3.13.
+M3.8, ora validata, introduce il linguaggio comune con cui i boundary EReader descrivono problemi e risultati. M3.8 non aggiungeva repair EPUB, nuovi limiti ZIP, recovery di capitoli o crash containment globale; la candidate M3.9 ora implementa il defensive input hardening, mentre recovery e containment restano M3.10–M3.13.
 
 ## Contratto M0.7 preservato
 

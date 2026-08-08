@@ -435,6 +435,51 @@ public sealed class EpubPackageReaderTests
         Assert.Equal(EpubPackageErrorCode.InvalidManifestHref, exception.ErrorCode);
     }
 
+    [Theory]
+    [InlineData("data:text/plain,hello")]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("ftp://example.com/book.xhtml")]
+    public void RejectsUnsupportedRemoteManifestSchemes(string href)
+    {
+        string manifest = $"<item id=\"c1\" href=\"{href}\" media-type=\"application/xhtml+xml\" />";
+        EpubPackageException exception = ParseFailure(
+            OpfFixtureFactory.CreateEpub3Package(
+                manifest: manifest,
+                spine: "<itemref idref=\"c1\" />"));
+
+        Assert.Equal(EpubPackageErrorCode.UnsupportedRemoteResourceScheme, exception.ErrorCode);
+    }
+
+    [Fact]
+    public void RejectsFallbackChainBeyondSecurityDepthBudget()
+    {
+        const int itemCount = 66;
+        string[] manifestItems = new string[itemCount];
+        (string Path, string Content)[] entries = new (string Path, string Content)[itemCount];
+        for (int index = 0; index < itemCount; index++)
+        {
+            string fallback = index + 1 < itemCount
+                ? $" fallback=\"i{index + 1}\""
+                : string.Empty;
+            manifestItems[index] =
+                $"<item id=\"i{index}\" href=\"Fallback/r{index}.bin\" media-type=\"application/octet-stream\"{fallback} />";
+            entries[index] = ($"EPUB/Fallback/r{index}.bin", "x");
+        }
+
+        string packageText = OpfFixtureFactory.CreateEpub3Package(
+            manifest: string.Join(Environment.NewLine, manifestItems),
+            spine: "<itemref idref=\"i0\" />");
+        using MemoryStream stream = EpubFixtureFactory.CreateValid(
+            packageEntryPath: OpfFixtureFactory.PackagePath,
+            packageContent: packageText,
+            additionalEntries: entries);
+        using EpubContainer container = EpubContainer.Open(stream, leaveOpen: true);
+
+        EpubPackageException exception = Assert.Throws<EpubPackageException>(() => EpubPackageReader.Read(container));
+
+        Assert.Equal(EpubPackageErrorCode.FallbackDepthExceeded, exception.ErrorCode);
+    }
+
     [Fact]
     public void RejectsFileUri()
     {

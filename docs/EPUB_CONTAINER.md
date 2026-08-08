@@ -160,3 +160,35 @@ container.OpenDefaultPackageDocument()
 ```
 
 per interpretare metadata, manifest e spine OPF.
+
+## Evoluzione M3.9 — Defensive input boundary
+
+M3.9 mantiene il modello virtuale/no-extraction di M0.3 e aggiunge guardrail prima della decompressione o dell'uso delle entry:
+
+```text
+entry archivio massime              100000
+entry decompressa massima          256 MiB
+totale decompresso dichiarato        2 GiB
+ratio inspection da                  16 MiB
+compression ratio massimo           500:1
+```
+
+Inoltre:
+
+- le entry Unix di tipo speciale dichiarate nelle external attributes ZIP, inclusi i symbolic link, sono rifiutate;
+- prefissi drive/schema nei path OCF sono rifiutati anche quando il carattere `:` compare solo dopo percent-decoding (`C%3A/...`);
+- `OpenEntry` restituisce uno stream read-only validato che mantiene corruzioni/incoerenze ZIP dentro `EpubContainerException`;
+- una entry letta fino a EOF deve produrre esattamente la lunghezza decompressa dichiarata;
+- funzioni o metodi ZIP non supportati vengono classificati con `UnsupportedZipFeature` invece di lasciare propagare `NotSupportedException` dal framework.
+
+Nuovi codici Container M3.9:
+
+```text
+ArchiveEntryTooLarge
+ArchiveUncompressedSizeTooLarge
+SuspiciousCompressionRatio
+UnsafeArchiveEntryType
+InconsistentArchiveEntry
+```
+
+Questi limiti sono security guardrails generali. OPF, Navigation, XHTML e preview immagini conservano budget specifici più stretti.

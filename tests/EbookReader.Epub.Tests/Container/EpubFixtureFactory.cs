@@ -13,6 +13,7 @@ internal static class EpubFixtureFactory
         bool mimeTypeFirst = true,
         bool compressMimeType = false,
         IReadOnlyList<(string Path, string Content)>? additionalEntries = null,
+        (string Path, byte[] Content)[]? additionalBinaryEntries = null,
         bool includeContainerXml = true,
         bool includePackageEntry = true,
         string? packageContent = null)
@@ -53,6 +54,14 @@ internal static class EpubFixtureFactory
                     AddTextEntry(archive, path, content, CompressionLevel.Optimal);
                 }
             }
+
+            if (additionalBinaryEntries is not null)
+            {
+                foreach ((string path, byte[] content) in additionalBinaryEntries)
+                {
+                    AddBinaryEntry(archive, path, content, CompressionLevel.Optimal);
+                }
+            }
         }
 
         stream.Position = 0;
@@ -82,5 +91,16 @@ internal static class EpubFixtureFactory
         using Stream output = entry.Open();
         using StreamWriter writer = new(output, new UTF8Encoding(false), bufferSize: 1024, leaveOpen: false);
         writer.Write(content);
+    }
+
+    public static void AddBinaryEntry(
+        ZipArchive archive,
+        string path,
+        ReadOnlySpan<byte> content,
+        CompressionLevel compressionLevel)
+    {
+        ZipArchiveEntry entry = archive.CreateEntry(path, compressionLevel);
+        using Stream output = entry.Open();
+        output.Write(content);
     }
 }

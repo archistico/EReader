@@ -1,7 +1,7 @@
 # EPUB Security Model
 
-**Stato:** parte già implementata + hardening pianificato M3.9/M3.11/M3.12.  
-**Baseline:** M3.7 Hotfix 1 VALIDATED.
+**Stato:** hardening M3.9 candidate sopra foundation diagnostica M3.8 validata; M3.11/M3.12 restano pianificate.  
+**Baseline:** M3.8 Hotfix 1 VALIDATED.
 
 ## Threat model
 
@@ -19,7 +19,7 @@ Anche un file con estensione `.epub` può contenere:
 
 EReader non deve presupporre che il file sia benigno solo perché è stato scelto esplicitamente dall'utente.
 
-## Garanzie già presenti in M3.7
+## Garanzie già presenti prima di M3.9
 
 La baseline corrente possiede già controlli importanti:
 
@@ -40,24 +40,59 @@ La baseline corrente possiede già controlli importanti:
 
 Questi punti restano invarianti da preservare nelle milestone future.
 
-## Hardening M3.9 pianificato
+## Hardening M3.9 candidate
 
-M3.9 deve auditare e, dove necessario, introdurre test/guardrail espliciti per:
+M3.9 non sostituisce i limiti specifici dei parser; aggiunge un primo firewall a livello OCF/ZIP e chiude i failure path attesi che potevano emergere soltanto durante la decompressione.
 
-- ZIP corrotto o troncato;
-- local/central directory incoerenti;
-- entry duplicate o nomi ambigui;
-- path assoluti e traversal in tutte le risoluzioni, non solo nei casi già coperti;
-- rapporti di compressione patologici;
-- dimensione decompressa individuale e cumulativa;
-- numero eccessivo di entry;
-- `container.xml` / OPF / navigation / XHTML con budget coerenti;
-- URI e percent-encoding patologici;
-- risorse dichiarate fuori dal package;
-- fallback chain cicliche o eccessive;
-- input Unicode anomalo senza introdurre normalizzazioni semantiche distruttive.
+### Budget ZIP
 
-I limiti finali devono essere documentati e testati. Non devono essere scelti tanto bassi da rifiutare libri reali ragionevoli senza motivo.
+```text
+entry archivio massime              100000
+entry decompressa massima          256 MiB
+totale decompresso dichiarato        2 GiB
+compression-ratio controllato da     16 MiB
+compression-ratio massimo           500:1
+fallback OPF massime                  64
+```
+
+Questi limiti sono guardrail di sicurezza, non obiettivi di performance. I documenti effettivamente elaborati dal reader hanno limiti più stretti già esistenti: `container.xml` 1 MiB, OPF 4 MiB, navigation 4 MiB, Content Document 8 MiB, preview raster 16 MiB.
+
+### Entry ZIP e path
+
+M3.9 aggiunge:
+
+- rifiuto delle entry Unix di tipo speciale dichiarate nelle external attributes ZIP, inclusi i symbolic link;
+- rifiuto di prefissi drive/schema (`C:/...`, `C%3A/...`, `scheme:...`) dopo normalizzazione/decodifica controllata, oltre che nei nomi fisici ZIP;
+- controllo individuale/cumulativo delle lunghezze dichiarate dalla central directory;
+- rifiuto di rapporti di compressione patologici;
+- `ValidatedZipEntryStream` che controlla i byte realmente letti contro la lunghezza dichiarata quando viene raggiunto EOF;
+- conversione di `InvalidDataException`/compression method non supportato in `EpubContainerException` stabile.
+
+Restano validi traversal rejection, separatori encoded rejection, duplicate entry rejection e namespace OCF case-sensitive. Non viene applicata normalizzazione Unicode distruttiva: nomi differenti restano differenti.
+
+### Corruzione scoperta dopo il bootstrap
+
+Una ZIP può essere abbastanza integra da leggere central directory e `container.xml`, ma fallire quando viene aperta una entry successiva. M3.9 estende `EpubPublicationValidator` affinché un `EpubContainerException` emerso durante Protection, Package, Navigation o Content venga restituito come:
+
+```text
+EpubValidationStatus.Invalid
+EpubDiagnosticCategory.Container
+ReaderOperationStatus.DocumentUnreadable   (via bridge M3.8)
+```
+
+Non viene introdotto un catch-all: eccezioni inattese che indicano un possibile bug EReader restano fuori da questo contratto fino a M3.12.
+
+### URI e fallback OPF
+
+Le risorse remote del manifest possono usare solo `http:` o `https:`. La presenza di una URI remota non autorizza alcun download: EReader resta offline durante parsing/validation/rendering.
+
+`file:`, `data:`, `javascript:`, `ftp:` e schemi non previsti sono rifiutati. Le fallback chain mantengono cycle detection e sono ora limitate a 64 passaggi per evitare traversal CPU patologici.
+
+### XHTML/encoding
+
+I Content Document continuano a essere letti in memoria bounded prima di AngleSharp. M3.9 rende strict la decodifica UTF-8/UTF-16 e converte sequenze invalide in `EpubContentException.InvalidXhtml`; control character XML sotto U+0020 diversi da TAB/LF/CR sono rifiutati prima del parsing HTML.
+
+I boundary XML veri e propri continuano a usare `XmlReader` con resolver `null`, DTD proibiti salvo il caso NCX canonico già vincolato e senza external resolution.
 
 ## Sicurezza dei link — target M3.11
 

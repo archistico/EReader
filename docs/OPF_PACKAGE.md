@@ -102,3 +102,16 @@ Gli URL assoluti remoti vengono rappresentati ma non scaricati.
 - mapping a `Book`;
 - retrieval di risorse remote;
 - decisione reflowable vs fixed-layout a livello applicativo.
+
+## Evoluzione M3.9 — URI e fallback bounded
+
+M3.9 restringe le URI assolute delle risorse remote dichiarate nel manifest a una allow-list esplicita:
+
+```text
+http:
+https:
+```
+
+La presenza di una risorsa remota nel manifest **non autorizza alcun download**. `file:`, `data:`, `javascript:`, `ftp:` e schemi non previsti vengono rifiutati durante il parsing OPF.
+
+Le catene `fallback` continuano a essere validate contro riferimenti mancanti e cicli, e sono ora limitate a **64 passaggi**. Una catena più profonda produce `FallbackDepthExceeded` prima che possa generare lavoro non bounded.

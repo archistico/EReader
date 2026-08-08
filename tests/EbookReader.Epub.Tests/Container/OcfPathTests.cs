@@ -83,6 +83,33 @@ public sealed class OcfPathTests
     }
 
     [Fact]
+    public void ArchiveEntryRejectsDriveQualifiedPath()
+    {
+        EpubContainerException exception = Assert.Throws<EpubContainerException>(
+            () => OcfPath.FromArchiveEntry("C:/EPUB/package.opf"));
+
+        Assert.Equal(EpubContainerErrorCode.InvalidContainerPath, exception.ErrorCode);
+    }
+
+    [Fact]
+    public void ContainerReferenceRejectsDriveQualifiedPath()
+    {
+        EpubContainerException exception = Assert.Throws<EpubContainerException>(
+            () => OcfPath.FromContainerReference("C:/EPUB/package.opf"));
+
+        Assert.Equal(EpubContainerErrorCode.InvalidContainerPath, exception.ErrorCode);
+    }
+
+    [Fact]
+    public void ContainerReferenceRejectsPercentEncodedDriveQualifiedPath()
+    {
+        EpubContainerException exception = Assert.Throws<EpubContainerException>(
+            () => OcfPath.FromContainerReference("C%3A/EPUB/package.opf"));
+
+        Assert.Equal(EpubContainerErrorCode.InvalidContainerPath, exception.ErrorCode);
+    }
+
+    [Fact]
     public void ArchiveEntryRejectsTraversalSegment()
     {
         EpubContainerException exception = Assert.Throws<EpubContainerException>(

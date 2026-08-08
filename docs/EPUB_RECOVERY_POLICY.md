@@ -1,7 +1,7 @@
 # EPUB Recovery Policy
 
 **Stato:** policy target per M3.10, da rendere eseguibile e testata.  
-**Baseline:** M3.7 Hotfix 1 VALIDATED.
+**Baseline:** M3.8 Hotfix 1 VALIDATED; M3.9 hardening input è candidate e M3.10 applicherà questa policy.
 
 ## Principio
 

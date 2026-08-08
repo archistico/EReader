@@ -1,6 +1,7 @@
 # EPUB Compatibility
 
-**Baseline descritta:** M3.7 Hotfix 1 VALIDATED.  
+**Baseline autoritativa:** M3.8 Hotfix 1 VALIDATED.  
+**Candidate descritta:** M3.9 — Defensive EPUB Loading & Input Security.  
 **Scopo:** distinguere supporto reale, limitazioni intenzionali e hardening futuro.
 
 ## Classificazioni
@@ -25,7 +26,7 @@ PLANNED_HARDENING
 
 ## Formati
 
-| Funzione | Stato M3.7 | Note |
+| Funzione | Stato M3.9 | Note |
 |---|---|---|
 | EPUB 2 reflowable | `SUPPORTED` | pipeline OCF/OPF/NCX/XHTML |
 | EPUB 3 reflowable | `SUPPORTED` | nav XHTML + semantic content |
@@ -37,7 +38,7 @@ PLANNED_HARDENING
 
 ## Contenuto e presentazione
 
-| Funzione | Stato M3.7 | Note |
+| Funzione | Stato M3.9 | Note |
 |---|---|---|
 | Heading, paragraph, quote, pre, list | `SUPPORTED` | Domain semantico |
 | Emphasis/strong | `SUPPORTED` | stile semantico TUI |
@@ -53,7 +54,7 @@ PLANNED_HARDENING
 
 ## Navigazione e stato
 
-| Funzione | Stato M3.7 | Note |
+| Funzione | Stato M3.9 | Note |
 |---|---|---|
 | TOC EPUB 2 NCX | `SUPPORTED` | gerarchico |
 | EPUB 3 nav | `SUPPORTED` | TOC/page-list/landmarks nel modello intermedio |
@@ -65,19 +66,21 @@ PLANNED_HARDENING
 
 ## Robustezza corrente e futura
 
-La baseline M3.7 possiede già controlli bounded e security boundary importanti. Le milestone immediatamente successive non servono ad aggiungere un nuovo formato, ma a rendere **esplicito e testabile** il comportamento davanti a pubblicazioni degradate, rotte o ostili.
+La baseline M3.8 possiede già controlli bounded e security boundary importanti; la candidate M3.9 completa il defensive loading dell'input EPUB. Le milestone immediatamente successive non servono ad aggiungere un nuovo formato, ma a rendere **esplicito e testabile** il comportamento davanti a pubblicazioni degradate, rotte o ostili.
 
 ### M3.8–M3.13
 
-`PLANNED_HARDENING`:
+Già implementato/validato o in candidate:
 
-- diagnostica uniforme reader-wide;
-- distinzione recovery/fatal document/internal error;
-- resource exhaustion e ZIP pathology audit;
-- link integrity completa;
-- degraded reading controllato;
-- crash containment;
-- corpus di EPUB corrotti con outcome attesi.
+- M3.8: diagnostica uniforme reader-wide e distinzione `FatalDocumentError` / `InternalError`;
+- M3.9 candidate: budget ZIP, ratio guard, tipi entry speciali, path OCF difensivi, schemi manifest allow-listed, fallback bounded, decoding XHTML strict e classificazione della corruzione ZIP tardiva.
+
+`PLANNED_HARDENING` residuo:
+
+- M3.10 degraded reading controllato;
+- M3.11 link integrity completa;
+- M3.12 crash containment;
+- M3.13 corpus di EPUB corrotti con outcome attesi.
 
 ### M5.0–M5.2
 

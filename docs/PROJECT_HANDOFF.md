@@ -1,119 +1,71 @@
-# Project Handoff — EReader M3.8 Hotfix 1 CA1859 Analyzer Alignment Candidate
+# Project Handoff — EReader M3.9 Hotfix 1 CA1859 Return-Type Analyzer Alignment Candidate
 
 ## Baseline
 
-- baseline funzionale validata: `EReader_M3.7_Hotfix1_CompilationIntegration_NET10_Candidate.zip`;
-- gate validato: `M3.7 HOTFIX 1 VALIDATION PASSED`;
-- data validazione: 08/08/2026;
-- documentazione consolidata: M3.7 Docs1 Reliability/Security Roadmap;
-- candidate corrente: M3.8 Hotfix 1 — CA1859 Analyzer Alignment.
+- baseline autoritativa validata: **M3.8 Hotfix 1 — Diagnostics Foundation & CA1859 Analyzer Alignment**;
+- gate validato: `M3.8 HOTFIX 1 VALIDATION PASSED` (08/08/2026);
+- candidate corrente: **M3.9 Hotfix 1 — CA1859 Return-Type Analyzer Alignment**;
+- gate candidate: `M3.9 HOTFIX 1 VALIDATION PASSED`.
 
 ## Hotfix 1 — motivo
 
-La prima candidate M3.8 ha fallito il build locale esclusivamente per `CA1859`: il metodo privato `ReaderOperationSummary.Validate(...)` dichiarava `IReadOnlyCollection<ReaderDiagnostic>` pur ricevendo sempre un `ReaderDiagnostic[]`. La Hotfix 1 usa il tipo concreto richiesto dall’analyzer; API pubblica e comportamento M3.8 restano invariati.
+La prima candidate M3.9 ha fallito il build locale esclusivamente per `CA1859`: il metodo privato `EpubContainer.OpenValidatedEntry(...)` dichiarava `Stream` pur restituendo sempre `ValidatedZipEntryStream`. La Hotfix 1 usa il tipo concreto richiesto dall’analyzer; API pubbliche e comportamento M3.9 restano invariati.
 
-## Obiettivo M3.8
+## Obiettivo M3.9
 
-Formalizzare una tassonomia reader-wide prima dell'hardening concreto M3.9–M3.13, preservando il validator EPUB M0.7 già validato.
+Trattare l'EPUB come input non attendibile senza cambiare il modello di lettura. Un errore attribuibile in modo deterministico all'archivio/documento deve restare dentro il boundary EPUB e diventare diagnostica `DocumentUnreadable`; un bug interno inatteso non deve essere mascherato.
 
-Principio:
+## Modifiche produttive principali
 
-> Un EPUB può essere illeggibile. EReader no.
+### Container/ZIP
 
-## Implementazione
+- `EpubContainerLimits`: 256 MiB per entry, 2 GiB cumulativi dichiarati, ratio 500:1 da 16 MiB;
+- `EpubContainerErrorCode`: nuovi codici 21–25 per oversize/ratio/tipo entry speciale/incoerenza;
+- `ValidatedZipEntryStream`: wrapper read-only che traduce corruption/unsupported compression e valida la lunghezza a EOF;
+- entry ZIP Unix di tipo speciale, inclusi symlink, rifiutate;
+- prefissi drive/schema rifiutati anche dopo percent-decoding controllato (`C%3A/...`) e nei nomi ZIP;
+- nessuna estrazione filesystem.
 
-Nuovo namespace `EbookReader.Application.Diagnostics`:
+### OPF/URI
 
-- `ReaderDiagnosticSeverity`;
-- `ReaderDiagnosticArea`;
-- `ReaderRecoveryAction`;
-- `ReaderDiagnostic`;
-- `ReaderOperationStatus`;
-- `ReaderOperationSummary`.
+- manifest remoto: allow-list `http`/`https`;
+- `file:` conserva il rifiuto storico; `data:`, `javascript:`, `ftp:` e altri schemi sono `UnsupportedRemoteResourceScheme`;
+- fallback chain bounded a 64 passaggi, cycle detection invariato.
 
-Tassonomia:
+### Content
 
-```text
-Information
-Warning
-RecoverableError
-FatalDocumentError
-InternalError
-```
+- UTF-8/UTF-16 strict;
+- control character XML proibiti rifiutati come `InvalidXhtml`;
+- budget Content preesistenti invariati.
 
-Outcome:
+### Validation
 
-```text
-Success
-SuccessWithDiagnostics
-DocumentUnreadable
-InternalFailure
-```
+`EpubPublicationValidator.Validate(EpubContainer)` cattura `EpubContainerException` anche se emerge durante Protection/Package/Navigation/Content e la proietta come diagnostica Container `Invalid`. Non viene aggiunto un catch-all.
 
-Il modello è format-neutral e non contiene tipi EPUB, Terminal.Gui, layout o coordinate di pagina/riga/viewport.
+## Architettura
 
-## Compatibilità M0.7
+M3.9 resta confinata a `EbookReader.Epub` per ZIP, path e URI. Domain/Application/Layout non conoscono `ZipArchive`, compression ratio o policy OCF. La tassonomia M3.8 resta format-neutral nell'Application layer e il bridge resta nel CLI.
 
-`EpubPublicationValidator` e `EpubValidationResult` restano invariati.
+ADR: `docs/adr/0053-defensive-epub-input-stays-virtual-and-bounded.md`.
 
-Il nuovo `EpubReaderDiagnosticBridge` vive nel CLI/composition root:
+## Validazione
 
-```text
-Valid + 0 diagnostics -> Success
-Valid + diagnostics   -> SuccessWithDiagnostics
-Invalid               -> DocumentUnreadable
-Unsupported           -> DocumentUnreadable
-```
-
-`Invalid` e `Unsupported` mantengono i rispettivi exit code CLI 3 e 4.
-
-## UX minima introdotta
-
-Quando il validator rifiuta il documento, stderr contiene sia la diagnostica specifica sia un riepilogo esplicito:
-
-```text
-[DOCUMENT_UNREADABLE] Impossibile aprire il libro in modo affidabile.
-```
-
-Il messaggio dichiara inoltre che il file non viene modificato e che lo stato di lettura esistente non viene aggiornato.
-
-## Contratti preservati
-
-- Domain format-neutral;
-- Application senza dipendenza EPUB/UI/Layout;
-- `ReadingLocation` autoritativa e logica;
-- state schema 4;
-- config schema 1;
-- M3.5 hyperlink/back-stack;
-- M3.6 footnotes/endnotes;
-- M3.7 highlight/note;
-- M0.7 non cattura eccezioni runtime inattese.
-
-## ADR
-
-Nuovo ADR-0052: `reader-wide-diagnostics-stay-format-neutral`.
-
-## Gate atteso
+Eseguire da estrazione pulita:
 
 ```bat
 .\validate.cmd
 ```
 
-Successo:
+Gate atteso:
 
 ```text
-M3.8 HOTFIX 1 VALIDATION PASSED
+M3.9 HOTFIX 1 VALIDATION PASSED
 ```
 
-Conteggio statico atteso:
-
-- 463 Fact;
-- 4 Theory;
-- 16 InlineData;
-- 479 casi complessivi.
+Conteggio statico atteso: 473 Fact + 5 Theory + 19 InlineData = 492 casi.
 
 ## Prossimo punto dopo validazione
 
-**M3.9 — Defensive EPUB Loading & Input Security**.
+**M3.10 — EPUB Recovery & Degraded Reading**.
 
-M3.9 deve partire esclusivamente dalla M3.8 validata e concentrarsi sui guardrail dell'EPUB come input non attendibile: archive structure, path, limiti, XML/XHTML safety, risorse e URI. Non deve ancora diventare una milestone di recovery generale; quella resta M3.10.
+M3.10 deve definire una matrice esplicita problema → recovery/esito (risorsa opzionale mancante, immagine corrotta, TOC assente, capitolo problematico, ecc.) senza indebolire i guardrail M3.9 e senza guessing silenzioso. Lo stato persistente valido deve essere aggiornato solo dopo un'apertura/operazione riuscita secondo il contratto definito.

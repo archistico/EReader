@@ -95,6 +95,13 @@ public sealed class EpubContainer : IDisposable
                 "Il file non è un archivio ZIP EPUB leggibile.",
                 exception);
         }
+        catch (NotSupportedException exception)
+        {
+            throw new EpubContainerException(
+                EpubContainerErrorCode.UnsupportedZipFeature,
+                "Il contenitore EPUB usa una funzione ZIP non supportata.",
+                exception);
+        }
 
         bool opened = false;
         try
@@ -114,6 +121,13 @@ public sealed class EpubContainer : IDisposable
                 throw new EpubContainerException(
                     EpubContainerErrorCode.InvalidZip,
                     "La struttura ZIP del contenitore EPUB è danneggiata o non supportata.",
+                    exception);
+            }
+            catch (NotSupportedException exception)
+            {
+                throw new EpubContainerException(
+                    EpubContainerErrorCode.UnsupportedZipFeature,
+                    "La struttura ZIP del contenitore EPUB usa una funzione non supportata.",
                     exception);
             }
         }
@@ -145,7 +159,7 @@ public sealed class EpubContainer : IDisposable
                 $"La risorsa '{path.Value}' non esiste nel contenitore EPUB.");
         }
 
-        return entry.Open();
+        return OpenValidatedEntry(entry, path.Value);
     }
 
     public Stream OpenDefaultPackageDocument() => OpenEntry(DefaultRootFile.Path);
@@ -221,6 +235,7 @@ public sealed class EpubContainer : IDisposable
         }
 
         Dictionary<string, ZipArchiveEntry> entries = new(StringComparer.Ordinal);
+        long totalUncompressedBytes = 0;
 
         foreach (ZipArchiveEntry entry in archive.Entries)
         {
@@ -230,6 +245,16 @@ public sealed class EpubContainer : IDisposable
             }
 
             OcfPath path = OcfPath.FromArchiveEntry(entry.FullName);
+            ValidateArchiveEntrySecurity(entry, path);
+
+            if (entry.Length > EpubContainerLimits.MaxTotalUncompressedBytes - totalUncompressedBytes)
+            {
+                throw new EpubContainerException(
+                    EpubContainerErrorCode.ArchiveUncompressedSizeTooLarge,
+                    $"Il contenitore supera il limite cumulativo di {EpubContainerLimits.MaxTotalUncompressedBytes} byte decompressi dichiarati.");
+            }
+
+            totalUncompressedBytes += entry.Length;
             if (!entries.TryAdd(path.Value, entry))
             {
                 throw new EpubContainerException(
@@ -239,6 +264,69 @@ public sealed class EpubContainer : IDisposable
         }
 
         return entries;
+    }
+
+    private static void ValidateArchiveEntrySecurity(ZipArchiveEntry entry, OcfPath path)
+    {
+        int unixMode = (entry.ExternalAttributes >> 16) & 0xFFFF;
+        const int unixFileTypeMask = 0xF000;
+        const int unixRegularFile = 0x8000;
+        int unixFileType = unixMode & unixFileTypeMask;
+        if (unixFileType is not (0 or unixRegularFile))
+        {
+            throw new EpubContainerException(
+                EpubContainerErrorCode.UnsafeArchiveEntryType,
+                $"La entry ZIP '{path.Value}' dichiara un tipo file Unix speciale non ammesso in EReader.");
+        }
+
+        if (entry.Length < 0 || entry.CompressedLength < 0)
+        {
+            throw new EpubContainerException(
+                EpubContainerErrorCode.InconsistentArchiveEntry,
+                $"La entry ZIP '{path.Value}' dichiara dimensioni non valide.");
+        }
+
+        if (entry.Length > EpubContainerLimits.MaxEntryUncompressedBytes)
+        {
+            throw new EpubContainerException(
+                EpubContainerErrorCode.ArchiveEntryTooLarge,
+                $"La entry ZIP '{path.Value}' supera il limite di {EpubContainerLimits.MaxEntryUncompressedBytes} byte decompressi.");
+        }
+
+        if (entry.Length < EpubContainerLimits.CompressionRatioInspectionThresholdBytes)
+        {
+            return;
+        }
+
+        if (entry.CompressedLength == 0 ||
+            (double)entry.Length / entry.CompressedLength > EpubContainerLimits.MaxCompressionRatio)
+        {
+            throw new EpubContainerException(
+                EpubContainerErrorCode.SuspiciousCompressionRatio,
+                $"La entry ZIP '{path.Value}' dichiara un rapporto di compressione patologico oltre {EpubContainerLimits.MaxCompressionRatio}:1.");
+        }
+    }
+
+    private static ValidatedZipEntryStream OpenValidatedEntry(ZipArchiveEntry entry, string path)
+    {
+        try
+        {
+            return new ValidatedZipEntryStream(entry.Open(), path, entry.Length);
+        }
+        catch (InvalidDataException exception)
+        {
+            throw new EpubContainerException(
+                EpubContainerErrorCode.InconsistentArchiveEntry,
+                $"La entry ZIP '{path}' è corrotta o incoerente con la directory centrale.",
+                exception);
+        }
+        catch (NotSupportedException exception)
+        {
+            throw new EpubContainerException(
+                EpubContainerErrorCode.UnsupportedZipFeature,
+                $"La entry ZIP '{path}' usa un metodo di compressione o una funzione ZIP non supportata.",
+                exception);
+        }
     }
 
     private static void ValidateMimeTypeEntry(Dictionary<string, ZipArchiveEntry> entries)
@@ -255,7 +343,7 @@ public sealed class EpubContainer : IDisposable
             throw InvalidMimeType();
         }
 
-        using Stream stream = mimetypeEntry.Open();
+        using ValidatedZipEntryStream stream = OpenValidatedEntry(mimetypeEntry, "mimetype");
         using MemoryStream buffer = new();
         stream.CopyTo(buffer);
         byte[] actual = buffer.ToArray();
@@ -370,7 +458,7 @@ public sealed class EpubContainer : IDisposable
 
         try
         {
-            using Stream stream = containerEntry.Open();
+            using ValidatedZipEntryStream stream = OpenValidatedEntry(containerEntry, ContainerXmlPath);
             using XmlReader reader = XmlReader.Create(stream, settings);
             return XDocument.Load(reader, LoadOptions.None);
         }

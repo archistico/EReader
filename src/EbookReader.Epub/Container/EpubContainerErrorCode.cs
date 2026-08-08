@@ -26,4 +26,9 @@ public enum EpubContainerErrorCode
     InvalidRootfileMediaType = 18,
     RootfileNotFound = 19,
     EntryNotFound = 20,
+    ArchiveEntryTooLarge = 21,
+    ArchiveUncompressedSizeTooLarge = 22,
+    SuspiciousCompressionRatio = 23,
+    UnsafeArchiveEntryType = 24,
+    InconsistentArchiveEntry = 25,
 }

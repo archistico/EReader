@@ -1,6 +1,6 @@
 # ADR-0052 — Reader-wide diagnostics stay format-neutral
 
-- **Status:** Accepted for M3.8 candidate
+- **Status:** Accepted
 - **Date:** 2026-08-08
 
 ## Context

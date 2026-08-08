@@ -1,8 +1,8 @@
 # Roadmap
 
-**Baseline autoritativa corrente:** M3.7 Hotfix 1 VALIDATED (`M3.7 HOTFIX 1 VALIDATION PASSED`, 08/08/2026).  
-**Candidate corrente:** M3.8 Hotfix 1 — CA1859 Analyzer Alignment.  
-**Priorità immediata:** validare M3.8, poi M3.9–M3.13 reliability/input safety prima di M4.0.
+**Baseline autoritativa corrente:** M3.8 Hotfix 1 VALIDATED (`M3.8 HOTFIX 1 VALIDATION PASSED`, 08/08/2026).  
+**Candidate corrente:** M3.9 — Defensive EPUB Loading & Input Security.  
+**Priorità immediata:** validare M3.9, poi M3.10–M3.13 reliability/recovery prima di M4.0.
 
 Per impostazione predefinita ogni milestone si costruisce esclusivamente sulla più recente baseline validata. Se l’utente chiede esplicitamente di proseguire prima del gate, la catena viene marcata come **stacked candidate** e resta non autoritativa fino alla validazione cumulativa.
 
@@ -356,7 +356,7 @@ Implementato:
 
 ### M3.7 — Highlights & Personal Notes — VALIDATED
 
-M3.7 Hotfix 1 è stata validata dall'utente l'08/08/2026 con gate `M3.7 HOTFIX 1 VALIDATION PASSED` e costituisce la baseline autoritativa corrente.
+M3.7 Hotfix 1 è stata validata dall'utente l'08/08/2026 con gate `M3.7 HOTFIX 1 VALIDATION PASSED`; è stata poi superata come baseline autoritativa da M3.8 Hotfix 1.
 
 - F2 highlight della riga logica corrente;
 - F3 nota personale alla ReadingLocation corrente;
@@ -376,7 +376,7 @@ Questa fase ha priorità rispetto alla libreria gestita M4.0. Il principio guida
 
 Un errore recuperabile deve degradare soltanto la risorsa o parte del libro interessata. Un errore irreversibile del documento può impedire l'apertura di quel libro, ma non deve corrompere lo stato né rendere inutilizzabile l'applicazione.
 
-### M3.8 — Diagnostics Foundation & Failure Taxonomy — HOTFIX 1 CANDIDATE
+### M3.8 — Diagnostics Foundation & Failure Taxonomy — HOTFIX 1 VALIDATED
 
 Obiettivo: estendere il contratto M0.7 dall'ingestione all'intero reader senza romperlo.
 
@@ -394,22 +394,25 @@ Obiettivo: estendere il contratto M0.7 dall'ingestione all'intero reader senza r
 
 Documenti guida: `DIAGNOSTICS.md` e `EPUB_FAILURE_MODEL.md`.
 
-### M3.9 — Defensive EPUB Loading & Input Security — PLANNED
+### M3.9 — Defensive EPUB Loading & Input Security — CANDIDATE
 
-Audit e hardening dell'EPUB come input non attendibile.
+Audit e hardening dell'EPUB come input non attendibile, senza recovery generale.
 
-- ZIP corrotto/troncato e incoerenze directory;
-- duplicate entry e path ambigui;
-- path assoluti/traversal/percent-encoding patologico;
-- decompression ratio, dimensioni individuali/cumulative e numero entry;
-- XML/XHTML bounded con DTD/XXE sempre disabilitati;
-- fallback/cross-reference ciclici o eccessivi;
-- URI non consentiti;
-- nessuna rete automatica;
-- nessuna scrittura filesystem controllata dal contenuto;
-- preservare i guardrail già validati da M0.3–M3.7.
+Implementato nella candidate:
 
-Documento guida: `EPUB_SECURITY_MODEL.md`.
+- limiti Container: 100.000 entry archivio, 256 MiB decompressi per entry e 2 GiB cumulativi dichiarati;
+- compression-ratio guard: oltre `500:1` per entry da almeno 16 MiB decompressi;
+- rifiuto delle entry ZIP Unix di tipo speciale, inclusi symlink, e conferma del modello no-extraction;
+- stream ZIP validato che traduce corruzione/metodo non supportato e controlla la lunghezza dichiarata a EOF;
+- `EpubPublicationValidator` classifica come Container anche corruzioni ZIP emerse dopo l'apertura iniziale;
+- rifiuto di prefissi drive/schema, anche percent-encoded, nei path OCF ZIP/reference oltre ai traversal e separator encoded già validati;
+- manifest remoto ristretto a `http`/`https`; nessun retrieval viene introdotto;
+- fallback OPF bounded a 64 passaggi e cycle detection preservato;
+- decoding XHTML UTF-8/UTF-16 strict e rifiuto dei control character XML non ammessi;
+- limiti XML già esistenti su container/OPF/navigation/protection preservati;
+- nessun catch-all di eccezioni interne EReader e nessun repair del documento.
+
+Documento guida: `EPUB_SECURITY_MODEL.md`. ADR: `0053-defensive-epub-input-stays-virtual-and-bounded.md`.
 
 ### M3.10 — EPUB Recovery & Degraded Reading — PLANNED
 

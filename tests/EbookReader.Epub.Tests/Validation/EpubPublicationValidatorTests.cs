@@ -1,3 +1,5 @@
+using System.Buffers.Binary;
+using System.Text;
 using EbookReader.Epub.Validation;
 
 namespace EbookReader.Epub.Tests.Validation;
@@ -137,6 +139,23 @@ public sealed class EpubPublicationValidatorTests
         Assert.StartsWith("ER-EPUB-CONTENT-", diagnostic.Code, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void UnsupportedZipMethodDiscoveredDuringEntryReadBecomesContainerDiagnostic()
+    {
+        using MemoryStream stream = ValidationFixtureFactory.Create();
+        byte[] bytes = stream.ToArray();
+        PatchCompressionMethod(bytes, "EPUB/package.opf", 99);
+        using MemoryStream corrupted = new(bytes, writable: false);
+
+        EpubValidationResult result = EpubPublicationValidator.Validate(corrupted, leaveOpen: true);
+
+        Assert.Equal(EpubValidationStatus.Invalid, result.Status);
+        EpubDiagnostic diagnostic = Assert.Single(result.Diagnostics);
+        Assert.Equal(EpubDiagnosticCategory.Container, diagnostic.Category);
+        Assert.StartsWith("ER-EPUB-CONTAINER-", diagnostic.Code, StringComparison.Ordinal);
+    }
+
     [Fact]
     public void ValidateCanOwnInputStream()
     {
@@ -161,4 +180,36 @@ public sealed class EpubPublicationValidatorTests
             EpubDiagnosticCategory.Container,
             "x")));
     }
+    private static void PatchCompressionMethod(byte[] archive, string entryName, ushort method)
+    {
+        byte[] name = Encoding.UTF8.GetBytes(entryName);
+        bool localPatched = false;
+        bool centralPatched = false;
+
+        for (int index = 0; index <= archive.Length - name.Length; index++)
+        {
+            if (!archive.AsSpan(index, name.Length).SequenceEqual(name))
+            {
+                continue;
+            }
+
+            if (index >= 30 &&
+                BinaryPrimitives.ReadUInt32LittleEndian(archive.AsSpan(index - 30, 4)) == 0x04034B50)
+            {
+                BinaryPrimitives.WriteUInt16LittleEndian(archive.AsSpan(index - 22, 2), method);
+                localPatched = true;
+            }
+
+            if (index >= 46 &&
+                BinaryPrimitives.ReadUInt32LittleEndian(archive.AsSpan(index - 46, 4)) == 0x02014B50)
+            {
+                BinaryPrimitives.WriteUInt16LittleEndian(archive.AsSpan(index - 36, 2), method);
+                centralPatched = true;
+            }
+        }
+
+        Assert.True(localPatched, "Local file header della entry da corrompere non trovato.");
+        Assert.True(centralPatched, "Central directory header della entry da corrompere non trovato.");
+    }
+
 }

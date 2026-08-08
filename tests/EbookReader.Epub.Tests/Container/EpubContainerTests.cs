@@ -317,6 +317,43 @@ public sealed class EpubContainerTests
     }
 
     [Fact]
+    public void SymbolicLinkArchiveEntryIsRejected()
+    {
+        using MemoryStream input = new();
+        using (ZipArchive archive = new(input, ZipArchiveMode.Create, leaveOpen: true, entryNameEncoding: Encoding.UTF8))
+        {
+            EpubFixtureFactory.AddTextEntry(archive, "mimetype", EpubContainer.EpubMimeType, CompressionLevel.NoCompression);
+            EpubFixtureFactory.AddTextEntry(
+                archive,
+                EpubContainer.ContainerXmlPath,
+                EpubFixtureFactory.CreateContainerXml("EPUB/package.opf"),
+                CompressionLevel.Optimal);
+            EpubFixtureFactory.AddTextEntry(archive, "EPUB/package.opf", "<package />", CompressionLevel.Optimal);
+            ZipArchiveEntry link = archive.CreateEntry("EPUB/unsafe-link", CompressionLevel.NoCompression);
+            link.ExternalAttributes = unchecked((int)0xA1FF0000);
+            using Stream output = link.Open();
+            output.WriteByte(0x78);
+        }
+
+        input.Position = 0;
+        EpubContainerException exception = Assert.Throws<EpubContainerException>(() => EpubContainer.Open(input));
+
+        Assert.Equal(EpubContainerErrorCode.UnsafeArchiveEntryType, exception.ErrorCode);
+    }
+
+    [Fact]
+    public void PathologicalCompressionRatioIsRejectedBeforeEntryUse()
+    {
+        byte[] payload = new byte[17 * 1024 * 1024];
+        using MemoryStream input = EpubFixtureFactory.CreateValid(
+            additionalBinaryEntries: [("EPUB/pathological.bin", payload)]);
+
+        EpubContainerException exception = Assert.Throws<EpubContainerException>(() => EpubContainer.Open(input));
+
+        Assert.Equal(EpubContainerErrorCode.SuspiciousCompressionRatio, exception.ErrorCode);
+    }
+
+    [Fact]
     public void NonZipInputIsRejected()
     {
         using MemoryStream input = new(Encoding.UTF8.GetBytes("not a zip"));

@@ -21,7 +21,7 @@ namespace EbookReader.Cli;
 /// </summary>
 public static class CliEntryPoint
 {
-    public const string Milestone = "M3.8";
+    public const string Milestone = "M3.9";
     public const string Status = "CANDIDATE";
 
     private const int Success = 0;
@@ -568,7 +568,8 @@ public static class CliEntryPoint
         output.WriteLine("EPUB navigation: M0.5 NCX/nav.xhtml available");
         output.WriteLine("Semantic content: M0.6 AngleSharp XHTML to Domain available");
         output.WriteLine("Validation diagnostics: M0.7 stable ingestion result available");
-        output.WriteLine("Diagnostics foundation: M3.8 application-wide severity + operation outcome candidate");
+        output.WriteLine("Diagnostics foundation: M3.8 application-wide severity + operation outcome validated");
+        output.WriteLine("EPUB input security: M3.9 defensive archive/path/URI/encoding guardrails candidate");
         output.WriteLine("Readable EPUB CLI: M1.0 non-paginated Domain projection available via --plain");
         output.WriteLine("Deterministic layout: M1.1 viewport, Unicode wrapping and visual pages validated");
         output.WriteLine("Logical navigation: M1.2 ReadingLocation-based line/page/chapter navigation validated");
@@ -593,7 +594,7 @@ public static class CliEntryPoint
 
     private static void WriteHelp(TextWriter output)
     {
-        output.WriteLine("EReader — M3.8 Diagnostics Foundation & Failure Taxonomy");
+        output.WriteLine("EReader — M3.9 Defensive EPUB Loading & Input Security");
         output.WriteLine();
         output.WriteLine("Uso:");
         output.WriteLine("  ereader <libro.epub>          apre il reader fullscreen");

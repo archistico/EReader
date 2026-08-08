@@ -2,20 +2,34 @@
 
 Lettore EPUB da terminale scritto in C# per .NET 10.
 
-**Ultima baseline autoritativa validata:** M3.7 Hotfix 1 — Highlights & Personal Notes + Compilation Integration.  
-**Gate autoritativo:** `M3.7 HOTFIX 1 VALIDATION PASSED` (08/08/2026).  
-**Candidate corrente:** M3.8 Hotfix 1 — CA1859 Analyzer Alignment.  
-**Gate candidate:** `M3.8 HOTFIX 1 VALIDATION PASSED`.
+**Ultima baseline autoritativa validata:** M3.8 Hotfix 1 — Diagnostics Foundation & CA1859 Analyzer Alignment.  
+**Gate autoritativo:** `M3.8 HOTFIX 1 VALIDATION PASSED` (08/08/2026).  
+**Candidate corrente:** M3.9 Hotfix 1 — CA1859 Return-Type Analyzer Alignment.  
+**Gate candidate:** `M3.9 HOTFIX 1 VALIDATION PASSED`.
 
+### M3.9 Hotfix 1 — CA1859 Return-Type Analyzer Alignment
 
+Correzione di compilazione senza variazioni funzionali: il metodo privato `EpubContainer.OpenValidatedEntry(...)` restituisce ora il tipo concreto `ValidatedZipEntryStream`, cioè l’unico tipo che il metodo costruisce. Questo soddisfa `CA1859` con analyzers-as-errors senza modificare API pubbliche, policy di sicurezza o comportamento M3.9.
 
-### M3.8 Hotfix 1 — CA1859 Analyzer Alignment
+### M3.9 — Defensive EPUB Loading & Input Security
 
-Correzione di compilazione senza variazioni funzionali: il metodo privato `ReaderOperationSummary.Validate(...)` riceve ora direttamente `ReaderDiagnostic[]`, cioè il tipo concreto già materializzato dal costruttore. Questo soddisfa `CA1859` con analyzers-as-errors senza modificare l’API pubblica né la tassonomia diagnostica M3.8.
+M3.9 tratta esplicitamente ogni EPUB come input non attendibile e completa i guardrail già introdotti da M0.3–M0.7 senza cambiare Domain, `ReadingLocation`, layout o formati persistenti.
 
-M3.8 introduce una tassonomia diagnostica reader-wide format-neutral nell'Application layer: `Information`, `Warning`, `RecoverableError`, `FatalDocumentError`, `InternalError`; gli outcome sono `Success`, `SuccessWithDiagnostics`, `DocumentUnreadable`, `InternalFailure`. Il validator EPUB M0.7 resta invariato e viene adattato soltanto nel composition root CLI. Gli EPUB `Invalid`/`Unsupported` mostrano ora chiaramente `DOCUMENT_UNREADABLE` senza cambiare gli exit code esistenti.
+In questa candidate:
 
-Dettagli: [`docs/DIAGNOSTICS.md`](docs/DIAGNOSTICS.md).
+- ogni entry ZIP file è soggetta a budget individuale e cumulativo sulla dimensione decompressa dichiarata;
+- entry grandi con rapporto di compressione oltre `500:1` vengono rifiutate a partire da 16 MiB decompressi;
+- le entry ZIP Unix di tipo speciale, inclusi i symlink, vengono rifiutate e nessuna entry viene estratta sul filesystem;
+- `ValidatedZipEntryStream` mantiene incoerenze/corruzioni di entry dentro il boundary EPUB e verifica la lunghezza dichiarata quando la entry viene letta fino a EOF;
+- path ZIP e riferimenti OCF con prefisso drive/schema nel primo segmento, anche percent-encoded, vengono rifiutati oltre ai traversal già coperti;
+- le risorse remote del manifest accettano soltanto `http`/`https`; `file:`, `data:`, `javascript:`, `ftp:` e schemi non previsti vengono rifiutati;
+- le fallback chain OPF sono limitate a profondità 64 oltre al preesistente cycle detection;
+- XHTML UTF-8/UTF-16 viene decodificato in modalità strict e i control character XML non ammessi diventano diagnostica Content attesa;
+- una corruzione ZIP scoperta durante Protection/Package/Navigation/Content diventa `Invalid` con diagnostica Container, non un'eccezione framework non classificata.
+
+M3.8 resta la foundation diagnostica validata; M3.9 non introduce ancora recovery/degraded reading né un catch-all per bug interni EReader. Questi restano rispettivamente M3.10 e M3.12.
+
+Dettagli: [`docs/EPUB_SECURITY_MODEL.md`](docs/EPUB_SECURITY_MODEL.md), [`docs/DIAGNOSTICS.md`](docs/DIAGNOSTICS.md).
 
 M3.5 rende azionabili gli hyperlink Domain: salti interni su `ReadingLocation`, Backspace su stack transiente e handoff esplicito di `http`/`https`/`mailto` al sistema operativo, senza network client o browser embedded.
 
@@ -241,14 +255,14 @@ validate.cmd
 ./validate.sh
 ```
 
-Il gate M3.7 Hotfix 1 esegue **12 step**: restore, build Release, suite completa, smoke CLI help/version/foundation-info, smoke `--plain` sui libri M1.0/M3.4/M3.5/M3.6, history e config. Nessuno smoke avvia viewer o browser esterni.
+Il gate M3.9 esegue **12 step**: restore, build Release, suite completa, smoke CLI help/version/foundation-info, smoke `--plain` sui libri M1.0/M3.4/M3.5/M3.6, history e config. Nessuno smoke avvia viewer o browser esterni.
 
-La baseline M3.7 Hotfix 1 contiene staticamente **454 `[Fact]` + 4 `[Theory]` + 16 `[InlineData]`**, quindi sono attesi **470 casi**. Il gate locale è stato superato dall'utente l'08/08/2026.
+La candidate M3.9 contiene staticamente **473 `[Fact]` + 5 `[Theory]` + 19 `[InlineData]`**, quindi sono attesi **492 casi**. Il conteggio autoritativo resta quello prodotto dal gate locale.
 
-Output autoritativo:
+Output atteso:
 
 ```text
-M3.7 HOTFIX 1 VALIDATION PASSED
+M3.9 HOTFIX 1 VALIDATION PASSED
 ```
 
 ## Documentazione
@@ -347,7 +361,7 @@ Audit statico baseline validata: **454 Fact + 4 Theory + 16 InlineData = 470 cas
 
 Documentazione decisionale: **51 ADR numerati** con ADR-0051 per il modello annotazioni/schema 4.
 
-## Reliability e sicurezza — prossima fase M3.8–M3.13
+## Reliability e sicurezza — fase M3.8–M3.13
 
 Prima di M4.0 la roadmap introduce un blocco dedicato a diagnostica, input EPUB non attendibile, recovery controllata, link integrity, crash containment e corpus di EPUB corrotti.
 

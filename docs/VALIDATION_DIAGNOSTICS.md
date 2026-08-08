@@ -139,7 +139,7 @@ Questi riferimenti descrivono il formato da riconoscere; non costituiscono una d
 
 ## Evoluzione M3.8 e roadmap successiva
 
-M0.7 resta il contratto autoritativo dell'**ingestione** (`Valid`, `Invalid`, `Unsupported`). M3.8 introduce la tassonomia reader-wide format-neutral senza rompere questo contratto; M3.9–M3.13 estenderanno i casi concreti di sicurezza, recovery e containment.
+M0.7 resta il contratto autoritativo dell'**ingestione** (`Valid`, `Invalid`, `Unsupported`). M3.8 introduce la tassonomia reader-wide format-neutral senza rompere questo contratto; la candidate M3.9 estende ora i casi concreti di sicurezza dell'input, mentre M3.10–M3.13 completeranno recovery e containment.
 
 La nuova documentazione distingue esplicitamente:
 

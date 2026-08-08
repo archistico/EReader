@@ -1,6 +1,11 @@
 using EbookReader.Domain.Books;
 using EbookReader.Domain.Content;
 using EbookReader.Domain.Resources;
+using EbookReader.Epub.Container;
+using EbookReader.Epub.Navigation;
+using EbookReader.Epub.Package;
+using EbookReader.Epub.Tests.Container;
+using EbookReader.Epub.Tests.Package;
 using EbookReader.Epub.Content;
 
 namespace EbookReader.Epub.Tests.Content;
@@ -16,6 +21,52 @@ public sealed class EpubBookReaderTests
           </body>
         </html>
         """;
+
+
+    [Fact]
+    public void InvalidUtf8InContentDocumentIsRejectedAsContentError()
+    {
+        const string manifest = """
+            <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav" />
+            <item id="c1" href="Text/ch1.xhtml" media-type="application/xhtml+xml" />
+            """;
+        const string navigation = """
+            <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+              <body><nav epub:type="toc"><ol><li><a href="Text/ch1.xhtml">One</a></li></ol></nav></body>
+            </html>
+            """;
+        string packageText = OpfFixtureFactory.CreateEpub3Package(
+            manifest: manifest,
+            spine: "<itemref idref=\"c1\" />");
+        byte[] invalidUtf8 =
+        [
+            0x3C, 0x68, 0x74, 0x6D, 0x6C, 0x3E, 0xC3, 0x28,
+            0x3C, 0x2F, 0x68, 0x74, 0x6D, 0x6C, 0x3E,
+        ];
+        using MemoryStream stream = EpubFixtureFactory.CreateValid(
+            packageEntryPath: OpfFixtureFactory.PackagePath,
+            packageContent: packageText,
+            additionalEntries: [("EPUB/nav.xhtml", navigation)],
+            additionalBinaryEntries: [("EPUB/Text/ch1.xhtml", invalidUtf8)]);
+        using EpubContainer container = EpubContainer.Open(stream, leaveOpen: true);
+        EpubPackageDocument package = EpubPackageReader.Read(container);
+        EpubNavigationDocument nav = EpubNavigationReader.Read(container, package);
+
+        EpubContentException exception = Assert.Throws<EpubContentException>(
+            () => EpubBookReader.Read(container, package, nav));
+
+        Assert.Equal(EpubContentErrorCode.InvalidXhtml, exception.ErrorCode);
+    }
+
+    [Fact]
+    public void XmlControlCharacterInContentDocumentIsRejected()
+    {
+        string chapter = "<html xmlns=\"http://www.w3.org/1999/xhtml\"><body><p>A" + '\u0001' + "B</p></body></html>";
+
+        EpubContentException exception = ContentFixtureFactory.ReadFailure(chapter);
+
+        Assert.Equal(EpubContentErrorCode.InvalidXhtml, exception.ErrorCode);
+    }
 
     [Fact]
     public void ReadBuildsFormatNeutralBookFromSpine()
