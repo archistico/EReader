@@ -18,8 +18,8 @@ namespace EbookReader.Cli;
 /// </summary>
 public static class CliEntryPoint
 {
-    public const string Milestone = "M3.3";
-    public const string Status = "STACKED CANDIDATE";
+    public const string Milestone = "M3.5";
+    public const string Status = "CANDIDATE";
 
     private const int Success = 0;
     private const int UsageError = 2;
@@ -303,6 +303,7 @@ public static class CliEntryPoint
 
         ReaderRunResult runResult = TerminalGuiReaderHost.Run(
             book,
+            filePath,
             initialLocation,
             initialBookmarks,
             preferences);
@@ -568,13 +569,15 @@ public static class CliEntryPoint
         output.WriteLine("Stable progress: M2.5 logical UTF-16 progress independent of layout validated");
         output.WriteLine("Library/history: M3.0 recent-book JSON library with --library/--history validated");
         output.WriteLine("Library search: M3.1 transient ranked title/author/file/path filter validated");
-        output.WriteLine("Reader themes: M3.2 three semantic palettes stacked candidate");
-        output.WriteLine("Preferences/keymap: M3.3 separate config.json with printable aliases stacked candidate");
+        output.WriteLine("Reader themes: M3.2 three semantic palettes validated");
+        output.WriteLine("Preferences/keymap: M3.3 separate config.json with printable aliases validated");
+        output.WriteLine("Images: M3.4 bounded local raster preview through the system viewer validated");
+        output.WriteLine("Hyperlinks: M3.5 logical internal navigation + transient back stack + explicit external OS handoff candidate");
     }
 
     private static void WriteHelp(TextWriter output)
     {
-        output.WriteLine("EReader — M3.3 Configurable Keymap & Preferences");
+        output.WriteLine("EReader — M3.5 Interactive Hyperlinks & Back Stack");
         output.WriteLine();
         output.WriteLine("Uso:");
         output.WriteLine("  ereader <libro.epub>          apre il reader fullscreen");
@@ -602,11 +605,15 @@ public static class CliEntryPoint
         output.WriteLine("  B              apre/chiude elenco bookmark");
         output.WriteLine("  m              apre/chiude metadati");
         output.WriteLine("  c              cambia tema (persistito in config.json)");
+        output.WriteLine("  Enter          segue il link corrente/visibile; altrimenti apre l'immagine corrente");
+        output.WriteLine("  Backspace      torna alla posizione precedente dopo un link interno");
         output.WriteLine("  F1 / ?         aiuto");
         output.WriteLine("  q              esci e salva la ReadingLocation");
         output.WriteLine("  Esc            annulla ricerca o chiude bookmark/metadati/indice/aiuto, altrimenti esce");
         output.WriteLine();
-        output.WriteLine("I tasti stampabili sono configurabili; frecce/PgUp/PgDn/Space/Tab/Enter/Esc/F1 restano fissi.");
+        output.WriteLine("I tasti stampabili sono configurabili; frecce/PgUp/PgDn/Space/Tab/Enter/Backspace/Esc/F1 restano fissi.");
+        output.WriteLine("Link: interni via ReadingLocation; esterni http/https/mailto soltanto su azione esplicita Enter.");
+        output.WriteLine("Anteprima immagini: JPEG/PNG/GIF/WebP locali, max 16 MiB; SVG e risorse remote restano placeholder.");
         output.WriteLine("Override percorso configurazione: EREADER_CONFIG_FILE.");
     }
 }

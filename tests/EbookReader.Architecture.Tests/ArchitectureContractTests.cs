@@ -1002,6 +1002,84 @@ public sealed class ArchitectureContractTests
         Assert.Contains("JsonReaderPreferencesStore", cli, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void M34ImagePreviewIsExplicitBoundedAndOffline()
+    {
+        string root = RepositoryRoot.Find();
+        string resourceReader = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Epub", "Resources", "EpubImageResourceReader.cs"));
+        string window = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Cli", "Tui", "ReaderWindow.cs"));
+        string preview = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Cli", "Images", "ExternalImagePreviewService.cs"));
+
+        Assert.Contains("MaximumImageBytes = 16 * 1024 * 1024", resourceReader, StringComparison.Ordinal);
+        Assert.Contains("ResourceIsRemote", resourceReader, StringComparison.Ordinal);
+        Assert.Contains("UnsupportedImageMediaType", resourceReader, StringComparison.Ordinal);
+        Assert.DoesNotContain("HttpClient", resourceReader, StringComparison.Ordinal);
+        Assert.DoesNotContain("WebRequest", resourceReader, StringComparison.Ordinal);
+        Assert.Contains("key == Key.Enter && _session.CurrentImage", window, StringComparison.Ordinal);
+        Assert.Contains("UseShellExecute = true", preview, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void M34ImagePayloadDoesNotEnterDomainOrReadingState()
+    {
+        string root = RepositoryRoot.Find();
+        string resource = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Domain", "Resources", "BookResource.cs"));
+        string stateRoot = Path.Combine(root, "src", "EbookReader.Application", "State");
+        string state = string.Join(
+            Environment.NewLine,
+            Directory.EnumerateFiles(stateRoot, "*.cs", SearchOption.AllDirectories).Select(File.ReadAllText));
+
+        Assert.DoesNotContain("byte[]", resource, StringComparison.Ordinal);
+        Assert.DoesNotContain("Stream", resource, StringComparison.Ordinal);
+        Assert.DoesNotContain("imagePayload", state, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("temporaryImage", state, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void M35HyperlinkIndexIsPreLayoutAndUsesLogicalReadingLocations()
+    {
+        string root = RepositoryRoot.Find();
+        string index = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Application", "Links", "BookHyperlinkIndex.cs"));
+        string session = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Cli", "Tui", "ReaderSession.cs"));
+
+        Assert.Contains("ContentText.GetPlainText(hyperlink.Content)", index, StringComparison.Ordinal);
+        Assert.Contains("new ReadingLocation(sectionId, blockId, start)", index, StringComparison.Ordinal);
+        Assert.DoesNotContain("BookLayout", index, StringComparison.Ordinal);
+        Assert.DoesNotContain("Terminal.Gui", index, StringComparison.Ordinal);
+        Assert.Contains("MaximumLinkBackStackDepth = 128", session, StringComparison.Ordinal);
+        Assert.Contains("FollowCurrentInternalHyperlink", session, StringComparison.Ordinal);
+        Assert.Contains("NavigateBack", session, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void M35ExternalLinksAreExplicitAndRestrictedToSafeSchemes()
+    {
+        string root = RepositoryRoot.Find();
+        string external = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Cli", "Links", "SystemExternalLinkService.cs"));
+        string window = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Cli", "Tui", "ReaderWindow.cs"));
+        string stateRoot = Path.Combine(root, "src", "EbookReader.Application", "State");
+        string state = string.Join(
+            Environment.NewLine,
+            Directory.EnumerateFiles(stateRoot, "*.cs", SearchOption.AllDirectories).Select(File.ReadAllText));
+
+        Assert.Contains("Uri.UriSchemeHttp", external, StringComparison.Ordinal);
+        Assert.Contains("Uri.UriSchemeHttps", external, StringComparison.Ordinal);
+        Assert.Contains("\"mailto\"", external, StringComparison.Ordinal);
+        Assert.Contains("UseShellExecute = true", external, StringComparison.Ordinal);
+        Assert.Contains("key == Key.Enter && _session.CurrentHyperlink", window, StringComparison.Ordinal);
+        Assert.Contains("key == Key.Backspace && _session.CanNavigateBack", window, StringComparison.Ordinal);
+        Assert.DoesNotContain("linkBackStack", state, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("externalUri", state, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static bool ProjectReferencesAngleSharp(string projectFile)
     {
         XDocument document = XDocument.Load(projectFile);

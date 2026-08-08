@@ -291,7 +291,7 @@ Implementato:
 - query transiente, non persistita;
 - ADR-0045 e `LIBRARY_SEARCH.md`.
 
-### M3.2 — Themes — CANDIDATE
+### M3.2 — Themes — VALIDATED
 
 - `c` cicla Semantico scuro / Carta chiara / Monocromatico;
 - `ReaderTheme` mappa i ruoli semantici del Layout a attributi Terminal.Gui;
@@ -301,9 +301,9 @@ Implementato:
 - scelta tema transiente, non persistita nello state JSON;
 - ADR-0046 e `THEMES.md`.
 
-### M3.3 — Configurable Keymap & Preferences — STACKED CANDIDATE
+### M3.3 — Configurable Keymap & Preferences — VALIDATED
 
-- costruita sopra M3.2 candidate, mentre M3.1 Hotfix 1 resta l'ultima baseline validata;
+- validata insieme a M3.2 tramite il gate cumulativo `M3.2+M3.3 HOTFIX 1 STACKED VALIDATION PASSED`;
 - `config.json` schema 1 separato da `state.json` schema 3;
 - `ereader --config-path` e `ereader --init-config`;
 - override percorso tramite `EREADER_CONFIG_FILE`;
@@ -311,20 +311,53 @@ Implementato:
 - alias stampabili del reader configurabili e case-sensitive;
 - singolo grapheme per binding, collisioni rifiutate;
 - binding mancanti ereditano i default;
-- frecce/PgUp/PgDn/Space/Tab/Enter/Esc/F1 restano tasti speciali fissi;
+- frecce/PgUp/PgDn/Space/Tab/Enter/Backspace/Esc/F1 restano tasti speciali fissi;
 - configurazione bounded 64 KiB e scritta atomicamente;
 - ADR-0047 e `CONFIGURATION_KEYMAP.md`.
 
-### M3.4 — Images — PLANNED
+### M3.4 — Images — VALIDATED
 
-- placeholder migliorati e apertura viewer esterno.
+- il placeholder testuale Domain/Layout con alt/caption resta il fallback universale;
+- `ReaderSession.CurrentImage` identifica l'`ImageBlock` alla `ReadingLocation` corrente senza caricare payload;
+- header mostra il media type dell'immagine corrente e footer propone `Enter immagine`;
+- `Enter` nella lettura normale apre esplicitamente il raster locale nel viewer associato dal sistema operativo;
+- `EpubImageResourceReader` risolve la risorsa dal manifest tramite `ResourceId`, non tramite path inventati dal Domain;
+- supporto preview: JPEG, PNG, GIF, WebP locali; SVG e risorse remote restano placeholder;
+- payload bounded a 16 MiB e letto in memoria soltanto su richiesta;
+- il CLI crea un file temporaneo con estensione derivata dal media type e tenta cleanup alla chiusura della TUI;
+- nessun browser embedded, network retrieval, payload persistito o modifica a `state.json`/`config.json`;
+- ADR-0048 e `IMAGES.md`.
 
-## M4 — Navigazione editoriale avanzata
+### M3.5 — Interactive Hyperlinks & Back Stack — CANDIDATE / HOTFIX 1
 
-- links/footnotes;
-- Unicode typography;
-- justification opzionale;
-- spread mode.
+- indice hyperlink pre-layout su range logici UTF-16;
+- `Enter` segue il link esatto o il primo link che interseca la riga corrente;
+- link interno → `ReadingLocation` Domain già risolta;
+- stack Backspace transiente bounded a 128 origini;
+- external link `http`/`https`/`mailto` delegato esplicitamente al sistema operativo;
+- nessun network fetch, browser embedded o persistenza dello stack;
+- `Enter` immagine M3.4 resta fallback quando non è disponibile un link;
+- ADR-0049 e `HYPERLINKS.md`.
+- Hotfix 1: smoke EPUB riallineato a XHTML/XML senza DOCTYPE; nessuna modifica produttiva.
+
+### M3.6 — Footnotes / Endnotes UX — PLANNED
+
+- riconoscimento/rappresentazione dei rimandi nota sopra il primitive M3.5;
+- salto alla nota con ritorno immediato via back stack;
+- nessuna coordinata di layout persistita.
+
+### M3.7 — Highlights & Personal Notes — PLANNED
+
+- intervalli logici di ReadingLocation;
+- note utente persistenti e book-scoped;
+- schema state versionato soltanto quando il modello sarà definito.
+
+## M4 — Libreria gestita
+
+- scansione cartelle EPUB controllata;
+- cache metadata;
+- sorting/filtering di libreria;
+- relocation/maintenance dei libri spostati.
 
 ## Fuori scope
 

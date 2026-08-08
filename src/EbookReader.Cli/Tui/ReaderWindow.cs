@@ -1,6 +1,10 @@
 using System.Globalization;
 using System.Text;
 using EbookReader.Cli.Configuration;
+using EbookReader.Application.Links;
+using EbookReader.Cli.Images;
+using EbookReader.Cli.Links;
+using EbookReader.Domain.Content;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
@@ -15,6 +19,8 @@ internal sealed class ReaderWindow : Window
 {
     private readonly ReaderSession _session;
     private readonly ReaderKeymap _keymap;
+    private readonly IReaderImagePreviewService _imagePreviewService;
+    private readonly IReaderExternalLinkService _externalLinkService;
     private static readonly string HorizontalRule = new('─', 1024);
 
     private readonly Label _header;
@@ -35,13 +41,22 @@ internal sealed class ReaderWindow : Window
     private int _bookmarkScrollOffset;
     private bool _synchronizingViewport;
     private int _themeIndex;
+    private string? _statusMessage;
 
-    public ReaderWindow(ReaderSession session, ReaderPreferences preferences)
+    public ReaderWindow(
+        ReaderSession session,
+        ReaderPreferences preferences,
+        IReaderImagePreviewService imagePreviewService,
+        IReaderExternalLinkService externalLinkService)
     {
         ArgumentNullException.ThrowIfNull(session);
         ArgumentNullException.ThrowIfNull(preferences);
+        ArgumentNullException.ThrowIfNull(imagePreviewService);
+        ArgumentNullException.ThrowIfNull(externalLinkService);
         _session = session;
         _keymap = preferences.Keymap;
+        _imagePreviewService = imagePreviewService;
+        _externalLinkService = externalLinkService;
         _themeIndex = ReaderThemeCatalog.IndexOfId(preferences.ThemeId);
 
         Title = "EReader";
@@ -107,6 +122,11 @@ internal sealed class ReaderWindow : Window
     protected override bool OnKeyDown(Key key)
     {
         ArgumentNullException.ThrowIfNull(key);
+
+        if (key != Key.Enter)
+        {
+            _statusMessage = null;
+        }
 
         if (_searchInputVisible)
         {
@@ -200,6 +220,26 @@ internal sealed class ReaderWindow : Window
         if (_bookmarksVisible)
         {
             return HandleBookmarkKey(key);
+        }
+
+        if (key == Key.Enter && _session.CurrentHyperlink is BookHyperlink hyperlink)
+        {
+            OpenCurrentHyperlink(hyperlink);
+            return true;
+        }
+
+        if (key == Key.Enter && _session.CurrentImage is ReaderImageInfo image)
+        {
+            OpenCurrentImage(image);
+            return true;
+        }
+
+        if (key == Key.Backspace && _session.CanNavigateBack)
+        {
+            _session.NavigateBack();
+            _statusMessage = "Ritorno al link precedente.";
+            RefreshReader();
+            return true;
         }
 
         if (Matches(ReaderCommand.ToggleBookmark, key))
@@ -458,8 +498,40 @@ internal sealed class ReaderWindow : Window
         SetNeedsDraw();
     }
 
+    private void OpenCurrentHyperlink(BookHyperlink hyperlink)
+    {
+        ArgumentNullException.ThrowIfNull(hyperlink);
+        switch (hyperlink.Target)
+        {
+            case InternalLinkTarget:
+                _statusMessage = _session.FollowCurrentInternalHyperlink()
+                    ? "Link interno aperto. Backspace torna indietro."
+                    : "Il link interno punta già alla posizione corrente.";
+                break;
+
+            case ExternalLinkTarget external:
+                ExternalLinkOpenResult result = _externalLinkService.Open(external.Uri);
+                _statusMessage = result.Message;
+                break;
+
+            default:
+                _statusMessage = "Tipo di link non supportato.";
+                break;
+        }
+
+        RefreshReader();
+    }
+
+    private void OpenCurrentImage(ReaderImageInfo image)
+    {
+        ImagePreviewResult result = _imagePreviewService.Open(image);
+        _statusMessage = result.Message;
+        RefreshReader();
+    }
+
     private void Navigate(Func<bool> movement)
     {
+        _statusMessage = null;
         if (movement())
         {
             RefreshReader();
@@ -852,15 +924,17 @@ internal sealed class ReaderWindow : Window
 
         _footer.Text = _searchInputVisible
             ? $"Cerca: {_searchInput}_   Enter cerca   Esc annulla"
-            : _helpVisible
-                ? $"F1/{Binding(ReaderCommand.Help)}/Esc chiudi aiuto   {Binding(ReaderCommand.Quit)} esci"
-                : _tocVisible
-                    ? BuildTocFooter()
-                    : _metadataVisible
-                        ? BuildMetadataFooter()
-                        : _bookmarksVisible
-                            ? BuildBookmarkFooter()
-                            : BuildNormalFooter();
+            : _statusMessage is not null
+                ? $"{_statusMessage}   {Binding(ReaderCommand.Quit)}/Esc esci"
+                : _helpVisible
+                    ? $"F1/{Binding(ReaderCommand.Help)}/Esc chiudi aiuto   {Binding(ReaderCommand.Quit)} esci"
+                    : _tocVisible
+                        ? BuildTocFooter()
+                        : _metadataVisible
+                            ? BuildMetadataFooter()
+                            : _bookmarksVisible
+                                ? BuildBookmarkFooter()
+                                : BuildNormalFooter();
     }
 
     private string BuildHeader()
@@ -892,7 +966,16 @@ internal sealed class ReaderWindow : Window
         string progress = _session.Progress.Percentage.ToString("0.0", CultureInfo.InvariantCulture) + "%";
         string search = BuildSearchStatus();
         string bookmark = _session.IsCurrentLocationBookmarked ? "   ★" : string.Empty;
-        return $"{_session.BookTitle}{author}   {chapter}   Pag. {_session.PageNumber}/{_session.PageCount}   {progress}{search}{bookmark}";
+        string link = _session.CurrentHyperlink?.Target switch
+        {
+            InternalLinkTarget => "   LINK interno",
+            ExternalLinkTarget external => $"   LINK {external.Uri.Scheme}",
+            _ => string.Empty,
+        };
+        string image = _session.CurrentImage is ReaderImageInfo currentImage
+            ? $"   IMG {currentImage.MediaType}"
+            : string.Empty;
+        return $"{_session.BookTitle}{author}   {chapter}   Pag. {_session.PageNumber}/{_session.PageCount}   {progress}{search}{bookmark}{link}{image}";
     }
 
     private string BuildSearchStatus()
@@ -908,13 +991,23 @@ internal sealed class ReaderWindow : Window
             : $"   Cerca «{_session.SearchQuery}»: {_session.CurrentSearchMatchNumber}/{_session.SearchMatchCount}{truncation}";
     }
 
-    private string BuildNormalFooter() =>
-        $"↑/{Binding(ReaderCommand.PreviousLine)} ↓/{Binding(ReaderCommand.NextLine)} riga  PgUp/PgDn pagina  "
-        + $"{Binding(ReaderCommand.PreviousChapter)} {Binding(ReaderCommand.NextChapter)} cap.  "
-        + $"{Binding(ReaderCommand.Search)} cerca  {Binding(ReaderCommand.NextSearchResult)}/{Binding(ReaderCommand.PreviousSearchResult)} risultato  "
-        + $"{Binding(ReaderCommand.ToggleBookmark)} segnalibro  {Binding(ReaderCommand.OpenBookmarks)} elenco  "
-        + $"{Binding(ReaderCommand.ToggleToc)} indice  {Binding(ReaderCommand.ToggleMetadata)} metadati  "
-        + $"{Binding(ReaderCommand.CycleTheme)} tema  {Binding(ReaderCommand.Quit)}/Esc esci";
+    private string BuildNormalFooter()
+    {
+        string enterAction = _session.CurrentHyperlink is not null
+            ? "Enter link  "
+            : _session.CurrentImage is not null
+                ? "Enter immagine  "
+                : string.Empty;
+        string backAction = _session.CanNavigateBack ? "Backspace indietro  " : string.Empty;
+        return $"↑/{Binding(ReaderCommand.PreviousLine)} ↓/{Binding(ReaderCommand.NextLine)} riga  PgUp/PgDn pagina  "
+            + enterAction
+            + backAction
+            + $"{Binding(ReaderCommand.PreviousChapter)} {Binding(ReaderCommand.NextChapter)} cap.  "
+            + $"{Binding(ReaderCommand.Search)} cerca  {Binding(ReaderCommand.NextSearchResult)}/{Binding(ReaderCommand.PreviousSearchResult)} risultato  "
+            + $"{Binding(ReaderCommand.ToggleBookmark)} segnalibro  {Binding(ReaderCommand.OpenBookmarks)} elenco  "
+            + $"{Binding(ReaderCommand.ToggleToc)} indice  {Binding(ReaderCommand.ToggleMetadata)} metadati  "
+            + $"{Binding(ReaderCommand.CycleTheme)} tema  {Binding(ReaderCommand.Quit)}/Esc esci";
+    }
 
     private string BuildTocFooter() =>
         $"↑/{Binding(ReaderCommand.PreviousLine)} ↓/{Binding(ReaderCommand.NextLine)} voce  PgUp/PgDn scorri  Enter apri  "
@@ -933,7 +1026,7 @@ internal sealed class ReaderWindow : Window
 
     private string BuildHelp() =>
         $"""
-        EReader — comandi M3.3
+        EReader — comandi M3.5
 
         ↑ / {Binding(ReaderCommand.PreviousLine)}             riga precedente
         ↓ / {Binding(ReaderCommand.NextLine)}             riga successiva
@@ -950,11 +1043,13 @@ internal sealed class ReaderWindow : Window
         {Binding(ReaderCommand.OpenBookmarks)}                 apre/chiude elenco bookmark
         {Binding(ReaderCommand.ToggleMetadata)}                 apre/chiude metadati
         {Binding(ReaderCommand.CycleTheme)}                 cambia tema
+        Enter             segue il link corrente/visibile; se non c'è link apre l'immagine corrente
+        Backspace         torna alla posizione precedente dopo un link interno
         F1 / {Binding(ReaderCommand.Help)}            mostra/nasconde questo aiuto
         {Binding(ReaderCommand.Quit)}                 esci
         Esc               chiude bookmark/metadati/indice/aiuto, altrimenti esce
 
-        I tasti stampabili sopra riflettono config.json; frecce, PgUp/PgDn, Space, Tab, Enter, Esc e F1 restano sempre disponibili.
+        I tasti stampabili sopra riflettono config.json; frecce, PgUp/PgDn, Space, Tab, Enter, Backspace, Esc e F1 restano sempre disponibili.
         Nei bookmark: ↑/↓ o i binding riga selezionano, PgUp/PgDn scorrono, Enter apre, {Binding(ReaderCommand.DeleteBookmark)} elimina.
         Nell'indice: ↑/↓ o i binding riga selezionano, PgUp/PgDn scorrono, Enter apre la voce.
         Nei metadati: ↑/↓ o i binding riga scorrono una riga, PgUp/PgDn una pagina.
@@ -962,5 +1057,7 @@ internal sealed class ReaderWindow : Window
         Il resize ricostruisce il layout mantenendo la stessa ReadingLocation logica.
         Numero pagina e riga possono cambiare dopo il reflow e restano coordinate effimere.
         La percentuale usa il testo logico UTF-16 del Book e resta stabile dopo resize/reflow.
+        I link interni usano ReadingLocation e uno stack Backspace transiente; http/https/mailto vengono delegati al sistema operativo solo su Enter.
+        Le immagini restano placeholder nel layout; Enter le apre solo quando la riga non offre un link azionabile. SVG e risorse remote non vengono avviati.
         """;
 }

@@ -2,13 +2,14 @@
 
 Lettore EPUB da terminale scritto in C# per .NET 10.
 
-**Ultima baseline autoritativa validata:** M3.1 Hotfix 1 — Library Search.  
-**Candidate corrente:** M3.3 Hotfix 1 — Foundation Smoke Alignment (**STACKED sopra M3.3/M3.2 non validate**).  
-**Stato M3.2:** CANDIDATE non ancora validata.  
-**Stato M3.3:** **STACKED CANDIDATE**.  
-**Stato M3.3 Hotfix 1:** **STACKED CANDIDATE**; corregge solo il test milestone `M3.2`→`M3.3`, senza modifiche produttive.
+**Ultima baseline autoritativa validata:** M3.4 Hotfix 1 — Images + Help Contract Alignment.  
+**Candidate corrente:** M3.5 Hotfix 1 — XHTML Smoke Fixture Alignment.  
+**Stato M3.4 Hotfix 1:** **VALIDATED**.  
+**Stato M3.5 Hotfix 1:** **CANDIDATE**.
 
-M3.1 Hotfix 1 ha superato il gate completo. M3.2 aggiunge tre temi semantici; M3.3 aggiunge `config.json` separato, keymap stampabile configurabile e persistenza del tema senza modificare `state.json` schema 3.
+M3.5 rende azionabili gli hyperlink Domain: salti interni su `ReadingLocation`, Backspace su stack transiente e handoff esplicito di `http`/`https`/`mailto` al sistema operativo, senza network client o browser embedded.
+
+M3.5 Hotfix 1 corregge esclusivamente il fixture `test-books/m3.5-link-smoke.epub`: `nav.xhtml` e `ch1.xhtml` sono XHTML/XML senza DOCTYPE, coerenti con il parser sicuro EReader (`DtdProcessing.Prohibit`). Nessun file produttivo sotto `src/` cambia rispetto alla candidate M3.5 originale.
 
 ## Scope autoritativo
 
@@ -83,10 +84,16 @@ M3.0 aggiunge libreria/history locale; M3.1 aggiunge filtro ranked/fuzzy con pat
 
 M3.2 aggiunge `c` per ciclare i temi Semantico scuro, Carta chiara e Monocromatico. M3.3 mantiene i temi nel boundary CLI/TUI ma persiste la preferenza in un nuovo `config.json`, separato dallo stato dei libri.
 
-M3.3 rende configurabili gli alias stampabili del reader (`j/k`, `b/B`, `t`, `m`, `/`, `n/N`, `c`, ecc.). Frecce, PgUp/PgDn, Space, Tab, Enter, Esc e F1 restano sempre disponibili. `ereader --config-path` mostra il percorso e `ereader --init-config` crea il file predefinito senza sovrascriverne uno esistente.
+M3.3 rende configurabili gli alias stampabili del reader (`j/k`, `b/B`, `t`, `m`, `/`, `n/N`, `c`, ecc.). Frecce, PgUp/PgDn, Space, Tab, Enter, Backspace, Esc e F1 restano sempre disponibili. `ereader --config-path` mostra il percorso e `ereader --init-config` crea il file predefinito senza sovrascriverne uno esistente.
+
+M3.4 usa `Enter` nella lettura normale per aprire l’immagine raster locale alla posizione corrente nel viewer associato dal sistema. Il layout resta testuale; JPEG/PNG/GIF/WebP sono bounded a 16 MiB, mentre SVG e risorse remote non vengono avviati. M3.4 Hotfix 1 è validata.
+
+M3.5 dà priorità al link corrente/visibile su `Enter`: i link interni saltano a una `ReadingLocation` e `Backspace` torna all’origine; `http`/`https`/`mailto` sono delegati al sistema solo dopo azione esplicita. Se non c’è link, `Enter` conserva il fallback immagine M3.4.
 
 Dettagli temi: [`docs/THEMES.md`](docs/THEMES.md).  
 Dettagli configurazione: [`docs/CONFIGURATION_KEYMAP.md`](docs/CONFIGURATION_KEYMAP.md).
+Dettagli immagini: [`docs/IMAGES.md`](docs/IMAGES.md).  
+Dettagli hyperlink: [`docs/HYPERLINKS.md`](docs/HYPERLINKS.md).
 
 ## Pipeline corrente
 
@@ -132,9 +139,13 @@ BookProgressIndex → percentuale logica UTF-16                M2.5 VALIDATED
 ReadingHistoryState → libreria recente / --library             M3.0 VALIDATED
 ReadingHistorySearch → filtro ranked libreria                    M3.1 VALIDATED
   ↓
-ReaderTheme → palette semantiche Terminal.Gui                   M3.2 CANDIDATE
+ReaderTheme → palette semantiche Terminal.Gui                   M3.2 VALIDATED
   ↓
-JsonReaderPreferencesStore → theme + printable keymap            M3.3 STACKED CANDIDATE
+JsonReaderPreferencesStore → theme + printable keymap            M3.3 VALIDATED
+  ↓
+EpubImageResourceReader → preview raster locale bounded          M3.4 VALIDATED
+  ↓
+BookHyperlinkIndex → internal ReadingLocation / external OS handoff M3.5 CANDIDATE
 ```
 
 La facade di ingestione resta:
@@ -164,8 +175,8 @@ Il reader non cattura genericamente bug/runtime failure inattesi.
 
 La catena mantiene:
 
-- nessuna estrazione ZIP sul filesystem;
-- nessun retrieval di rete;
+- nessuna estrazione dell'archivio EPUB sul filesystem; M3.4 consente soltanto la copia temporanea esplicita di una singola risorsa raster bounded per il viewer esterno;
+- nessun retrieval di rete: M3.5 può soltanto delegare esplicitamente `http`/`https`/`mailto` al sistema operativo dopo `Enter`;
 - XML DTD/XXE disabilitati ai boundary XML;
 - nessun JavaScript o CSS engine;
 - Content Document massimo 8 MiB;
@@ -216,18 +227,14 @@ validate.cmd
 ./validate.sh
 ```
 
-Il gate esegue restore, build Release, suite completa, smoke CLI di help/version/info e infine legge realmente:
+Il gate M3.5 Hotfix 1 esegue **11 step**: restore, build Release, suite completa, smoke CLI help/version/foundation-info, smoke `--plain` sui libri M1.0/M3.4/M3.5, history e config. Nessuno smoke avvia viewer o browser esterni.
 
-```text
-test-books/m1.0-smoke.epub
-```
-
-La candidate M3.1 contiene staticamente **407 `[Fact]` + 16 casi `[InlineData]` su 4 `[Theory]`**, quindi sono attesi **423 casi**. Il gate locale resta autoritativo.
+La candidate contiene staticamente **438 `[Fact]` + 16 casi `[InlineData]` su 4 `[Theory]`**, quindi sono attesi **454 casi**. Il gate locale resta autoritativo.
 
 Output finale atteso:
 
 ```text
-M2.5 VALIDATION PASSED
+M3.5 HOTFIX 1 VALIDATION PASSED
 ```
 
 ## Documentazione
@@ -253,6 +260,12 @@ docs/
   BOOKMARKS.md
   READER_COLORS.md
   STABLE_PROGRESS.md
+  LOCAL_LIBRARY.md
+  LIBRARY_SEARCH.md
+  THEMES.md
+  CONFIGURATION_KEYMAP.md
+  IMAGES.md
+  HYPERLINKS.md
   ROADMAP.md
   VALIDATION.md
   PROJECT_HANDOFF.md

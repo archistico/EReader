@@ -1,66 +1,44 @@
-# Validation — M3.3 Hotfix 1 — Foundation Smoke Alignment
+# Validation — M3.5 Hotfix 1 — XHTML Smoke Fixture Alignment
 
-## Baseline e stacked chain
-
-- M3.1 Hotfix 1 — **VALIDATED** (`M3.1 HOTFIX 1 VALIDATION PASSED`).
-- M3.2 Themes — **CANDIDATE non ancora validata**.
-- M3.3 è costruita esclusivamente sopra M3.2 e resta **STACKED CANDIDATE**.
-- M3.3 Hotfix 1 è costruita esclusivamente sopra M3.3 e corregge il solo smoke test milestone rimasto a `M3.2`.
+M3.5 deve essere costruita esclusivamente dalla baseline validata M3.4 Hotfix 1.
 
 ## Gate
 
-Da estrazione pulita:
+Windows:
 
 ```bat
 .\validate.cmd
 ```
 
-oppure:
+Linux/macOS:
 
-```bash
+```sh
 ./validate.sh
 ```
 
 Esito atteso:
 
 ```text
-M3.2+M3.3 HOTFIX 1 STACKED VALIDATION PASSED
+M3.5 HOTFIX 1 VALIDATION PASSED
 ```
 
-## Criterio Hotfix 1
+## Criteri M3.5 Hotfix 1
 
-- `FoundationSmokeTests` deve verificare `M3.3`, coerentemente con `CliEntryPoint.Milestone`;
-- nessun file produttivo sotto `src/` deve differire dalla candidate M3.3 precedente.
+- il fixture `m3.5-link-smoke.epub` deve superare il parser Navigation sicuro senza DTD/DOCTYPE;
+- `mimetype` del fixture resta prima entry e stored;
+- nessuna modifica produttiva rispetto alla candidate M3.5 originale;
 
-## Criteri M3.2 + M3.3
+- `CliEntryPoint.Milestone == "M3.5"`;
+- build Release con warnings-as-errors;
+- suite completa: 454 casi attesi;
+- indice hyperlink pre-layout su offset UTF-16;
+- internal link -> ReadingLocation target + back stack bounded;
+- Backspace non è persistito/configurato;
+- external link boundary limitato a http/https/mailto;
+- nessun network fetch/browser embedded;
+- image preview M3.4 resta disponibile come fallback di Enter;
+- state schema 3 e config schema 1 invariati;
+- 11 step di gate, incluso `m3.5-link-smoke.epub` in `--plain`;
+- smoke CLI consolidati passano.
 
-- i tre temi M3.2 compilano e passano i regression test;
-- `config.json` è separato da `state.json` schema 3;
-- file config assente = preferenze default;
-- schema config diverso da 1 viene rifiutato;
-- tema sconosciuto viene rifiutato;
-- keymap parziale eredita i default;
-- collisioni e binding multi-grapheme vengono rifiutati;
-- `ReaderWindow` usa i binding configurati per i tasti stampabili;
-- frecce/PgUp/PgDn/Space/Tab/Enter/Esc/F1 restano disponibili;
-- cambio tema viene riportato dalla TUI e salvato nel file preferenze;
-- `--init-config` crea un file default bounded e `--config-path` espone il percorso;
-- `EREADER_CONFIG_FILE` consente uno smoke isolato;
-- ricerca, bookmark, progress, resize, TOC, metadata, library e library search non regrediscono.
-
-## Prova manuale suggerita
-
-1. `ereader --init-config`;
-2. `ereader --config-path`;
-3. modificare ad esempio `NextLine` da `j` a `x` e `PreviousLine` da `k` a `z`;
-4. aprire un EPUB e verificare frecce + `x/z`;
-5. premere il binding `CycleTheme`, uscire e riaprire il libro;
-6. verificare che il tema scelto sia stato ripristinato;
-7. verificare che `state.json` non contenga `theme` o `keymap`.
-
-## Conteggio statico candidate
-
-- 420 `[Fact]`;
-- 4 `[Theory]`;
-- 16 `[InlineData]`;
-- **436 casi attesi**.
+Il gate automatico non apre browser/applicazioni esterne. L'apertura di un link `https` o `mailto` va verificata manualmente se desiderato.

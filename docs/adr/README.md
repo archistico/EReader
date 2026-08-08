@@ -55,6 +55,8 @@ Formato adottato: numero progressivo, titolo, stato, data, contesto, decisione, 
 | [0045](0045-library-search-is-transient-ranked-application-state.md) | Ricerca libreria transiente e classificata nell’Application layer | Accepted |
 | [0046](0046-reader-themes-map-semantic-roles-only-in-tui.md) | Temi reader come mapping TUI dei ruoli semantici | Accepted |
 | [0047](0047-user-preferences-are-separate-versioned-configuration.md) | Preferenze utente in config JSON separata dallo stato lettura | Accepted |
+| [0048](0048-image-preview-is-explicit-bounded-and-outside-domain.md) | Anteprima immagini esplicita, bounded e fuori dal Domain | Accepted |
+| [0049](0049-hyperlinks-use-logical-ranges-and-transient-back-stack.md) | Hyperlink su range logici con back stack transiente | Accepted |
 
 ## Stati
 

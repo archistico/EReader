@@ -1,6 +1,6 @@
 # Architettura di EReader
 
-Stato: **M3.3 Configurable Keymap & Preferences — STACKED CANDIDATE sopra M3.2**  
+Stato: **M3.5 Hotfix 1 XHTML Smoke Fixture Alignment — CANDIDATE sopra M3.5 / M3.4 Hotfix 1 VALIDATED**  
 Baseline autoritativa: **M3.1 Hotfix 1 Library Search VALIDATED**  
 Target: **.NET 10 / C# 14**
 
@@ -492,3 +492,27 @@ config.json schema 1
 Il modulo non dipende da Terminal.Gui e non modifica Domain/Application/Layout. `ReaderWindow` riceve un `ReaderKeymap` già validato e traduce i tasti stampabili in `ReaderCommand`; i tasti speciali canonici restano gestiti direttamente dal boundary Terminal.Gui.
 
 `state.json` schema 3 rimane indipendente e non contiene tema/keymap.
+
+
+## M3.4 — Boundary immagini
+
+M3.4 mantiene il payload delle immagini fuori dal Domain e dal Layout. `ReaderSession` proietta soltanto metadata dell'`ImageBlock` corrente. L'adapter `EbookReader.Epub.Resources.EpubImageResourceReader` rilegge una singola risorsa locale dal manifest tramite `ResourceId`, con limite 16 MiB e senza network. Il CLI `ExternalImagePreviewService` è l'unico componente che materializza temporaneamente il raster e delega il rendering al viewer associato dal sistema operativo. SVG e risorse remote non vengono avviati.
+
+La direzione resta:
+
+```text
+Domain ImageBlock/BookResource (payload-free)
+        ↓
+ReaderSession.CurrentImage
+        ↓ explicit Enter
+EpubImageResourceReader (bounded local bytes)
+        ↓
+Cli ExternalImagePreviewService → OS viewer
+```
+
+Nessun image payload entra in `state.json`, `config.json`, `BookLayout` o `ReadingLocation`.
+
+
+## M3.5 — Boundary hyperlink
+
+Gli hyperlink restano semantica Domain (`HyperlinkSpan` + `LinkTarget`) e vengono indicizzati in `EbookReader.Application.Links` come range UTF-16 prima del layout. `ReaderSession` usa la mappa sorgente di `VisualLine` soltanto per stabilire quale link logico è azionabile sulla riga corrente. Un link interno usa direttamente la `ReadingLocation` già risolta dall'adapter EPUB e push-a l'origine in uno stack transiente bounded; Backspace effettua il pop. I link esterni attraversano un adapter CLI separato che accetta solo `http`, `https`, `mailto` e delega al sistema operativo con `UseShellExecute=true`. Nessun URI viene scaricato da EReader e nessun link/back stack entra nei file persistenti.

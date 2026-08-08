@@ -94,7 +94,7 @@ Tab
 Enter
 Esc
 F1
-Backspace nel prompt di ricerca
+Backspace (prompt ricerca e, da M3.5, ritorno hyperlink)
 ```
 
 Questa scelta evita che una configurazione personalizzata renda il reader inutilizzabile.

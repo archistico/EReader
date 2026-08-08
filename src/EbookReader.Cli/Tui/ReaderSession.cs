@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using EbookReader.Application.Links;
 using EbookReader.Application.Progress;
 using EbookReader.Application.Reading;
 using EbookReader.Application.Search;
@@ -7,6 +8,7 @@ using EbookReader.Domain.Books;
 using EbookReader.Domain.Content;
 using EbookReader.Domain.Navigation;
 using EbookReader.Domain.Reading;
+using EbookReader.Domain.Resources;
 using EbookReader.Layout;
 
 namespace EbookReader.Cli.Tui;
@@ -18,7 +20,11 @@ namespace EbookReader.Cli.Tui;
 public sealed class ReaderSession
 {
     private readonly Book _book;
+    private const int MaximumLinkBackStackDepth = 128;
+
     private readonly BookProgressIndex _progressIndex;
+    private readonly BookHyperlinkIndex _hyperlinkIndex;
+    private readonly List<ReadingLocation> _linkBackStack = [];
     private readonly ReadOnlyCollection<ReaderTocEntry> _tocEntries;
     private readonly ReadOnlyCollection<ReaderMetadataEntry> _metadataEntries;
     private readonly List<ReadingLocation> _bookmarks = [];
@@ -46,6 +52,7 @@ public sealed class ReaderSession
 
         _book = book;
         _progressIndex = new BookProgressIndex(book);
+        _hyperlinkIndex = new BookHyperlinkIndex(book);
         _tocEntries = FlattenTableOfContents(book.TableOfContents);
         _metadataEntries = BuildMetadataEntries(book);
         _bookmarkLocations = _bookmarks.AsReadOnly();
@@ -93,6 +100,81 @@ public sealed class ReaderSession
     public bool SearchResultsTruncated => _searchResults?.IsTruncated ?? false;
 
     public BookProgress Progress => _progressIndex.Locate(Location);
+
+    /// <summary>
+    /// Hyperlink actionable from the current logical position. Exact logical containment wins;
+    /// otherwise the first hyperlink intersecting the current visual line is offered.
+    /// </summary>
+    public BookHyperlink? CurrentHyperlink
+    {
+        get
+        {
+            BookHyperlink? exact = _hyperlinkIndex.FindAt(Location);
+            if (exact is not null)
+            {
+                return exact;
+            }
+
+            if (Position is not LayoutPosition position)
+            {
+                return null;
+            }
+
+            VisualLine line = Layout.Pages[position.PageNumber - 1].Lines[position.LineIndex];
+            if (line.SectionId is not SectionId sectionId
+                || line.BlockId is not BlockId blockId
+                || line.SourceStartOffset is not int start
+                || line.SourceEndOffset is not int end)
+            {
+                return null;
+            }
+
+            return _hyperlinkIndex.FindFirstIntersecting(sectionId, blockId, start, end);
+        }
+    }
+
+    public bool CanNavigateBack => _linkBackStack.Count > 0;
+
+    /// <summary>
+    /// Returns metadata for the Domain image block at the current logical location, when any.
+    /// The image payload remains outside ReaderSession and is loaded only by the EPUB outer adapter on explicit preview.
+    /// </summary>
+    public ReaderImageInfo? CurrentImage
+    {
+        get
+        {
+            BlockId? currentBlockId = Location.BlockId;
+            if (currentBlockId is null && Position is LayoutPosition position)
+            {
+                currentBlockId = Layout.Pages[position.PageNumber - 1].Lines[position.LineIndex].BlockId;
+            }
+
+            if (currentBlockId is not BlockId blockId)
+            {
+                return null;
+            }
+
+            ReadingSection? section = _book.ReadingOrder.FirstOrDefault(candidate => candidate.Id == Location.SectionId);
+            ContentBlock? block = section?.Blocks.FirstOrDefault(candidate => candidate.Id == blockId);
+            if (block is not ImageBlock image)
+            {
+                return null;
+            }
+
+            BookResource? resource = _book.Resources.FirstOrDefault(candidate => candidate.Id == image.ResourceId);
+            if (resource is null)
+            {
+                return null;
+            }
+
+            return new ReaderImageInfo(
+                image.ResourceId,
+                resource.MediaType,
+                image.AlternativeText,
+                image.Caption,
+                resource.Name);
+        }
+    }
 
 
     /// <summary>
@@ -263,6 +345,37 @@ public sealed class ReaderSession
     public bool ChapterEnd() => Move(LogicalReadingNavigator.ChapterEnd(_book, Location));
 
     /// <summary>
+    /// Follows the current internal hyperlink and records the origin in a bounded transient back stack.
+    /// External links are deliberately handled by the CLI outer adapter and never mutate ReadingLocation.
+    /// </summary>
+    public bool FollowCurrentInternalHyperlink()
+    {
+        if (CurrentHyperlink?.Target is not InternalLinkTarget internalTarget
+            || internalTarget.Location == Location)
+        {
+            return false;
+        }
+
+        PushLinkOrigin(Location);
+        Location = internalTarget.Location;
+        return true;
+    }
+
+    public bool NavigateBack()
+    {
+        if (_linkBackStack.Count == 0)
+        {
+            return false;
+        }
+
+        int lastIndex = _linkBackStack.Count - 1;
+        ReadingLocation target = _linkBackStack[lastIndex];
+        _linkBackStack.RemoveAt(lastIndex);
+        Location = target;
+        return true;
+    }
+
+    /// <summary>
     /// Searches logical Domain text before layout. The first selected result is the first match that is
     /// not before the current ReadingLocation; when no such match exists the search wraps to the first hit.
     /// </summary>
@@ -402,6 +515,16 @@ public sealed class ReaderSession
         }
 
         return Math.Clamp(currentIndex + direction, 0, _bookmarks.Count - 1);
+    }
+
+    private void PushLinkOrigin(ReadingLocation origin)
+    {
+        if (_linkBackStack.Count == MaximumLinkBackStackDepth)
+        {
+            _linkBackStack.RemoveAt(0);
+        }
+
+        _linkBackStack.Add(origin);
     }
 
     private void LoadInitialBookmarks(IEnumerable<ReadingLocation>? initialBookmarks)

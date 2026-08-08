@@ -1,15 +1,45 @@
+using EbookReader.Application.Links;
 using EbookReader.Application.Progress;
 using EbookReader.Cli.Tui;
 using EbookReader.Domain.Books;
 using EbookReader.Domain.Content;
 using EbookReader.Domain.Navigation;
 using EbookReader.Domain.Reading;
+using EbookReader.Domain.Resources;
 using EbookReader.Layout;
 
 namespace EbookReader.Cli.Tests;
 
 public sealed class ReaderSessionTests
 {
+    [Fact]
+    public void CurrentImageProjectsDomainImageAndResourceMetadata()
+    {
+        ResourceId resourceId = new("figure");
+        ImageBlock image = new(new BlockId("img"), resourceId, "Schema", "Figura uno");
+        ReadingSection section = new(new SectionId("one"), [image, new ParagraphBlock(new BlockId("p"), [new TextRun("testo")])]);
+        BookResource resource = new(resourceId, ResourceKind.Image, "image/png", "images/figure.png");
+        Book book = new(new BookId("image-book"), new BookMetadata("Immagini"), [section], resources: [resource]);
+        ReaderSession atSectionStart = new(book, new LayoutViewport(40, 10));
+        Assert.NotNull(atSectionStart.CurrentImage);
+
+        ReaderSession session = new(
+            book,
+            new LayoutViewport(40, 10),
+            new ReadingLocation(section.Id, image.Id, 0));
+
+        ReaderImageInfo? current = session.CurrentImage;
+
+        Assert.NotNull(current);
+        Assert.Equal(resourceId, current.ResourceId);
+        Assert.Equal("image/png", current.MediaType);
+        Assert.Equal("Schema", current.AlternativeText);
+        Assert.Equal("Figura uno", current.Caption);
+        Assert.Equal("images/figure.png", current.ResourceName);
+        Assert.True(session.NextLine());
+        Assert.Null(session.CurrentImage);
+    }
+
     [Fact]
     public void StartsAtFirstPrimarySectionAndFirstPage()
     {
@@ -504,6 +534,78 @@ public sealed class ReaderSessionTests
         Assert.Equal(before, session.Progress);
         Assert.Equal(before.Percentage, session.Progress.Percentage);
         Assert.Equal(new LayoutViewport(80, 24), session.Layout.Viewport);
+    }
+
+    [Fact]
+    public void CurrentHyperlinkFindsFirstLinkOnCurrentVisualLine()
+    {
+        Book book = CreateBookWithInternalLink();
+        ReaderSession session = new(book, new LayoutViewport(40, 10));
+
+        BookHyperlink link = Assert.IsType<BookHyperlink>(session.CurrentHyperlink);
+
+        Assert.Equal("secondo", link.Text);
+        Assert.IsType<InternalLinkTarget>(link.Target);
+    }
+
+    [Fact]
+    public void InternalHyperlinkUsesTransientBackStack()
+    {
+        Book book = CreateBookWithInternalLink();
+        ReaderSession session = new(book, new LayoutViewport(40, 10));
+        ReadingLocation origin = session.Location;
+
+        Assert.False(session.CanNavigateBack);
+        Assert.True(session.FollowCurrentInternalHyperlink());
+        Assert.Equal(new ReadingLocation(new SectionId("one"), new BlockId("target"), 0), session.Location);
+        Assert.True(session.CanNavigateBack);
+        Assert.True(session.NavigateBack());
+        Assert.Equal(origin, session.Location);
+        Assert.False(session.CanNavigateBack);
+    }
+
+    [Fact]
+    public void CurrentHyperlinkRemainsLogicalAcrossReflow()
+    {
+        Book book = CreateBookWithInternalLink();
+        ReaderSession session = new(book, new LayoutViewport(20, 5));
+        BookHyperlink before = Assert.IsType<BookHyperlink>(session.CurrentHyperlink);
+
+        Assert.True(session.Reflow(new LayoutViewport(80, 24)));
+
+        BookHyperlink after = Assert.IsType<BookHyperlink>(session.CurrentHyperlink);
+        Assert.Equal(before.StartLocation, after.StartLocation);
+        Assert.Equal(before.Text, after.Text);
+    }
+
+    [Fact]
+    public void ExternalHyperlinkDoesNotEnterInternalBackStack()
+    {
+        SectionId sectionId = new("one");
+        BlockId blockId = new("external");
+        ParagraphBlock paragraph = new(
+            blockId,
+            [new HyperlinkSpan(new ExternalLinkTarget(new Uri("https://example.com/")), [new TextRun("Example")])]);
+        Book book = new(new BookId("external-book"), new BookMetadata("External"), [new ReadingSection(sectionId, [paragraph])]);
+        ReaderSession session = new(book, new LayoutViewport(40, 10));
+
+        Assert.IsType<ExternalLinkTarget>(session.CurrentHyperlink?.Target);
+        Assert.False(session.FollowCurrentInternalHyperlink());
+        Assert.False(session.CanNavigateBack);
+    }
+
+    private static Book CreateBookWithInternalLink()
+    {
+        SectionId sectionId = new("one");
+        BlockId sourceId = new("source");
+        BlockId targetId = new("target");
+        ReadingLocation target = new(sectionId, targetId, 0);
+        ParagraphBlock source = new(
+            sourceId,
+            [new TextRun("Vai al "), new HyperlinkSpan(new InternalLinkTarget(target), [new TextRun("secondo")]), new TextRun(" paragrafo")]);
+        ParagraphBlock destination = new(targetId, [new TextRun("Destinazione")]);
+        ReadingSection section = new(sectionId, [source, destination]);
+        return new Book(new BookId("link-book"), new BookMetadata("Link Book"), [section]);
     }
 
     private static Book CreateBook(bool includeSupplementary = false)

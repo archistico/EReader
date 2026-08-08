@@ -182,4 +182,18 @@ La vista normale aggiunge una percentuale logica accanto alla pagina, ad esempio
 
 ## M3.3 — Keymap configurabile
 
-Da M3.3 gli alias stampabili mostrati da help/footer derivano da `config.json`. Le frecce, PgUp/PgDn, Space, Tab, Enter, Esc e F1 restano scorciatoie speciali fisse. Il file di configurazione è separato dallo stato di lettura; vedi `CONFIGURATION_KEYMAP.md`.
+Da M3.3 gli alias stampabili mostrati da help/footer derivano da `config.json`. Le frecce, PgUp/PgDn, Space, Tab, Enter, Backspace, Esc e F1 restano scorciatoie speciali fisse (Backspace acquisisce anche il ritorno hyperlink in M3.5). Il file di configurazione è separato dallo stato di lettura; vedi `CONFIGURATION_KEYMAP.md`.
+
+
+## M3.4 — Immagini
+
+Il reader resta text-first. Un `ImageBlock` continua a essere rappresentato dal placeholder generato dal layout usando alt text/didascalia. Quando la `ReadingLocation` corrente appartiene a quel blocco, l'header aggiunge `IMG <media-type>` e il footer mostra `Enter immagine`.
+
+`Enter` nella vista di lettura normale apre esplicitamente JPEG/PNG/GIF/WebP locali nel viewer associato dal sistema. Negli overlay mantiene invece i significati precedenti (apri voce TOC/bookmark, conferma ricerca). SVG e risorse remote non vengono aperti. La preview non cambia `ReadingLocation`, non viene ripetuta al resize e non viene persistita.
+
+Dettagli e limiti: `IMAGES.md` e ADR-0048.
+
+
+## M3.5 — Hyperlink interattivi
+
+Nella lettura normale `Enter` dà priorità a un hyperlink azionabile. La `ReadingLocation` esatta dentro un link ha precedenza; altrimenti viene scelto il primo hyperlink che interseca la riga visuale corrente. I link interni saltano alla `ReadingLocation` Domain target e attivano `Backspace indietro`; i link esterni `http`/`https`/`mailto` vengono passati all'applicazione associata dal sistema operativo. Se la riga non offre link, `Enter` conserva l'anteprima immagine M3.4. Header e footer segnalano dinamicamente link e back-stack disponibili.

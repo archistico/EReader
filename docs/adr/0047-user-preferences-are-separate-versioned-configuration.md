@@ -1,6 +1,6 @@
 # ADR-0047 — User preferences are separate versioned configuration
 
-- Status: Accepted for M3.3 candidate
+- Status: Accepted and validated
 - Date: 2026-08-08
 
 ## Context
