@@ -1,7 +1,7 @@
 # EPUB Security Model
 
-**Stato:** hardening M3.9 candidate sopra foundation diagnostica M3.8 validata; M3.11/M3.12 restano pianificate.  
-**Baseline:** M3.8 Hotfix 1 VALIDATED.
+**Stato:** hardening M3.9 Hotfix 1 VALIDATED; recovery M3.10 candidate sopra gli stessi guardrail; M3.11/M3.12 restano pianificate.  
+**Baseline:** M3.9 Hotfix 1 VALIDATED.
 
 ## Threat model
 
@@ -40,7 +40,7 @@ La baseline corrente possiede già controlli importanti:
 
 Questi punti restano invarianti da preservare nelle milestone future.
 
-## Hardening M3.9 candidate
+## Hardening M3.9 validato
 
 M3.9 non sostituisce i limiti specifici dei parser; aggiunge un primo firewall a livello OCF/ZIP e chiude i failure path attesi che potevano emergere soltanto durante la decompressione.
 
@@ -157,3 +157,10 @@ Un limite di sicurezza non deve essere confuso con un obiettivo prestazionale.
 La recovery non può indebolire il security model. Per esempio, se una risorsa interna non esiste, non è consentito cercarla liberamente sul filesystem o su Internet.
 
 Vedi [`EPUB_RECOVERY_POLICY.md`](EPUB_RECOVERY_POLICY.md).
+
+
+## M3.10 non indebolisce il security boundary
+
+La recovery M3.10 è subordinata ai guardrail M3.9. Una `EpubContainerException` che indica corruzione, budget, ZIP feature non supportata, entry speciale o path non sicuro resta un failure documento. Solo l'assenza semplice della risorsa navigation può essere degradata a TOC vuoto.
+
+Il percorso OPF recovery-aware non autorizza accessi a risorse mancanti: differisce esclusivamente il controllo `container.Contains(...)` per permettere al validator di classificare la risorsa. Non estrae file, non attraversa directory e non effettua network retrieval.

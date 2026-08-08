@@ -17,7 +17,10 @@ internal static class ValidationFixtureFactory
         string? packageContent = null,
         string? navigationContent = null,
         string? chapterContent = null,
-        string chapterMediaType = "application/xhtml+xml")
+        string chapterMediaType = "application/xhtml+xml",
+        bool includeNavigationFile = true,
+        bool includeChapterFile = true,
+        (string Path, string Content)[]? additionalEntries = null)
     {
         string fontManifestItem = declareFont
             ? $"<item id=\"font\" href=\"fonts/test.ttf\" media-type=\"{fontMediaType}\" />"
@@ -48,11 +51,17 @@ internal static class ValidationFixtureFactory
         </html>
         """;
 
-        List<(string Path, string Content)> entries =
-        [
-            ("EPUB/nav.xhtml", navigation),
-            (ChapterPath, chapter),
-        ];
+        List<(string Path, string Content)> entries = [];
+
+        if (includeNavigationFile)
+        {
+            entries.Add(("EPUB/nav.xhtml", navigation));
+        }
+
+        if (includeChapterFile)
+        {
+            entries.Add((ChapterPath, chapter));
+        }
 
         if (includeFontFile)
         {
@@ -67,6 +76,11 @@ internal static class ValidationFixtureFactory
         if (includeRights)
         {
             entries.Add(("META-INF/rights.xml", "<rights xmlns=\"urn:example:rights\" />"));
+        }
+
+        if (additionalEntries is not null)
+        {
+            entries.AddRange(additionalEntries);
         }
 
         return EpubFixtureFactory.CreateValid(

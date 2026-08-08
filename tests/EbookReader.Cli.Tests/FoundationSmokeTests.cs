@@ -5,9 +5,9 @@ namespace EbookReader.Cli.Tests;
 public sealed class FoundationSmokeTests
 {
     [Fact]
-    public void MilestoneIsM39()
+    public void MilestoneIsM310()
     {
-        Assert.Equal("M3.9", CliEntryPoint.Milestone);
+        Assert.Equal("M3.10", CliEntryPoint.Milestone);
     }
 
     [Fact]

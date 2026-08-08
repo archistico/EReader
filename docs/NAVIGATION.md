@@ -93,11 +93,10 @@ M0.5 conserva path + fragment senza aprire i Content Document. **M0.6 completa i
 - DTD proibiti in `nav.xhtml`;
 - solo DOCTYPE NCX canonico ammesso, senza internal subset e senza resolver esterno; espansione di entità bounded come difesa aggiuntiva.
 
-## Non ancora incluso
+## Evoluzione dopo M0.5
 
-- verifica dell'esistenza dell'anchor nel DOM XHTML;
-- conversione del TOC verso `EbookReader.Domain.Navigation`;
-- parsing semantico dei capitoli;
-- CSS;
-- layout;
-- TUI reader.
+M0.5 si fermava alla normalizzazione della navigation. Le milestone successive hanno poi aggiunto verifica degli anchor nel contenuto, conversione verso `EbookReader.Domain.Navigation`, parsing semantico, layout e TUI. M3.10 interviene quindi su un contratto di navigazione già completo e ne definisce il comportamento di recovery, non su un parser isolato.
+
+## M3.10 — Navigation degradabile
+
+La navigation non è più un prerequisito assoluto quando il reading order principale è sano. Navigation assente o non utilizzabile produce una diagnostica recuperabile e `TableOfContents.Empty`; un TOC sintatticamente valido ma con target non risolvibili viene scartato integralmente, senza costruire un indice parzialmente ambiguo. Corruzioni del contenitore sottostante restano fatal document errors.

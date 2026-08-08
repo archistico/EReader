@@ -1,7 +1,7 @@
 # Architettura di EReader
 
-Stato: **M3.9 — Defensive EPUB Loading & Input Security CANDIDATE**  
-Baseline autoritativa: **M3.8 Hotfix 1 — `M3.8 HOTFIX 1 VALIDATION PASSED` (08/08/2026)**  
+Stato: **M3.10 — EPUB Recovery & Degraded Reading CANDIDATE**  
+Baseline autoritativa: **M3.9 Hotfix 1 — `M3.9 HOTFIX 1 VALIDATION PASSED` (08/08/2026)**  
 Base documentale: **M3.7 Docs1 — reliability/security roadmap, consolidata nella baseline M3.8**  
 Target: **.NET 10 / C# 14**
 
@@ -534,7 +534,7 @@ Gli hyperlink restano semantica Domain (`HyperlinkSpan` + `LinkTarget`) e vengon
 
 La prossima fase non modifica la separazione dei layer: estende i contratti di errore e recovery senza introdurre semantica EPUB nel Domain o coordinate di layout nella persistenza.
 
-M3.8 implementa la foundation ed è validata; M3.9 aggiunge il defensive input boundary ZIP/OCF senza spostarlo fuori da `EbookReader.Epub`; M3.10–M3.13 estendono recovery e containment. Principi architetturali:
+M3.8 implementa la foundation ed è validata; M3.9 aggiunge e valida il defensive input boundary ZIP/OCF senza spostarlo fuori da `EbookReader.Epub`; M3.10 aggiunge recovery deterministico per failure non essenziali; M3.11–M3.13 estendono link integrity, containment e corpus. Principi architetturali:
 
 - `EpubPublicationValidator` conserva il contratto M0.7 `Valid` / `Invalid` / `Unsupported`;
 - `EbookReader.Application.Diagnostics` distingue information, warning, recovery, documento irrecuperabile e guasto interno senza dipendere da EPUB/UI/Layout;
@@ -547,3 +547,14 @@ M3.8 implementa la foundation ed è validata; M3.9 aggiunge il defensive input b
 - il corpus M3.13 deve verificare comportamento, stato e containment, non soltanto il tipo di eccezione.
 
 Specifiche della fase: `DIAGNOSTICS.md`, `EPUB_FAILURE_MODEL.md`, `EPUB_SECURITY_MODEL.md`, `EPUB_RECOVERY_POLICY.md`, `EPUB_COMPATIBILITY.md`.
+
+
+## M3.10 — Recovery boundary
+
+La recovery M3.10 resta dentro `EbookReader.Epub` e non introduce concetti EPUB nel Domain. `EpubPackageReader.Read(...)` conserva il comportamento strict; la facade di validation usa un percorso interno recovery-aware per differire il solo controllo di esistenza delle risorse manifest locali e classificarne il ruolo.
+
+`EpubBookReader` mantiene il percorso pubblico strict e aggiunge un percorso interno recovery-aware. Una sezione `linear="no"` viene parsata in modo transazionale: gli anchor sono locali finché la sezione non è completa. Le sezioni primary non vengono mai saltate.
+
+La navigation può essere omessa dal `Book` perché `TableOfContents.Empty` è già un valore Domain valido. Non viene generato un TOC sintetico. Le diagnostiche di recovery navigation sono committate soltanto dopo la costruzione riuscita del `Book`.
+
+Il CLI continua a essere il composition root che traduce `EpubDiagnosticSeverity.Error` su un risultato `Valid` in `ReaderDiagnosticSeverity.RecoverableError`; `ReaderDiagnosticTextWriter` rende visibile `READABLE_DEGRADED` senza cambiare lo stato persistente o il layout.

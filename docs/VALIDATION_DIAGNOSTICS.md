@@ -22,19 +22,11 @@ Gli errori di programmazione e i guasti runtime non riconducibili al formato EPU
 
 ### Valid
 
-L'EPUB ha attraversato con successo:
-
-1. OCF Container;
-2. protection metadata inspection;
-3. OPF Package;
-4. Navigation;
-5. XHTML → Domain.
-
-`Book` è non-null e pronto per il livello Application/M1.0.
+`Book` è non-null e pronto per il livello Application. Dalla M3.10 `Valid` non significa necessariamente “nessuna diagnostica”: il Container, la protection inspection, l'OPF e almeno il reading order primario devono essere affidabili, mentre navigation e risorse non essenziali possono essere degradate in modo deterministico con warning/recoverable diagnostics.
 
 ### Invalid
 
-La pubblicazione viola il contratto strutturale che EReader applica, ad esempio ZIP/OCF non valido, OPF malformato, Navigation non valida, anchor irrisolvibili o `encryption.xml` malformato.
+La pubblicazione viola un requisito necessario alla lettura affidabile, ad esempio ZIP/OCF non valido, OPF malformato, reading order primario assente/illeggibile, `encryption.xml` malformato o un failure del boundary di sicurezza che non può essere isolato. Un TOC non utilizzabile, da solo, non rende più `Invalid` un libro il cui contenuto primario è leggibile.
 
 ### Unsupported
 
@@ -139,7 +131,7 @@ Questi riferimenti descrivono il formato da riconoscere; non costituiscono una d
 
 ## Evoluzione M3.8 e roadmap successiva
 
-M0.7 resta il contratto autoritativo dell'**ingestione** (`Valid`, `Invalid`, `Unsupported`). M3.8 introduce la tassonomia reader-wide format-neutral senza rompere questo contratto; la candidate M3.9 estende ora i casi concreti di sicurezza dell'input, mentre M3.10–M3.13 completeranno recovery e containment.
+M0.7 resta il contratto autoritativo dell'**ingestione** (`Valid`, `Invalid`, `Unsupported`). M3.8 ha introdotto la tassonomia reader-wide format-neutral senza rompere questo contratto; M3.9 Hotfix 1 ha validato i guardrail di sicurezza dell'input. La candidate M3.10 aggiunge recovery deterministico dei failure non essenziali; M3.11–M3.13 completeranno link integrity, crash containment e corpus di affidabilità.
 
 La nuova documentazione distingue esplicitamente:
 

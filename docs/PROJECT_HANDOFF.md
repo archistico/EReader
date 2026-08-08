@@ -1,71 +1,150 @@
-# Project Handoff — EReader M3.9 Hotfix 1 CA1859 Return-Type Analyzer Alignment Candidate
+# Project Handoff — EReader M3.10 Hotfix 2 xUnit2031 Analyzer Alignment Candidate
 
-## Baseline
+Data: 08/08/2026
 
-- baseline autoritativa validata: **M3.8 Hotfix 1 — Diagnostics Foundation & CA1859 Analyzer Alignment**;
-- gate validato: `M3.8 HOTFIX 1 VALIDATION PASSED` (08/08/2026);
-- candidate corrente: **M3.9 Hotfix 1 — CA1859 Return-Type Analyzer Alignment**;
-- gate candidate: `M3.9 HOTFIX 1 VALIDATION PASSED`.
+## Stato autoritativo
 
-## Hotfix 1 — motivo
+- baseline autoritativa validata: **M3.9 Hotfix 1 — Defensive EPUB Input Security + CA1859 Return-Type Alignment**;
+- gate baseline: `M3.9 HOTFIX 1 VALIDATION PASSED`;
+- candidate corrente: **M3.10 — EPUB Recovery & Degraded Reading**;
+- gate candidate: `M3.10 HOTFIX 2 VALIDATION PASSED`.
 
-La prima candidate M3.9 ha fallito il build locale esclusivamente per `CA1859`: il metodo privato `EpubContainer.OpenValidatedEntry(...)` dichiarava `Stream` pur restituendo sempre `ValidatedZipEntryStream`. La Hotfix 1 usa il tipo concreto richiesto dall’analyzer; API pubbliche e comportamento M3.9 restano invariati.
+## Obiettivo M3.10
 
-## Obiettivo M3.9
+Passare dal solo rifiuto sicuro dell'input difettoso a una recovery deterministica dei problemi non essenziali, mantenendo il principio:
 
-Trattare l'EPUB come input non attendibile senza cambiare il modello di lettura. Un errore attribuibile in modo deterministico all'archivio/documento deve restare dentro il boundary EPUB e diventare diagnostica `DocumentUnreadable`; un bug interno inatteso non deve essere mascherato.
+> **Un EPUB può essere illeggibile. EReader no.**
 
-## Modifiche produttive principali
+M3.10 non deve mai inventare contenuto, cercare file sul filesystem, scaricare risorse remote o aggirare i guardrail M3.9.
 
-### Container/ZIP
+## Decisioni implementate
 
-- `EpubContainerLimits`: 256 MiB per entry, 2 GiB cumulativi dichiarati, ratio 500:1 da 16 MiB;
-- `EpubContainerErrorCode`: nuovi codici 21–25 per oversize/ratio/tipo entry speciale/incoerenza;
-- `ValidatedZipEntryStream`: wrapper read-only che traduce corruption/unsupported compression e valida la lunghezza a EOF;
-- entry ZIP Unix di tipo speciale, inclusi symlink, rifiutate;
-- prefissi drive/schema rifiutati anche dopo percent-decoding controllato (`C%3A/...`) e nei nomi ZIP;
-- nessuna estrazione filesystem.
+### Navigation
 
-### OPF/URI
+- nav.xhtml/NCX assente o non utilizzabile → il validator tenta comunque il primary reading order;
+- se il `Book` è valido, il risultato resta `Valid` con `TableOfContents.Empty` e diagnostica `ER-EPUB-RECOVERY-NAVIGATION-001`;
+- se un TOC parsato non è risolvibile sul `Book` recuperato, viene eliminato interamente con `ER-EPUB-RECOVERY-NAVIGATION-002`;
+- Container corruption/security durante la navigation resta fatal, salvo `EntryNotFound` della navigation stessa.
 
-- manifest remoto: allow-list `http`/`https`;
-- `file:` conserva il rifiuto storico; `data:`, `javascript:`, `ftp:` e altri schemi sono `UnsupportedRemoteResourceScheme`;
-- fallback chain bounded a 64 passaggi, cycle detection invariato.
+### Spine
 
-### Content
+- primary spine failure → documento `Invalid`;
+- `linear="no"` + `EpubContentException` attesa → sezione saltata con `ER-EPUB-RECOVERY-CONTENT-001`;
+- `SectionId` usa sempre l'indice originale dello spine;
+- anchor per-sezione vengono committati solo dopo parsing completo.
 
-- UTF-8/UTF-16 strict;
-- control character XML proibiti rifiutati come `InvalidXhtml`;
-- budget Content preesistenti invariati.
+### Risorse locali
 
-### Validation
+`EpubPackageReader.Read(...)` pubblico resta strict. È stato aggiunto un percorso interno recovery-aware usato solo dalla facade di validation.
 
-`EpubPublicationValidator.Validate(EpubContainer)` cattura `EpubContainerException` anche se emerge durante Protection/Package/Navigation/Content e la proietta come diagnostica Container `Invalid`. Non viene aggiunto un catch-all.
+Dopo la costruzione del `Book`:
 
-## Architettura
+- immagine referenziata ma assente → `ER-EPUB-RECOVERY-RESOURCE-001`, severity EPUB `Error` → reader-wide `RecoverableError`;
+- risorsa locale opzionale assente → `ER-EPUB-RECOVERY-RESOURCE-002`, `Warning`;
+- risorse spine/navigation non ricevono diagnostiche duplicate.
 
-M3.9 resta confinata a `EbookReader.Epub` per ZIP, path e URI. Domain/Application/Layout non conoscono `ZipArchive`, compression ratio o policy OCF. La tassonomia M3.8 resta format-neutral nell'Application layer e il bridge resta nel CLI.
+### UX diagnostica
 
-ADR: `docs/adr/0053-defensive-epub-input-stays-virtual-and-bounded.md`.
+`ReaderDiagnosticTextWriter` aggiunge:
 
-## Validazione
+```text
+[READABLE_DEGRADED] Il libro è leggibile, ma una o più parti non sono disponibili.
+```
 
-Eseguire da estrazione pulita:
+quando esiste almeno un `RecoverableError`, e:
+
+```text
+[READABLE_WITH_WARNINGS] Il libro è leggibile con avvisi non bloccanti.
+```
+
+quando esistono warning ma nessun errore recoverable.
+
+`DOCUMENT_UNREADABLE` resta invariato per i documenti irreversibilmente rifiutati.
+
+## Security invariants preservati
+
+M3.10 non modifica i limiti M3.9:
+
+- 100.000 ZIP entry;
+- 256 MiB decompressi per entry;
+- 2 GiB cumulativi dichiarati;
+- ratio guard 500:1 sopra 16 MiB;
+- symlink/special ZIP entries rifiutati;
+- path traversal/drive/schema rifiutati;
+- remote manifest solo http/https e nessun fetch;
+- fallback OPF max 64;
+- XHTML UTF-8/UTF-16 strict;
+- nessun catch-all di eccezioni runtime arbitrarie.
+
+## Gate
+
+Windows:
 
 ```bat
 .\validate.cmd
 ```
 
-Gate atteso:
+Linux/macOS:
 
-```text
-M3.9 HOTFIX 1 VALIDATION PASSED
+```sh
+./validate.sh
 ```
 
-Conteggio statico atteso: 473 Fact + 5 Theory + 19 InlineData = 492 casi.
+Esito atteso:
 
-## Prossimo punto dopo validazione
+```text
+M3.10 HOTFIX 2 VALIDATION PASSED
+```
 
-**M3.10 — EPUB Recovery & Degraded Reading**.
+Il gate ha 13 step e include il nuovo `test-books/m3.10-recovery-smoke.epub` con navigation dichiarata ma mancante.
 
-M3.10 deve definire una matrice esplicita problema → recovery/esito (risorsa opzionale mancante, immagine corrotta, TOC assente, capitolo problematico, ecc.) senza indebolire i guardrail M3.9 e senza guessing silenzioso. Lo stato persistente valido deve essere aggiornato solo dopo un'apertura/operazione riuscita secondo il contratto definito.
+Conteggio statico candidate:
+
+```text
+485 Fact
+5 Theory
+19 InlineData
+504 casi attesi
+```
+
+## File principali M3.10
+
+Produzione:
+
+- `src/EbookReader.Epub/Package/EpubPackageReader.cs`
+- `src/EbookReader.Epub/Content/EpubBookReader.cs`
+- `src/EbookReader.Epub/Content/EpubBookRecoveryResult.cs`
+- `src/EbookReader.Epub/Validation/EpubPublicationValidator.cs`
+- `src/EbookReader.Epub/Validation/EpubDiagnosticCodes.cs`
+- `src/EbookReader.Cli/Diagnostics/ReaderDiagnosticTextWriter.cs`
+- `src/EbookReader.Cli/CliEntryPoint.cs`
+
+Test/gate:
+
+- `tests/EbookReader.Epub.Tests/Validation/EpubPublicationValidatorTests.cs`
+- `tests/EbookReader.Epub.Tests/Validation/ValidationFixtureFactory.cs`
+- `tests/EbookReader.Cli.Tests/FirstReadableEpubTests.cs`
+- `tests/EbookReader.Cli.Tests/FoundationSmokeTests.cs`
+- `test-books/m3.10-recovery-smoke.epub`
+- `validate.cmd`
+- `validate.sh`
+
+Decisione architetturale:
+
+- `docs/adr/0054-degraded-reading-recovers-only-deterministic-nonessential-failures.md`
+
+## Prossimo punto dopo il gate
+
+**M3.11 — Link Integrity & Navigation Security**.
+
+Obiettivo: rendere granulari i failure di hyperlink/anchor/noteref senza spostare `ReadingLocation` o back-stack in caso di target non valido; consolidare la allow-list degli schemi esterni e impedire qualsiasi handoff di `file:`, script/shell o schemi sconosciuti.
+
+
+## M3.10 Hotfix 1
+
+Build-only analyzer alignment: `EpubPublicationValidator.AddContentRecoveryDiagnostics(...)` usa `nameof(issues)` nel costruttore `ArgumentOutOfRangeException`, eliminando CA2208. Contratti e comportamento M3.10 restano invariati.
+
+
+## Hotfix 2 analyzer alignment
+
+Test-only: eliminati i due xUnit2031 in `EpubPublicationValidatorTests` usando l’overload predicate di `Assert.Single`. Produzione e contratti M3.10 restano invariati.

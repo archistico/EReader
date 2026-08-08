@@ -1,7 +1,7 @@
 # EPUB Compatibility
 
-**Baseline autoritativa:** M3.8 Hotfix 1 VALIDATED.  
-**Candidate descritta:** M3.9 — Defensive EPUB Loading & Input Security.  
+**Baseline autoritativa:** M3.9 Hotfix 1 VALIDATED.  
+**Candidate descritta:** M3.10 — EPUB Recovery & Degraded Reading.  
 **Scopo:** distinguere supporto reale, limitazioni intenzionali e hardening futuro.
 
 ## Classificazioni
@@ -26,7 +26,7 @@ PLANNED_HARDENING
 
 ## Formati
 
-| Funzione | Stato M3.9 | Note |
+| Funzione | Stato M3.10 | Note |
 |---|---|---|
 | EPUB 2 reflowable | `SUPPORTED` | pipeline OCF/OPF/NCX/XHTML |
 | EPUB 3 reflowable | `SUPPORTED` | nav XHTML + semantic content |
@@ -38,7 +38,7 @@ PLANNED_HARDENING
 
 ## Contenuto e presentazione
 
-| Funzione | Stato M3.9 | Note |
+| Funzione | Stato M3.10 | Note |
 |---|---|---|
 | Heading, paragraph, quote, pre, list | `SUPPORTED` | Domain semantico |
 | Emphasis/strong | `SUPPORTED` | stile semantico TUI |
@@ -54,7 +54,7 @@ PLANNED_HARDENING
 
 ## Navigazione e stato
 
-| Funzione | Stato M3.9 | Note |
+| Funzione | Stato M3.10 | Note |
 |---|---|---|
 | TOC EPUB 2 NCX | `SUPPORTED` | gerarchico |
 | EPUB 3 nav | `SUPPORTED` | TOC/page-list/landmarks nel modello intermedio |
@@ -63,21 +63,24 @@ PLANNED_HARDENING
 | Highlights/note personali | `SUPPORTED` | schema 4, coordinate UTF-16 logiche |
 | Back-stack hyperlink | `SUPPORTED` | transiente, bounded |
 | Pagina/riga persistita | `UNSUPPORTED` per design | geometria effimera |
+| Navigation/TOC assente con primary spine valido | `SUPPORTED_WITH_LIMITATIONS` | M3.10 apre il libro senza TOC e diagnostica degraded |
+| Spine supplementare `linear="no"` non leggibile | `SUPPORTED_WITH_LIMITATIONS` | M3.10 può saltarlo su expected Content failure |
+| Immagine locale referenziata ma assente | `SUPPORTED_WITH_LIMITATIONS` | placeholder/alt text + diagnostica recoverable |
 
 ## Robustezza corrente e futura
 
-La baseline M3.8 possiede già controlli bounded e security boundary importanti; la candidate M3.9 completa il defensive loading dell'input EPUB. Le milestone immediatamente successive non servono ad aggiungere un nuovo formato, ma a rendere **esplicito e testabile** il comportamento davanti a pubblicazioni degradate, rotte o ostili.
+La baseline M3.9 Hotfix 1 possiede i guardrail bounded/security validati; la candidate M3.10 aggiunge recovery deterministico dei failure non essenziali. Le milestone immediatamente successive non servono ad aggiungere un nuovo formato, ma a rendere **esplicito e testabile** il comportamento davanti a pubblicazioni degradate, rotte o ostili.
 
 ### M3.8–M3.13
 
 Già implementato/validato o in candidate:
 
 - M3.8: diagnostica uniforme reader-wide e distinzione `FatalDocumentError` / `InternalError`;
-- M3.9 candidate: budget ZIP, ratio guard, tipi entry speciali, path OCF difensivi, schemi manifest allow-listed, fallback bounded, decoding XHTML strict e classificazione della corruzione ZIP tardiva.
+- M3.9 validata: budget ZIP, ratio guard, tipi entry speciali, path OCF difensivi, schemi manifest allow-listed, fallback bounded, decoding XHTML strict e classificazione della corruzione ZIP tardiva;
+- M3.10 candidate: TOC degradabile, skip deterministico di spine `linear="no"`, risorse opzionali mancanti e immagini referenziate mancanti con diagnostica.
 
 `PLANNED_HARDENING` residuo:
 
-- M3.10 degraded reading controllato;
 - M3.11 link integrity completa;
 - M3.12 crash containment;
 - M3.13 corpus di EPUB corrotti con outcome attesi.

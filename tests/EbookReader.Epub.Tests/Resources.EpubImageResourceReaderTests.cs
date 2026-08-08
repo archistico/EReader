@@ -26,6 +26,71 @@ public sealed class EpubImageResourceReaderTests
         }
     }
 
+
+    [Fact]
+    public void ReadsPresentImageWhenUnrelatedOptionalManifestResourceIsMissing()
+    {
+        const string manifest = """
+        <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav" />
+        <item id="c1" href="Text/ch1.xhtml" media-type="application/xhtml+xml" />
+        <item id="cover" href="images/cover.jpg" media-type="image/jpeg" />
+        <item id="css" href="styles/missing.css" media-type="text/css" />
+        """;
+        (string Path, string Content)[] entries =
+        [
+            ("EPUB/nav.xhtml", "<html />"),
+            ("EPUB/Text/ch1.xhtml", "<html />"),
+            ("EPUB/images/cover.jpg", "image-present"),
+        ];
+        using MemoryStream epub = OpfFixtureFactory.CreateEpub3(
+            manifest: manifest,
+            spine: "<itemref idref=\"c1\" />",
+            additionalEntries: entries);
+        string path = WriteTemporaryEpub(epub);
+        try
+        {
+            EpubImageResource resource = EpubImageResourceReader.Read(path, new ResourceId("cover"));
+
+            Assert.Equal("image/jpeg", resource.MediaType);
+            Assert.Equal("image-present", Encoding.UTF8.GetString(resource.Data.Span));
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void MissingDeclaredImageProducesImageResourceNotFound()
+    {
+        const string manifest = """
+        <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav" />
+        <item id="c1" href="Text/ch1.xhtml" media-type="application/xhtml+xml" />
+        <item id="cover" href="images/cover.jpg" media-type="image/jpeg" />
+        """;
+        (string Path, string Content)[] entries =
+        [
+            ("EPUB/nav.xhtml", "<html />"),
+            ("EPUB/Text/ch1.xhtml", "<html />"),
+        ];
+        using MemoryStream epub = OpfFixtureFactory.CreateEpub3(
+            manifest: manifest,
+            spine: "<itemref idref=\"c1\" />",
+            additionalEntries: entries);
+        string path = WriteTemporaryEpub(epub);
+        try
+        {
+            EpubImageResourceException exception = Assert.Throws<EpubImageResourceException>(
+                () => EpubImageResourceReader.Read(path, new ResourceId("cover")));
+
+            Assert.Equal(EpubImageResourceErrorCode.ResourceNotFound, exception.ErrorCode);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     [Fact]
     public void RejectsManifestResourceThatIsNotAnImage()
     {

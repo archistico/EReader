@@ -21,7 +21,7 @@ namespace EbookReader.Cli;
 /// </summary>
 public static class CliEntryPoint
 {
-    public const string Milestone = "M3.9";
+    public const string Milestone = "M3.10";
     public const string Status = "CANDIDATE";
 
     private const int Success = 0;
@@ -569,7 +569,7 @@ public static class CliEntryPoint
         output.WriteLine("Semantic content: M0.6 AngleSharp XHTML to Domain available");
         output.WriteLine("Validation diagnostics: M0.7 stable ingestion result available");
         output.WriteLine("Diagnostics foundation: M3.8 application-wide severity + operation outcome validated");
-        output.WriteLine("EPUB input security: M3.9 defensive archive/path/URI/encoding guardrails candidate");
+        output.WriteLine("EPUB input security: M3.9 defensive archive/path/URI/encoding guardrails validated");
         output.WriteLine("Readable EPUB CLI: M1.0 non-paginated Domain projection available via --plain");
         output.WriteLine("Deterministic layout: M1.1 viewport, Unicode wrapping and visual pages validated");
         output.WriteLine("Logical navigation: M1.2 ReadingLocation-based line/page/chapter navigation validated");
@@ -590,11 +590,12 @@ public static class CliEntryPoint
         output.WriteLine("Hyperlinks: M3.5 logical internal navigation + transient back stack + explicit external OS handoff validated");
         output.WriteLine("Footnotes/endnotes: M3.6 EPUB noteref mapped to format-neutral note-reference UX validated");
         output.WriteLine("Annotations: M3.7 logical highlight ranges + personal notes in state schema 4 validated");
+        output.WriteLine("EPUB recovery: M3.10 deterministic degraded reading for navigation, optional resources and supplementary spine candidate");
     }
 
     private static void WriteHelp(TextWriter output)
     {
-        output.WriteLine("EReader — M3.9 Defensive EPUB Loading & Input Security");
+        output.WriteLine("EReader — M3.10 EPUB Recovery & Degraded Reading");
         output.WriteLine();
         output.WriteLine("Uso:");
         output.WriteLine("  ereader <libro.epub>          apre il reader fullscreen");

@@ -19,6 +19,18 @@ internal static class ReaderDiagnosticTextWriter
             error.WriteLine(diagnostic.Message);
         }
 
+        if (summary.Status == ReaderOperationStatus.SuccessWithDiagnostics &&
+            summary.Diagnostics.Any(diagnostic => diagnostic.Severity == ReaderDiagnosticSeverity.RecoverableError))
+        {
+            error.WriteLine("[READABLE_DEGRADED] Il libro è leggibile, ma una o più parti non sono disponibili.");
+            error.WriteLine("EReader continua usando solo contenuto verificato; non cerca sostituti fuori dall'EPUB e non modifica il file originale.");
+        }
+        else if (summary.Status == ReaderOperationStatus.SuccessWithDiagnostics &&
+                 summary.Diagnostics.Any(diagnostic => diagnostic.Severity == ReaderDiagnosticSeverity.Warning))
+        {
+            error.WriteLine("[READABLE_WITH_WARNINGS] Il libro è leggibile con avvisi non bloccanti.");
+        }
+
         if (summary.Status == ReaderOperationStatus.DocumentUnreadable)
         {
             error.WriteLine("[DOCUMENT_UNREADABLE] Impossibile aprire il libro in modo affidabile.");

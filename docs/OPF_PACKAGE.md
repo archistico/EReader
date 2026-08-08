@@ -115,3 +115,7 @@ https:
 La presenza di una risorsa remota nel manifest **non autorizza alcun download**. `file:`, `data:`, `javascript:`, `ftp:` e schemi non previsti vengono rifiutati durante il parsing OPF.
 
 Le catene `fallback` continuano a essere validate contro riferimenti mancanti e cicli, e sono ora limitate a **64 passaggi**. Una catena più profonda produce `FallbackDepthExceeded` prima che possa generare lavoro non bounded.
+
+## M3.10 — Lettura strict e lettura di recovery
+
+Il contratto pubblico di `EpubPackageReader.Read` resta strict e continua a richiedere che le risorse locali dichiarate siano presenti. Il validator usa internamente `ReadForRecovery` per poter classificare una risorsa mancante in base al ruolo effettivo: reading order primario, spine supplementare, navigation, immagine referenziata o risorsa opzionale. Questa apertura non rende permissivo l'OPF: id, spine, fallback, URI e tutti i guardrail M3.9 restano validati prima del recovery.

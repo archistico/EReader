@@ -1,7 +1,7 @@
 # EPUB Failure Model
 
-**Stato:** foundation M3.8 validata; hardening input M3.9 candidate; recovery/containment M3.10–M3.13 pianificati.  
-**Baseline:** M3.8 Hotfix 1 VALIDATED; M3.9 Defensive EPUB Input Security è la candidate corrente.
+**Stato:** foundation M3.8 validata; hardening input M3.9 Hotfix 1 validato; recovery M3.10 candidate; M3.11–M3.13 pianificati.  
+**Baseline:** M3.9 Hotfix 1 VALIDATED; M3.10 EPUB Recovery & Degraded Reading è la candidate corrente.
 
 ## Obiettivo
 
@@ -122,3 +122,14 @@ Se due interpretazioni differenti sono entrambe plausibili e cambierebbero l'ord
 M0.7 classifica l'ingestione in `Valid`, `Invalid`, `Unsupported`. M3.8 preserva questo contratto e costruisce sopra di esso `ReaderDiagnostic` / `ReaderOperationSummary` nell’Application layer; il bridge EPUB resta nel CLI/composition root.
 
 Vedi [`VALIDATION_DIAGNOSTICS.md`](VALIDATION_DIAGNOSTICS.md) e [`DIAGNOSTICS.md`](DIAGNOSTICS.md).
+
+
+## Regole rese eseguibili in M3.10
+
+- navigation assente/non utilizzabile + primary content valido → `Valid` con recovery diagnostic e TOC vuoto;
+- primary spine failure → `Invalid`;
+- supplementary `linear="no"` + expected content failure → skip con recovery diagnostic;
+- immagine referenziata ma assente → `Valid` + `RecoverableError`;
+- altra risorsa locale non essenziale assente → `Valid` + `Warning`;
+- Container corruption/security continua a prevalere sulla recovery;
+- nessun catch-all converte un bug EReader in errore documento.

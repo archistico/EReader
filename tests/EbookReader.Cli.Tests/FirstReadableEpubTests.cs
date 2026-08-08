@@ -99,6 +99,54 @@ public sealed class FirstReadableEpubTests
     }
 
     [Fact]
+    public void MissingNavigationStillRendersBookAndExplainsDegradedMode()
+    {
+        string path = CreateReadableEpub(omitNavigation: true);
+        try
+        {
+            using StringWriter output = new();
+            using StringWriter error = new();
+
+            int exitCode = CliEntryPoint.Run(["--plain", path], output, error);
+
+            Assert.Equal(0, exitCode);
+            Assert.Contains("Titolo CLI", output.ToString(), StringComparison.Ordinal);
+            Assert.Contains("[RECOVERABLE ER-EPUB-RECOVERY-NAVIGATION-001]", error.ToString(), StringComparison.Ordinal);
+            Assert.Contains("[READABLE_DEGRADED] Il libro è leggibile", error.ToString(), StringComparison.Ordinal);
+            Assert.DoesNotContain("[DOCUMENT_UNREADABLE]", error.ToString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+
+    [Fact]
+    public void MissingOptionalResourceRendersBookAndExplainsWarningMode()
+    {
+        string path = CreateReadableEpub(omitOptionalCss: true);
+        try
+        {
+            using StringWriter output = new();
+            using StringWriter error = new();
+
+            int exitCode = CliEntryPoint.Run(["--plain", path], output, error);
+
+            Assert.Equal(0, exitCode);
+            Assert.Contains("Titolo CLI", output.ToString(), StringComparison.Ordinal);
+            Assert.Contains("[WARNING ER-EPUB-RECOVERY-RESOURCE-002]", error.ToString(), StringComparison.Ordinal);
+            Assert.Contains("[READABLE_WITH_WARNINGS] Il libro è leggibile", error.ToString(), StringComparison.Ordinal);
+            Assert.DoesNotContain("[READABLE_DEGRADED]", error.ToString(), StringComparison.Ordinal);
+            Assert.DoesNotContain("[DOCUMENT_UNREADABLE]", error.ToString(), StringComparison.Ordinal);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
     public void UnknownOptionUsesUsageExitCode()
     {
         using StringWriter output = new();
@@ -123,7 +171,7 @@ public sealed class FirstReadableEpubTests
         Assert.Equal(string.Empty, error.ToString());
         Assert.Contains("ereader <libro.epub>", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("ereader --plain <libro.epub>", output.ToString(), StringComparison.Ordinal);
-        Assert.Contains("M3.9 Defensive EPUB Loading & Input Security", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("M3.10 EPUB Recovery & Degraded Reading", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("nella libreria: / cerca, Esc cancella filtro", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("ereader --resume", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("/              cerca nel testo logico", output.ToString(), StringComparison.Ordinal);
@@ -142,7 +190,10 @@ public sealed class FirstReadableEpubTests
         Assert.Contains("EREADER_CONFIG_FILE", output.ToString(), StringComparison.Ordinal);
     }
 
-    private static string CreateReadableEpub(bool encrypted = false)
+    private static string CreateReadableEpub(
+        bool encrypted = false,
+        bool omitNavigation = false,
+        bool omitOptionalCss = false)
     {
         string path = Path.Combine(Path.GetTempPath(), $"ereader-m10-{Guid.NewGuid():N}.epub");
 
@@ -180,6 +231,7 @@ public sealed class FirstReadableEpubTests
                 <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav" />
                 <item id="c1" href="Text/ch1.xhtml" media-type="application/xhtml+xml" />
                 <item id="img" href="images/pic.jpg" media-type="image/jpeg" />
+                <item id="css" href="styles/book.css" media-type="text/css" />
               </manifest>
               <spine>
                 <itemref idref="c1" />
@@ -188,19 +240,22 @@ public sealed class FirstReadableEpubTests
             """,
             CompressionLevel.Optimal);
 
-        AddTextEntry(
-            archive,
-            "EPUB/nav.xhtml",
-            """
-            <?xml version="1.0" encoding="UTF-8"?>
-            <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
-              <head><title>Indice</title></head>
-              <body>
-                <nav epub:type="toc"><ol><li><a href="Text/ch1.xhtml#start">Capitolo Uno</a></li></ol></nav>
-              </body>
-            </html>
-            """,
-            CompressionLevel.Optimal);
+        if (!omitNavigation)
+        {
+            AddTextEntry(
+                archive,
+                "EPUB/nav.xhtml",
+                """
+                <?xml version="1.0" encoding="UTF-8"?>
+                <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+                  <head><title>Indice</title></head>
+                  <body>
+                    <nav epub:type="toc"><ol><li><a href="Text/ch1.xhtml#start">Capitolo Uno</a></li></ol></nav>
+                  </body>
+                </html>
+                """,
+                CompressionLevel.Optimal);
+        }
 
         AddTextEntry(
             archive,
@@ -225,6 +280,11 @@ public sealed class FirstReadableEpubTests
             CompressionLevel.Optimal);
 
         AddTextEntry(archive, "EPUB/images/pic.jpg", "not-a-real-jpeg", CompressionLevel.Optimal);
+
+        if (!omitOptionalCss)
+        {
+            AddTextEntry(archive, "EPUB/styles/book.css", "body { margin: 0; }", CompressionLevel.Optimal);
+        }
 
         if (encrypted)
         {

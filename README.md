@@ -2,34 +2,33 @@
 
 Lettore EPUB da terminale scritto in C# per .NET 10.
 
-**Ultima baseline autoritativa validata:** M3.8 Hotfix 1 — Diagnostics Foundation & CA1859 Analyzer Alignment.  
-**Gate autoritativo:** `M3.8 HOTFIX 1 VALIDATION PASSED` (08/08/2026).  
-**Candidate corrente:** M3.9 Hotfix 1 — CA1859 Return-Type Analyzer Alignment.  
-**Gate candidate:** `M3.9 HOTFIX 1 VALIDATION PASSED`.
+**Ultima baseline autoritativa validata:** M3.9 Hotfix 1 — Defensive EPUB Input Security + CA1859 Return-Type Alignment.  
+**Gate autoritativo:** `M3.9 HOTFIX 1 VALIDATION PASSED` (08/08/2026).  
+**Candidate corrente:** M3.10 Hotfix 1 — EPUB Recovery & Degraded Reading.  
+**Gate candidate:** `M3.10 HOTFIX 2 VALIDATION PASSED`.
 
-### M3.9 Hotfix 1 — CA1859 Return-Type Analyzer Alignment
+### M3.10 — EPUB Recovery & Degraded Reading
 
-Correzione di compilazione senza variazioni funzionali: il metodo privato `EpubContainer.OpenValidatedEntry(...)` restituisce ora il tipo concreto `ValidatedZipEntryStream`, cioè l’unico tipo che il metodo costruisce. Questo soddisfa `CA1859` con analyzers-as-errors senza modificare API pubbliche, policy di sicurezza o comportamento M3.9.
-
-### M3.9 — Defensive EPUB Loading & Input Security
-
-M3.9 tratta esplicitamente ogni EPUB come input non attendibile e completa i guardrail già introdotti da M0.3–M0.7 senza cambiare Domain, `ReadingLocation`, layout o formati persistenti.
+M3.10 applica la policy di recovery documentata dopo M3.8/M3.9. Il principio resta: **un EPUB può essere illeggibile; EReader no**. Il recovery è consentito solo quando il reading order principale resta deterministico e nessun contenuto deve essere inventato.
 
 In questa candidate:
 
-- ogni entry ZIP file è soggetta a budget individuale e cumulativo sulla dimensione decompressa dichiarata;
-- entry grandi con rapporto di compressione oltre `500:1` vengono rifiutate a partire da 16 MiB decompressi;
-- le entry ZIP Unix di tipo speciale, inclusi i symlink, vengono rifiutate e nessuna entry viene estratta sul filesystem;
-- `ValidatedZipEntryStream` mantiene incoerenze/corruzioni di entry dentro il boundary EPUB e verifica la lunghezza dichiarata quando la entry viene letta fino a EOF;
-- path ZIP e riferimenti OCF con prefisso drive/schema nel primo segmento, anche percent-encoded, vengono rifiutati oltre ai traversal già coperti;
-- le risorse remote del manifest accettano soltanto `http`/`https`; `file:`, `data:`, `javascript:`, `ftp:` e schemi non previsti vengono rifiutati;
-- le fallback chain OPF sono limitate a profondità 64 oltre al preesistente cycle detection;
-- XHTML UTF-8/UTF-16 viene decodificato in modalità strict e i control character XML non ammessi diventano diagnostica Content attesa;
-- una corruzione ZIP scoperta durante Protection/Package/Navigation/Content diventa `Invalid` con diagnostica Container, non un'eccezione framework non classificata.
+- Navigation Document/NCX assente o non utilizzabile → il libro resta `Valid`, viene aperto con `TableOfContents.Empty` e una diagnostica recoverable esplicita;
+- failure Container di sicurezza/corruzione nella navigation restano `DocumentUnreadable`, salvo la semplice entry navigation mancante;
+- uno spine item `linear="no"` che produce una failure Content attesa può essere saltato senza rinumerare le sezioni successive;
+- uno spine item primary (`linear="yes"` o implicito) mancante/non leggibile resta irreversibile e rende il documento `Invalid`;
+- il parsing degli anchor di una sezione è transazionale: una sezione saltata non lascia anchor parziali;
+- il validator usa una lettura OPF recovery-aware per distinguere risorse essenziali da risorse locali opzionali assenti, mentre `EpubPackageReader.Read(...)` pubblico resta strict;
+- un'immagine referenziata ma assente mantiene testo/alt/placeholder e produce `RecoverableError`;
+- CSS, cover o altre risorse locali non essenziali assenti producono `Warning`;
+- nessuna risorsa viene cercata fuori dall'EPUB o scaricata dalla rete;
+- le diagnostiche provvisorie di recovery vengono emesse solo dopo la costruzione riuscita del `Book`, evitando messaggi contraddittori in caso di failure primaria successiva;
+- la CLI rende espliciti gli esiti `READABLE_DEGRADED` e `READABLE_WITH_WARNINGS`;
+- nessun catch-all per eccezioni interne EReader: il crash containment resta M3.12.
 
-M3.8 resta la foundation diagnostica validata; M3.9 non introduce ancora recovery/degraded reading né un catch-all per bug interni EReader. Questi restano rispettivamente M3.10 e M3.12.
+M3.9 Hotfix 1 è la baseline validata e mantiene tutti i guardrail ZIP/OCF, path, URI, fallback e decoding strict. M3.10 non li indebolisce.
 
-Dettagli: [`docs/EPUB_SECURITY_MODEL.md`](docs/EPUB_SECURITY_MODEL.md), [`docs/DIAGNOSTICS.md`](docs/DIAGNOSTICS.md).
+Dettagli: [`docs/EPUB_RECOVERY_POLICY.md`](docs/EPUB_RECOVERY_POLICY.md), [`docs/DIAGNOSTICS.md`](docs/DIAGNOSTICS.md), ADR [`0054`](docs/adr/0054-degraded-reading-recovers-only-deterministic-nonessential-failures.md).
 
 M3.5 rende azionabili gli hyperlink Domain: salti interni su `ReadingLocation`, Backspace su stack transiente e handoff esplicito di `http`/`https`/`mailto` al sistema operativo, senza network client o browser embedded.
 
@@ -255,14 +254,14 @@ validate.cmd
 ./validate.sh
 ```
 
-Il gate M3.9 esegue **12 step**: restore, build Release, suite completa, smoke CLI help/version/foundation-info, smoke `--plain` sui libri M1.0/M3.4/M3.5/M3.6, history e config. Nessuno smoke avvia viewer o browser esterni.
+Il gate M3.10 esegue **13 step**: restore, build Release, suite completa, smoke CLI help/version/foundation-info, smoke `--plain` sui libri M1.0/M3.4/M3.5/M3.6, smoke degradato M3.10, history e config. Nessuno smoke avvia viewer o browser esterni.
 
-La candidate M3.9 contiene staticamente **473 `[Fact]` + 5 `[Theory]` + 19 `[InlineData]`**, quindi sono attesi **492 casi**. Il conteggio autoritativo resta quello prodotto dal gate locale.
+La candidate M3.10 contiene staticamente **485 `[Fact]` + 5 `[Theory]` + 19 `[InlineData]`**, quindi sono attesi **504 casi**. Il conteggio autoritativo resta quello prodotto dal gate locale.
 
 Output atteso:
 
 ```text
-M3.9 HOTFIX 1 VALIDATION PASSED
+M3.10 HOTFIX 2 VALIDATION PASSED
 ```
 
 ## Documentazione
@@ -379,3 +378,13 @@ Documenti:
 - [`docs/EPUB_RECOVERY_POLICY.md`](docs/EPUB_RECOVERY_POLICY.md)
 - [`docs/EPUB_COMPATIBILITY.md`](docs/EPUB_COMPATIBILITY.md)
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)
+
+
+## M3.10 Hotfix 1 — CA2208 analyzer alignment
+
+Correzione build-only sopra M3.10: `AddContentRecoveryDiagnostics(...)` mantiene `ArgumentOutOfRangeException` ma usa `nameof(issues)` come `paramName`, coerente con CA2208. Nessuna modifica alla policy di recovery o all’API pubblica. Gate: `M3.10 HOTFIX 2 VALIDATION PASSED`.
+
+
+## M3.10 Hotfix 2 — xUnit2031 analyzer alignment
+
+Correzione test/analyzer-only sopra M3.10 Hotfix 1: i due test di recovery usano l’overload predicate di `Assert.Single(...)` invece del pattern `Where(...)+Assert.Single(...)`, eliminando xUnit2031. Nessuna modifica al codice produttivo, alla recovery policy o all’API pubblica. Gate: `M3.10 HOTFIX 2 VALIDATION PASSED`.

@@ -1,6 +1,6 @@
 # ADR-0053 — Defensive EPUB input stays virtual and bounded
 
-- **Status:** Accepted for M3.9 candidate
+- **Status:** Accepted
 - **Date:** 2026-08-08
 
 ## Context

@@ -19,7 +19,15 @@ public static class EpubPackageReader
     private static readonly XNamespace DcNamespace = DcNamespaceValue;
     private static readonly XNamespace XmlNamespace = XmlNamespaceValue;
 
-    public static EpubPackageDocument Read(EpubContainer container)
+    public static EpubPackageDocument Read(EpubContainer container) =>
+        ReadCore(container, requireLocalManifestResources: true);
+
+    internal static EpubPackageDocument ReadForRecovery(EpubContainer container) =>
+        ReadCore(container, requireLocalManifestResources: false);
+
+    private static EpubPackageDocument ReadCore(
+        EpubContainer container,
+        bool requireLocalManifestResources)
     {
         ArgumentNullException.ThrowIfNull(container);
 
@@ -41,7 +49,11 @@ public static class EpubPackageReader
             EpubPackageErrorCode.MissingUniqueIdentifierAttribute);
 
         EpubPackageMetadata metadata = ReadMetadata(package, version, uniqueIdentifierId);
-        List<EpubManifestItem> manifest = ReadManifest(container, package, packagePath);
+        List<EpubManifestItem> manifest = ReadManifest(
+            container,
+            package,
+            packagePath,
+            requireLocalManifestResources);
         ValidateManifestReferences(manifest);
         (List<EpubSpineItem> spine, string? tocId, string? pageProgressionDirection) =
             ReadSpine(package, manifest);
@@ -218,7 +230,8 @@ public static class EpubPackageReader
     private static List<EpubManifestItem> ReadManifest(
         EpubContainer container,
         XElement package,
-        OcfPath packagePath)
+        OcfPath packagePath,
+        bool requireLocalManifestResources)
     {
         XElement manifestElement = SingleChild(package, "manifest", EpubPackageErrorCode.MissingManifest);
         XElement[] itemElements = manifestElement.Elements(OpfNamespace + "item").ToArray();
@@ -265,7 +278,7 @@ public static class EpubPackageReader
                         "Il Package Document non può essere incluso nel proprio manifest.");
                 }
 
-                if (!container.Contains(localPath))
+                if (requireLocalManifestResources && !container.Contains(localPath))
                 {
                     throw Error(
                         EpubPackageErrorCode.ManifestResourceNotFound,

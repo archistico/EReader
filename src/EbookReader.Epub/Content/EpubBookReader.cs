@@ -43,9 +43,24 @@ public static class EpubBookReader
         EpubPackageDocument package,
         EpubNavigationDocument navigation)
     {
+        ArgumentNullException.ThrowIfNull(navigation);
+        return ReadCore(container, package, navigation, recoverSupplementaryContent: false).Book;
+    }
+
+    internal static EpubBookRecoveryResult ReadRecovering(
+        EpubContainer container,
+        EpubPackageDocument package,
+        EpubNavigationDocument? navigation) =>
+        ReadCore(container, package, navigation, recoverSupplementaryContent: true);
+
+    private static EpubBookRecoveryResult ReadCore(
+        EpubContainer container,
+        EpubPackageDocument package,
+        EpubNavigationDocument? navigation,
+        bool recoverSupplementaryContent)
+    {
         ArgumentNullException.ThrowIfNull(container);
         ArgumentNullException.ThrowIfNull(package);
-        ArgumentNullException.ThrowIfNull(navigation);
 
         Dictionary<string, EpubManifestItem> manifestById = package.Manifest.ToDictionary(item => item.Id, StringComparer.Ordinal);
         Dictionary<string, EpubManifestItem> manifestByPath = package.Manifest
@@ -55,47 +70,87 @@ public static class EpubBookReader
         Dictionary<string, ReadingLocation> anchors = new(StringComparer.Ordinal);
         Dictionary<string, SectionId> firstSectionByPath = new(StringComparer.Ordinal);
         List<SectionDraft> sectionDrafts = new(package.Spine.Count);
+        List<EpubContentRecoveryIssue> recoveryIssues = [];
 
         for (int index = 0; index < package.Spine.Count; index++)
         {
             EpubSpineItem spineItem = package.Spine[index];
-            EpubManifestItem contentItem = ResolveXhtmlSpineItem(spineItem, manifestById);
-            OcfPath sourcePath = contentItem.LocalPath
-                ?? throw Error(
-                    EpubContentErrorCode.MissingSpineContent,
-                    $"La risorsa spine '{contentItem.Id}' deve essere locale al contenitore EPUB.");
+            Dictionary<string, ReadingLocation> sectionAnchors = new(StringComparer.Ordinal);
 
-            if (!container.Contains(sourcePath))
+            try
             {
-                throw Error(
-                    EpubContentErrorCode.MissingSpineContent,
-                    $"Il Content Document '{sourcePath.Value}' non esiste nel contenitore EPUB.");
+                EpubManifestItem contentItem = ResolveXhtmlSpineItem(spineItem, manifestById);
+                OcfPath sourcePath = contentItem.LocalPath
+                    ?? throw Error(
+                        EpubContentErrorCode.MissingSpineContent,
+                        $"La risorsa spine '{contentItem.Id}' deve essere locale al contenitore EPUB.");
+
+                if (!container.Contains(sourcePath))
+                {
+                    throw Error(
+                        EpubContentErrorCode.MissingSpineContent,
+                        $"Il Content Document '{sourcePath.Value}' non esiste nel contenitore EPUB.");
+                }
+
+                SectionId sectionId = new($"spine-{index + 1:D6}-{spineItem.IdRef}");
+                SectionDraft section = ParseSection(
+                    container,
+                    sourcePath,
+                    sectionId,
+                    spineItem.IsLinear,
+                    manifestByPath,
+                    sectionAnchors);
+
+                if (sectionAnchors.Keys.Any(anchors.ContainsKey))
+                {
+                    throw Error(
+                        EpubContentErrorCode.DuplicateAnchor,
+                        $"Anchor duplicato rilevato durante la composizione del Content Document '{sourcePath.Value}'.");
+                }
+
+                foreach ((string key, ReadingLocation value) in sectionAnchors)
+                {
+                    anchors.Add(key, value);
+                }
+
+                sectionDrafts.Add(section);
+                firstSectionByPath.TryAdd(sourcePath.Value, sectionId);
             }
-
-            SectionId sectionId = new($"spine-{index + 1:D6}-{spineItem.IdRef}");
-            SectionDraft section = ParseSection(
-                container,
-                sourcePath,
-                sectionId,
-                spineItem.IsLinear,
-                manifestByPath,
-                anchors);
-
-            sectionDrafts.Add(section);
-            firstSectionByPath.TryAdd(sourcePath.Value, sectionId);
+            catch (EpubContentException exception) when (recoverSupplementaryContent && !spineItem.IsLinear)
+            {
+                recoveryIssues.Add(new EpubContentRecoveryIssue(
+                    EpubContentRecoveryKind.SupplementarySpineItemSkipped,
+                    $"Spine supplementare '{spineItem.IdRef}' ignorato: {exception.Message}"));
+            }
         }
 
         List<ReadingSection> readingOrder = ResolveSections(sectionDrafts, firstSectionByPath, anchors);
-        TableOfContents tableOfContents = BuildTableOfContents(navigation.TableOfContents.Items, firstSectionByPath, anchors);
+        TableOfContents tableOfContents = TableOfContents.Empty;
+        if (navigation is not null)
+        {
+            try
+            {
+                tableOfContents = BuildTableOfContents(navigation.TableOfContents.Items, firstSectionByPath, anchors);
+            }
+            catch (EpubContentException exception) when (recoverSupplementaryContent)
+            {
+                recoveryIssues.Add(new EpubContentRecoveryIssue(
+                    EpubContentRecoveryKind.TableOfContentsDropped,
+                    $"Indice di navigazione ignorato perché non risolvibile sul contenuto leggibile: {exception.Message}"));
+            }
+        }
+
         List<BookResource> resources = BuildResources(package.Manifest);
         BookMetadata metadata = BuildMetadata(package.Metadata);
 
-        return new Book(
+        Book book = new(
             new BookId(package.Metadata.UniqueIdentifier),
             metadata,
             readingOrder,
             tableOfContents,
             resources);
+
+        return new EpubBookRecoveryResult(book, recoveryIssues.ToArray());
     }
 
     private static SectionDraft ParseSection(

@@ -174,3 +174,7 @@ Prima del parsing AngleSharp, i Content Document restano soggetti al limite boun
 - caratteri di controllo XML sotto U+0020 diversi da TAB, LF e CR → `InvalidXhtml`.
 
 Il parser non esegue script, non effettua fetch di rete e non trasforma path XHTML in path filesystem host.
+
+## M3.10 — Reading order primario e supplementare
+
+Il contenuto `linear="yes"` resta autoritativo: se non può essere letto, il documento è irrecuperabile. Un item `linear="no"` che produce un failure di contenuto atteso può invece essere saltato, mantenendo gli identificatori delle sezioni basati sull'indice spine originale. Anchor e sezioni vengono committati solo dopo il parsing riuscito del singolo Content Document, così uno skip non lascia riferimenti parziali nel Domain.

@@ -99,3 +99,7 @@ No image bytes, temporary path, media viewer state or image layout coordinate is
 - `--plain` remains text-only and never starts another process.
 
 See ADR-0048.
+
+## M3.10 — Immagini mancanti e recovery
+
+M3.10 distingue la presenza logica nel manifest dalla disponibilità fisica nel contenitore. Se un'immagine referenziata dal testo è dichiarata nel manifest ma manca dal file EPUB, il libro resta leggibile: il Domain conserva l'`ImageBlock` e il renderer può mostrare placeholder/alt text, mentre la validazione emette `ER-EPUB-RECOVERY-RESOURCE-001`. La preview esplicita della risorsa restituisce invece `ResourceNotFound`. Una risorsa opzionale diversa e mancante non deve impedire l'apertura di un'immagine presente. Non viene effettuato alcun download o lookup esterno.

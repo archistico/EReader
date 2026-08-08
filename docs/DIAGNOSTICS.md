@@ -1,14 +1,14 @@
 # M3.8 — Diagnostics Foundation & Failure Taxonomy
 
-**Stato:** M3.8 Hotfix 1 VALIDATED; M3.9 usa questa foundation senza cambiarne il contratto.  
-**Baseline autoritativa corrente:** M3.8 Hotfix 1 VALIDATED.  
-**Gate validato:** `M3.8 HOTFIX 1 VALIDATION PASSED`.
+**Stato:** foundation M3.8 VALIDATED; M3.9 security VALIDATED; M3.10 recovery CANDIDATE.  
+**Baseline autoritativa corrente:** M3.9 Hotfix 1 VALIDATED.  
+**Gate baseline:** `M3.9 HOTFIX 1 VALIDATION PASSED`.
 
 ## Principio guida
 
 > Un EPUB può essere illeggibile. EReader no.
 
-M3.8, ora validata, introduce il linguaggio comune con cui i boundary EReader descrivono problemi e risultati. M3.8 non aggiungeva repair EPUB, nuovi limiti ZIP, recovery di capitoli o crash containment globale; la candidate M3.9 ora implementa il defensive input hardening, mentre recovery e containment restano M3.10–M3.13.
+M3.8 introduce il linguaggio comune con cui i boundary EReader descrivono problemi e risultati. M3.9 ha validato il defensive input hardening. La candidate M3.10 usa lo stesso contratto per rendere distinguibili libro leggibile con warning, libro leggibile degradato e documento irrecuperabile; crash containment globale resta M3.12.
 
 ## Contratto M0.7 preservato
 
@@ -152,3 +152,10 @@ Decisione autoritativa: [`adr/0052-reader-wide-diagnostics-stay-format-neutral.m
 - M3.11 — Link Integrity & Navigation Security
 - M3.12 — Crash Containment & Diagnostics UX
 - M3.13 — Corrupted EPUB Corpus & Reliability Gate
+
+
+## M3.10 — presentazione degraded
+
+Un `EpubValidationStatus.Valid` con diagnostica EPUB `Error` viene proiettato dal bridge M3.8 in `RecoverableError` e `SuccessWithDiagnostics`. La CLI aggiunge un riepilogo `READABLE_DEGRADED`. Un `Warning` senza recovery error produce `READABLE_WITH_WARNINGS`.
+
+Le diagnostiche navigation recuperabili vengono tenute provvisorie finché il `Book` non è costruito: se il primary content fallisce, non vengono mostrate promesse di continuazione contraddittorie.

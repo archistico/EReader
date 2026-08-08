@@ -18,7 +18,7 @@ public static class EpubImageResourceReader
         ArgumentNullException.ThrowIfNull(resourceId);
 
         using EpubContainer container = EpubContainer.Open(epubFilePath);
-        EpubPackageDocument package = EpubPackageReader.Read(container);
+        EpubPackageDocument package = EpubPackageReader.ReadForRecovery(container);
         EpubManifestItem? item = package.Manifest.SingleOrDefault(candidate =>
             string.Equals(candidate.Id, resourceId.Value, StringComparison.Ordinal));
 
@@ -39,6 +39,13 @@ public static class EpubImageResourceReader
             throw Error(
                 EpubImageResourceErrorCode.ResourceIsNotImage,
                 $"La risorsa '{resourceId}' non è dichiarata come immagine nel manifest EPUB.");
+        }
+
+        if (!container.Contains(localPath))
+        {
+            throw Error(
+                EpubImageResourceErrorCode.ResourceNotFound,
+                $"La risorsa immagine '{resourceId}' è dichiarata nel manifest ma manca dal contenitore EPUB.");
         }
 
         string extension = GetSafeRasterExtension(item.MediaType);

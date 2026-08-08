@@ -1,13 +1,16 @@
 # EPUB Recovery Policy
 
-**Stato:** policy target per M3.10, da rendere eseguibile e testata.  
-**Baseline:** M3.8 Hotfix 1 VALIDATED; M3.9 hardening input è candidate e M3.10 applicherà questa policy.
+**Stato:** M3.10 candidate — policy eseguibile e coperta da test.  
+**Baseline autoritativa:** M3.9 Hotfix 1 VALIDATED.  
+**Gate candidate:** `M3.10 HOTFIX 2 VALIDATION PASSED`.
 
 ## Principio
 
-EReader deve recuperare soltanto quando la continuazione è deterministica e non altera in modo ambiguo il significato del libro.
+EReader recupera soltanto quando la continuazione è deterministica e non altera in modo ambiguo il significato del libro.
 
-Ogni problema deve produrre uno dei seguenti esiti concettuali:
+> **Un EPUB può essere illeggibile. EReader no.**
+
+Gli esiti concettuali sono:
 
 ```text
 CONTINUE
@@ -17,35 +20,75 @@ REJECT_DOCUMENT
 INTERNAL_ERROR
 ```
 
-## Matrice iniziale
+La facade EPUB continua a esporre `Valid`, `Invalid`, `Unsupported`. Un `Valid` può contenere diagnostiche; il bridge M3.8 lo proietta in `SuccessWithDiagnostics` e usa `RecoverableError`/`Warning` per spiegare il degraded reading.
 
-| Condizione | Target | Recovery |
+## Matrice M3.10
+
+| Condizione | Esito M3.10 | Recovery |
 |---|---|---|
-| Cover assente | `CONTINUE_WITH_WARNING` o silenzioso se realmente opzionale | nessuna cover |
-| CSS assente/non supportato | `CONTINUE_WITH_WARNING` | testo semantico invariato |
-| Metadata opzionali assenti | `CONTINUE_WITH_WARNING` o `CONTINUE` | campi non disponibili |
-| TOC assente ma spine valido | `CONTINUE_DEGRADED` | lettura senza TOC |
-| Immagine locale assente | `CONTINUE_DEGRADED` | placeholder/alt text |
-| Immagine corrotta/non decodificabile | `CONTINUE_DEGRADED` | placeholder + diagnostica |
-| Risorsa remota non recuperata | `CONTINUE_DEGRADED` | placeholder; nessun fetch |
-| Link interno verso risorsa assente | `CONTINUE_WITH_WARNING` | posizione invariata |
-| Fragment/anchor inesistente | `CONTINUE_WITH_WARNING` | posizione invariata |
-| Rimando nota rotto | `CONTINUE_WITH_WARNING` | posizione e back-stack invariati |
-| Singolo Content Document malformato | da definire con test M3.10 | saltare solo se la policy dimostra che il libro resta leggibile senza guessing |
-| Spine item assente | da definire con test M3.10 | recovery solo se non rende ambiguo il reading order |
+| Metadata EPUB opzionali assenti | `CONTINUE` | nessuna diagnostica: l'assenza è valida |
+| Cover/CSS/altra risorsa locale non essenziale dichiarata ma assente | `CONTINUE_WITH_WARNING` | risorsa ignorata, nessuna ricerca esterna |
+| TOC/Nav EPUB3 assente | `CONTINUE_DEGRADED` | `TableOfContents.Empty` + diagnostica |
+| TOC/Nav EPUB3 non utilizzabile | `CONTINUE_DEGRADED` | `TableOfContents.Empty` + diagnostica |
+| NCX EPUB2 assente/non utilizzabile | `CONTINUE_DEGRADED` | `TableOfContents.Empty` + diagnostica |
+| Target TOC non risolvibile nel `Book` leggibile | `CONTINUE_DEGRADED` | TOC intero omesso; granularità per-link rimandata a M3.11 |
+| Immagine locale dichiarata e referenziata ma assente | `CONTINUE_DEGRADED` | `ImageBlock`/alt text preservati, preview non disponibile |
+| Risorsa remota `http/https` | `CONTINUE` | descrittore possibile, nessun fetch automatico |
+| Spine item `linear="no"` con `EpubContentException` attesa | `CONTINUE_DEGRADED` | sezione supplementare saltata, diagnostica |
+| Spine item primary mancante/non leggibile/non supportato | `REJECT_DOCUMENT` | nessuna |
+| Nessun contenuto primary leggibile | `REJECT_DOCUMENT` | nessuna |
 | `container.xml` inutilizzabile | `REJECT_DOCUMENT` | nessuna |
 | Package Document OPF assente/non determinabile | `REJECT_DOCUMENT` | nessuna |
-| Nessun elemento leggibile nello spine | `REJECT_DOCUMENT` | nessuna |
-| ZIP/OCF strutturalmente non utilizzabile | `REJECT_DOCUMENT` | nessuna |
-| Contenuto essenziale realmente cifrato/non supportato | `REJECT_DOCUMENT` / `Unsupported` | nessuna circumvention |
-| Violazione di sicurezza (traversal, path arbitrario, ecc.) | `REJECT_DOCUMENT` o risorsa rifiutata secondo il boundary | mai aggirare il guardrail |
-| Eccezione inattesa EReader | `INTERNAL_ERROR` | containment M3.12, non guessing |
+| ZIP/OCF con failure di sicurezza/corruzione | `REJECT_DOCUMENT` | nessuna |
+| Cifratura/DRM reale non supportata | `REJECT_DOCUMENT` / `Unsupported` | nessuna circumvention |
+| Violazione traversal/path/symlink/budget M3.9 | `REJECT_DOCUMENT` | mai aggirare il guardrail |
+| Eccezione inattesa EReader | non convertita da M3.10 | containment previsto in M3.12 |
 
-La tabella è deliberatamente prudente. M3.10 dovrà trasformare le righe ancora "da definire" in regole verificabili.
+## Navigation degradabile, non sintetica
+
+M3.10 considera la navigation un aid separato dal reading order. Se navigation XHTML/NCX non è disponibile o non può essere interpretata, il reader può continuare **solo dopo** che il contenuto principale ha prodotto un `Book` valido.
+
+La recovery non genera automaticamente un indice dallo spine. `TableOfContents.Empty` è preferito a un TOC inventato.
+
+Le failure `EpubContainerException` durante la navigation restano irreversibili quando indicano corruzione, feature ZIP non supportata o violazioni M3.9. Soltanto la semplice `EntryNotFound` della risorsa navigation viene trattata come navigation assente.
+
+## Spine primary e supplementare
+
+La distinzione è quella OPF già presente nel modello:
+
+- `linear="yes"` o attributo `linear` assente → **primary**;
+- `linear="no"` → **supplementary**.
+
+M3.10 può saltare un item supplementare soltanto per una `EpubContentException` attesa. Non cattura `EpubContainerException` di corruzione e non cattura eccezioni runtime arbitrarie.
+
+Gli `SectionId` continuano a usare l'indice originale dello spine (`spine-000001-...`, `spine-000002-...`): saltare una sezione non rinumera le successive.
+
+### Commit transazionale degli anchor
+
+Ogni Content Document viene parsato contro un dizionario locale di anchor. Gli anchor sono aggiunti alla vista globale solo quando l'intera sezione è stata parsata con successo. Una sezione supplementare scartata non può quindi lasciare target parziali.
+
+## Risorse mancanti
+
+`EpubPackageReader.Read(...)` pubblico conserva il contratto strict: una risorsa locale manifest mancante produce `ManifestResourceNotFound`.
+
+La facade `EpubPublicationValidator` usa invece una lettura OPF recovery-aware che differisce il controllo di esistenza delle risorse locali. Questo permette di classificare il ruolo della risorsa prima di decidere l'esito:
+
+- risorsa di navigation → policy navigation;
+- risorsa di spine → policy primary/supplementary;
+- immagine effettivamente referenziata dal `Book` → `RecoverableError`;
+- altra risorsa locale non essenziale → `Warning`.
+
+Nessuna risorsa mancante autorizza EReader a cercare file omonimi sul filesystem, ad attraversare directory o ad accedere alla rete.
+
+## Immagini
+
+Il Domain conserva l'`ImageBlock`, il `ResourceId`, l'alt text e la caption anche quando il file immagine dichiarato nel manifest è assente. Il rendering testuale resta quindi deterministico e può mostrare il placeholder già previsto da M3.4.
+
+M3.10 diagnostica l'assenza fisica della risorsa. La validazione del contenuto binario specifico del formato immagine non viene trasformata in un decoder grafico interno: l'anteprima esterna resta bounded e fallisce localmente se il viewer non può aprire la risorsa.
 
 ## Link: transazione logica
 
-Seguire un link interno deve essere trattato come una piccola transazione:
+La regola già documentata resta valida e verrà completata in M3.11:
 
 1. identificare il link;
 2. validare il target;
@@ -56,32 +99,28 @@ Se il target fallisce, origine e stack devono restare invariati.
 
 ## Apertura libro: commit tardivo
 
-L'apertura dovrebbe considerarsi completata soltanto quando esiste un `Book` utilizzabile e la sessione può essere inizializzata.
+Le diagnostiche di recovery navigation vengono mantenute provvisorie finché il contenuto non ha prodotto un `Book` leggibile. Se il primary content fallisce, non viene mostrato un messaggio contraddittorio del tipo "la lettura continua senza TOC": resta soltanto la diagnostica irreversibile.
 
-Prima del commit:
-
-- non sostituire lo stato dell'ultimo libro valido;
-- non creare annotazioni/bookmark impliciti;
-- non persistire posizioni parziali;
-- liberare risorse temporanee se l'apertura fallisce.
-
-## Risorse mancanti
-
-Una risorsa mancante non autorizza EReader a cercare alternative fuori dal package o su Internet. I fallback devono provenire esclusivamente dal contratto EPUB supportato o da placeholder locali del reader.
-
-## Capitoli problematici
-
-La policy definitiva M3.10 deve distinguere:
-
-- capitolo supplementare non utilizzabile;
-- capitolo primary non utilizzabile;
-- uno spine con altri capitoli validi;
-- uno spine che, dopo gli errori, non contiene più contenuto significativo.
-
-Il criterio non deve essere semplicemente "catch exception e continua". Deve essere deterministico e coperto dal corpus M3.13.
+La persistenza TUI continua ad avvenire soltanto dopo una sessione avviata su un `Book` valido. Un documento `Invalid`/`Unsupported` non entra nel percorso `ReadValidBook(...)` e non aggiorna lo stato di lettura.
 
 ## Persistenza
 
-Recovery e diagnostica sono indipendenti dalla geometria del terminale. Non devono introdurre pagina, riga o viewport in `state.json`.
+Recovery e diagnostica sono indipendenti dalla geometria del terminale. M3.10 non cambia:
 
-Le annotazioni M3.7 continuano a essere validate contro `BookId` e `ReadingLocation`; un libro rifiutato non deve causare migrazioni distruttive dello stato.
+- `ReadingLocation`;
+- state schema 4;
+- config schema 1;
+- bookmark;
+- highlight;
+- note personali.
+
+Le annotazioni M3.7 restano validate contro `BookId` e `ReadingLocation`.
+
+## Fuori scope M3.10
+
+Restano esplicitamente alle milestone successive:
+
+- recovery granulare dei singoli hyperlink/anchor rotti — M3.11;
+- crash containment di eccezioni interne inattese — M3.12;
+- corpus sistematico di EPUB corrotti con expected outcome — M3.13;
+- tuning performance su libri eccezionalmente grandi — M5.0.

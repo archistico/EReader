@@ -1184,6 +1184,33 @@ public sealed class ArchitectureContractTests
         Assert.DoesNotContain("ZipArchive", domainAndApplication, StringComparison.Ordinal);
     }
 
+
+    [Fact]
+    public void M310RecoveryStaysInsideEpubAdapterAndDoesNotMaskUnexpectedFailures()
+    {
+        string root = RepositoryRoot.Find();
+        string packageReader = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Epub", "Package", "EpubPackageReader.cs"));
+        string recoveryResult = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Epub", "Content", "EpubBookRecoveryResult.cs"));
+        string validator = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Epub", "Validation", "EpubPublicationValidator.cs"));
+        string domainAndApplication = string.Join(
+            Environment.NewLine,
+            Directory.EnumerateFiles(Path.Combine(root, "src", "EbookReader.Domain"), "*.cs", SearchOption.AllDirectories)
+                .Concat(Directory.EnumerateFiles(Path.Combine(root, "src", "EbookReader.Application"), "*.cs", SearchOption.AllDirectories))
+                .Select(File.ReadAllText));
+
+        Assert.Contains("internal static EpubPackageDocument ReadForRecovery", packageReader, StringComparison.Ordinal);
+        Assert.Contains("internal sealed class EpubBookRecoveryResult", recoveryResult, StringComparison.Ordinal);
+        Assert.Contains("EpubBookReader.ReadRecovering", validator, StringComparison.Ordinal);
+        Assert.Contains("NavigationUnavailable", validator, StringComparison.Ordinal);
+        Assert.Contains("MissingReferencedImage", validator, StringComparison.Ordinal);
+        Assert.DoesNotContain("catch (Exception", validator, StringComparison.Ordinal);
+        Assert.DoesNotContain("EpubBookRecoveryResult", domainAndApplication, StringComparison.Ordinal);
+        Assert.DoesNotContain("EpubContentRecoveryKind", domainAndApplication, StringComparison.Ordinal);
+    }
+
     private static bool ProjectReferencesAngleSharp(string projectFile)
     {
         XDocument document = XDocument.Load(projectFile);

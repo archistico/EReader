@@ -1,8 +1,8 @@
 # Roadmap
 
-**Baseline autoritativa corrente:** M3.8 Hotfix 1 VALIDATED (`M3.8 HOTFIX 1 VALIDATION PASSED`, 08/08/2026).  
-**Candidate corrente:** M3.9 — Defensive EPUB Loading & Input Security.  
-**Priorità immediata:** validare M3.9, poi M3.10–M3.13 reliability/recovery prima di M4.0.
+**Baseline autoritativa corrente:** M3.9 Hotfix 1 VALIDATED (`M3.9 HOTFIX 1 VALIDATION PASSED`, 08/08/2026).  
+**Candidate corrente:** M3.10 — EPUB Recovery & Degraded Reading.  
+**Priorità immediata:** validare M3.10, poi M3.11–M3.13 reliability/recovery prima di M4.0.
 
 Per impostazione predefinita ogni milestone si costruisce esclusivamente sulla più recente baseline validata. Se l’utente chiede esplicitamente di proseguire prima del gate, la catena viene marcata come **stacked candidate** e resta non autoritativa fino alla validazione cumulativa.
 
@@ -394,11 +394,11 @@ Obiettivo: estendere il contratto M0.7 dall'ingestione all'intero reader senza r
 
 Documenti guida: `DIAGNOSTICS.md` e `EPUB_FAILURE_MODEL.md`.
 
-### M3.9 — Defensive EPUB Loading & Input Security — CANDIDATE
+### M3.9 — Defensive EPUB Loading & Input Security — HOTFIX 1 VALIDATED
 
 Audit e hardening dell'EPUB come input non attendibile, senza recovery generale.
 
-Implementato nella candidate:
+Implementato e validato:
 
 - limiti Container: 100.000 entry archivio, 256 MiB decompressi per entry e 2 GiB cumulativi dichiarati;
 - compression-ratio guard: oltre `500:1` per entry da almeno 16 MiB decompressi;
@@ -412,22 +412,28 @@ Implementato nella candidate:
 - limiti XML già esistenti su container/OPF/navigation/protection preservati;
 - nessun catch-all di eccezioni interne EReader e nessun repair del documento.
 
-Documento guida: `EPUB_SECURITY_MODEL.md`. ADR: `0053-defensive-epub-input-stays-virtual-and-bounded.md`.
+Documento guida: `EPUB_SECURITY_MODEL.md`. ADR: `0053-defensive-epub-input-stays-virtual-and-bounded.md`. Hotfix 1 allinea `OpenValidatedEntry(...)` al tipo concreto `ValidatedZipEntryStream` richiesto da CA1859 senza cambiare comportamento.
 
-### M3.10 — EPUB Recovery & Degraded Reading — PLANNED
+### M3.10 — EPUB Recovery & Degraded Reading — CANDIDATE
 
-Definire una matrice problema → recovery/esito verificabile.
+Applicare una matrice problema → recovery/esito verificabile senza indebolire M3.9.
 
-- cover/CSS/metadata opzionali mancanti;
-- TOC assente con spine ancora leggibile;
-- immagini mancanti/corrotte → placeholder;
-- risorse remote → nessun fetch;
-- Content Document o spine item problematici: recovery solo quando non ambigua;
-- `container.xml`, OPF o reading order non determinabili → documento irrecuperabile;
-- nessun guessing silenzioso;
-- apertura con commit tardivo: lo stato valido precedente resta intatto fino a successo.
+Implementato nella candidate:
 
-Documento guida: `EPUB_RECOVERY_POLICY.md`.
+- Navigation Document/NCX assente o non utilizzabile → `Valid` + `TableOfContents.Empty` + diagnostica recoverable;
+- failure Container di sicurezza/corruzione durante la navigation restano fatali, salvo la semplice entry navigation mancante;
+- spine item `linear="no"` con failure Content attesa → skip deterministico e diagnostica recoverable;
+- spine item primary mancante/non leggibile → `Invalid`;
+- anchor di una sezione committati solo dopo parsing completo;
+- immagine referenziata ma assente → placeholder/alt text + `RecoverableError`;
+- CSS/cover/risorsa locale non essenziale assente → `Warning`;
+- parser OPF pubblico resta strict; la facade validator usa un percorso recovery-aware per classificare le risorse mancanti dopo il parsing;
+- diagnostiche di recovery committate solo se il `Book` finale è leggibile;
+- nessun fetch, nessun TOC sintetico, nessun guessing;
+- `container.xml`, OPF, primary reading order o guardrail M3.9 non recuperabili → documento irrecuperabile;
+- crash containment di eccezioni interne ancora escluso e riservato a M3.12.
+
+Documento guida: `EPUB_RECOVERY_POLICY.md`. ADR: `0054-degraded-reading-recovers-only-deterministic-nonessential-failures.md`.
 
 ### M3.11 — Link Integrity & Navigation Security — PLANNED
 
