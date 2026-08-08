@@ -1,131 +1,154 @@
-# Diagnostics — Reliability roadmap M3.8–M3.13
+# M3.8 — Diagnostics Foundation & Failure Taxonomy
 
-**Stato:** pianificato.  
+**Stato:** candidate.  
 **Baseline di partenza:** M3.7 Hotfix 1 VALIDATED.  
-**Contratto già esistente:** M0.7 `EpubPublicationValidator` con `Valid`, `Invalid`, `Unsupported` e codici diagnostici machine-readable.
+**Gate candidate:** `M3.8 HOTFIX 1 VALIDATION PASSED`.
 
 ## Principio guida
 
 > Un EPUB può essere illeggibile. EReader no.
 
-Un problema nel documento deve essere confinato al documento o alla risorsa interessata. Un EPUB realmente irrecuperabile può essere rifiutato, ma il processo EReader deve restare operativo, non deve corrompere lo stato persistente e deve comunicare in modo comprensibile cosa è successo.
+M3.8 introduce il linguaggio comune con cui i boundary EReader descrivono problemi e risultati. Non aggiunge ancora repair EPUB, nuovi limiti ZIP, recovery di capitoli o crash containment globale: questi aspetti restano M3.9–M3.13.
 
-Questa roadmap non sostituisce la diagnostica M0.7. La estende dal solo confine di ingestione all'intero ciclo di apertura, navigazione, rendering, risorse e recovery del reader.
+## Contratto M0.7 preservato
 
-## Tre livelli distinti
-
-### 1. Esito di ingestione EPUB — già implementato
+L'adapter EPUB continua a usare:
 
 ```text
-Valid
-Invalid
-Unsupported
+EpubValidationStatus
+  Valid
+  Invalid
+  Unsupported
 ```
 
-- `Valid`: il validator ha prodotto un `Book` format-neutral.
-- `Invalid`: la pubblicazione viola il contratto strutturale supportato.
-- `Unsupported`: la pubblicazione richiede una feature deliberatamente fuori scope, per esempio contenuto realmente cifrato.
+`EpubPublicationValidator` continua a non catturare errori runtime inattesi e non cambia le sue eccezioni/codici diagnostici validati.
 
-Dettagli: [`VALIDATION_DIAGNOSTICS.md`](VALIDATION_DIAGNOSTICS.md).
+## Tassonomia reader-wide M3.8
 
-### 2. Severità diagnostica — target M3.8
+Il nuovo namespace `EbookReader.Application.Diagnostics` è format-neutral e indipendente da EPUB, Layout e Terminal.Gui.
 
-La fase M3.8 dovrà rendere uniforme una tassonomia applicativa almeno equivalente a:
+### ReaderDiagnosticSeverity
 
 ```text
-Info
+Information
 Warning
 RecoverableError
 FatalDocumentError
 InternalError
 ```
 
-Questi nomi sono il contratto documentale di progetto; i nomi finali dei tipi C# verranno fissati durante M3.8.
+- `Information`: informazione utile, nessuna degradazione.
+- `Warning`: anomalia non bloccante.
+- `RecoverableError`: problema reale per cui è stata applicata una recovery deterministica.
+- `FatalDocumentError`: il documento non può proseguire in modo affidabile; non significa crash di EReader.
+- `InternalError`: guasto inatteso del reader, distinto dai difetti del documento.
 
-- `Info`: informazione utile, nessuna degradazione.
-- `Warning`: anomalia o feature ignorata; lettura possibile.
-- `RecoverableError`: una parte non può essere elaborata, ma EReader applica una recovery deterministica e continua.
-- `FatalDocumentError`: il libro non può essere aperto o continuato in modo affidabile.
-- `InternalError`: errore inatteso del reader; non deve essere mascherato come semplice errore EPUB.
-
-`FatalDocumentError` significa **fatale per quel documento**, non fatale per l'applicazione.
-
-### 3. Esito UX dell'operazione — target M3.8/M3.12
-
-L'utente deve poter distinguere almeno:
+### ReaderOperationStatus
 
 ```text
-SUCCESS
-SUCCESS_WITH_DIAGNOSTICS
-DOCUMENT_UNREADABLE
+Success
+SuccessWithDiagnostics
+DocumentUnreadable
+InternalFailure
 ```
 
-Un eventuale errore interno deve essere presentato separatamente come guasto EReader, con codice diagnostico e dettagli tecnici accessibili senza usare stack trace come messaggio principale.
+Invarianti implementate:
 
-## Contenuto minimo di una diagnostica
+- `Success` non contiene diagnostics;
+- `SuccessWithDiagnostics` richiede almeno una diagnostica e vieta fatal/internal errors;
+- `DocumentUnreadable` richiede almeno un `FatalDocumentError` e nessun `InternalError`;
+- `InternalFailure` richiede almeno un `InternalError`.
 
-La diagnostica futura dovrebbe poter descrivere:
+`CanContinue` è true soltanto per `Success` e `SuccessWithDiagnostics`.
 
-- codice stabile e machine-readable;
-- severità;
-- messaggio umano breve;
-- fase/componente di origine;
-- path virtuale OCF della risorsa, quando applicabile;
-- sezione/capitolo o target logico, quando applicabile;
-- eventuale azione di recovery eseguita;
-- dettagli tecnici separati dalla UX primaria.
+## ReaderDiagnostic
 
-Non devono essere persistite coordinate di layout come pagina, riga o viewport.
+Ogni diagnostica reader-wide contiene:
 
-## Esempi UX target
+- `Code`: codice stabile machine-readable senza whitespace;
+- `Severity`;
+- `Area` format-neutral;
+- `Message` umano;
+- `RecoveryAction` dichiarata;
+- `Resource` opzionale, come path virtuale o target logico;
+- `TechnicalDetails` opzionali separati dal messaggio principale.
 
-### Risorsa recuperabile
+Non contiene pagina, riga o viewport.
+
+### Aree
 
 ```text
-Immagine non disponibile
-
-La risorsa images/map.png non può essere letta.
-La lettura può continuare con il placeholder testuale.
-
-Codice diagnostico: EPUB-RESOURCE-...
+Publication
+Navigation
+Content
+Resource
+Persistence
+Configuration
+Reader
 ```
 
-### Documento irrecuperabile
+### Recovery action
 
 ```text
-Impossibile aprire il libro
-
-EReader non ha trovato un Package Document OPF utilizzabile e
-non può determinare in modo affidabile l'ordine di lettura.
-
-Il file EPUB non è stato modificato.
-Lo stato di lettura precedente è stato preservato.
-
-Codice diagnostico: EPUB-PACKAGE-...
+None
+Continue
+ContinueDegraded
+RejectDocument
+KeepCurrentLocation
+UseFallback
 ```
 
-## Regole
+M3.8 definisce il vocabolario; le milestone successive useranno progressivamente le recovery pertinenti.
 
-1. Non inventare una struttura del libro quando l'intento della pubblicazione è ambiguo.
-2. Un errore recuperabile deve dichiarare quale fallback è stato applicato.
-3. Un errore su link o risorsa non deve spostare implicitamente la `ReadingLocation`.
-4. Un'apertura fallita non deve sostituire uno stato valido già persistito.
-5. Gli errori inattesi del programma non devono essere riclassificati silenziosamente come EPUB non valido.
-6. I messaggi destinati all'utente devono essere comprensibili senza conoscere OCF/OPF/XHTML; i dettagli tecnici restano disponibili separatamente.
+## Bridge EPUB → diagnostics applicativa
 
-## Milestone collegate
+Il mapping vive in `EbookReader.Cli.Diagnostics.EpubReaderDiagnosticBridge` perché il CLI è il composition root autorizzato a conoscere sia `EbookReader.Epub` sia `EbookReader.Application`.
 
-- **M3.8** — Diagnostics Foundation & Failure Taxonomy
-- **M3.9** — Defensive EPUB Loading & Input Security
-- **M3.10** — EPUB Recovery & Degraded Reading
-- **M3.11** — Link Integrity & Navigation Security
-- **M3.12** — Crash Containment & Diagnostics UX
-- **M3.13** — Corrupted EPUB Corpus & Reliability Gate
+Mapping corrente:
 
-Vedi anche:
+```text
+Epub Valid, nessuna diagnostica  -> Success
+Epub Valid, con diagnostiche     -> SuccessWithDiagnostics
+Epub Invalid                     -> DocumentUnreadable
+Epub Unsupported                 -> DocumentUnreadable
+```
 
-- [`EPUB_FAILURE_MODEL.md`](EPUB_FAILURE_MODEL.md)
-- [`EPUB_SECURITY_MODEL.md`](EPUB_SECURITY_MODEL.md)
-- [`EPUB_RECOVERY_POLICY.md`](EPUB_RECOVERY_POLICY.md)
-- [`EPUB_COMPATIBILITY.md`](EPUB_COMPATIBILITY.md)
-- [`ROADMAP.md`](ROADMAP.md)
+Le categorie EPUB Container/Protection/Package vengono proiettate nell'area format-neutral `Publication`; Navigation e Content restano nelle omonime aree applicative.
+
+Gli `EpubDiagnosticSeverity.Error` associati a `Invalid` o `Unsupported` diventano `FatalDocumentError` con `RejectDocument`.
+
+## Output CLI M3.8
+
+Una diagnostica irreversibile viene ora etichettata chiaramente, per esempio:
+
+```text
+[DOCUMENT-UNREADABLE ER-EPUB-CONTAINER-...] <dettaglio specifico>
+[DOCUMENT_UNREADABLE] Impossibile aprire il libro in modo affidabile.
+EReader ha rifiutato questo documento; il file EPUB non è stato modificato e lo stato di lettura esistente non viene aggiornato.
+```
+
+Gli exit code M1.0 restano compatibili: Invalid e Unsupported continuano a essere distinti a livello CLI.
+
+## Cosa M3.8 non fa
+
+- nessun nuovo catch-all globale;
+- nessuna riclassificazione automatica delle eccezioni inattese come EPUB invalido;
+- nessun repair ZIP/OPF/XHTML;
+- nessuna recovery di risorse/capitoli;
+- nessuna verifica HTTP dei link;
+- nessuna modifica a `state.json` schema 4 o `config.json` schema 1;
+- nessuna modifica a ReadingLocation, layout o annotazioni.
+
+Questi punti sono distribuiti tra M3.9–M3.13.
+
+## ADR
+
+Decisione autoritativa: [`adr/0052-reader-wide-diagnostics-stay-format-neutral.md`](adr/0052-reader-wide-diagnostics-stay-format-neutral.md).
+
+## Milestone successive
+
+- M3.9 — Defensive EPUB Loading & Input Security
+- M3.10 — EPUB Recovery & Degraded Reading
+- M3.11 — Link Integrity & Navigation Security
+- M3.12 — Crash Containment & Diagnostics UX
+- M3.13 — Corrupted EPUB Corpus & Reliability Gate

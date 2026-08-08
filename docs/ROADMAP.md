@@ -1,7 +1,8 @@
 # Roadmap
 
 **Baseline autoritativa corrente:** M3.7 Hotfix 1 VALIDATED (`M3.7 HOTFIX 1 VALIDATION PASSED`, 08/08/2026).  
-**Priorità immediata:** M3.8–M3.13 reliability/diagnostics/input safety prima di M4.0.
+**Candidate corrente:** M3.8 Hotfix 1 — CA1859 Analyzer Alignment.  
+**Priorità immediata:** validare M3.8, poi M3.9–M3.13 reliability/input safety prima di M4.0.
 
 Per impostazione predefinita ogni milestone si costruisce esclusivamente sulla più recente baseline validata. Se l’utente chiede esplicitamente di proseguire prima del gate, la catena viene marcata come **stacked candidate** e resta non autoritativa fino alla validazione cumulativa.
 
@@ -375,19 +376,21 @@ Questa fase ha priorità rispetto alla libreria gestita M4.0. Il principio guida
 
 Un errore recuperabile deve degradare soltanto la risorsa o parte del libro interessata. Un errore irreversibile del documento può impedire l'apertura di quel libro, ma non deve corrompere lo stato né rendere inutilizzabile l'applicazione.
 
-### M3.8 — Diagnostics Foundation & Failure Taxonomy — PLANNED
+### M3.8 — Diagnostics Foundation & Failure Taxonomy — HOTFIX 1 CANDIDATE
 
 Obiettivo: estendere il contratto M0.7 dall'ingestione all'intero reader senza romperlo.
 
 - preservare `Valid` / `Invalid` / `Unsupported` come esito della facade EPUB;
-- introdurre una tassonomia uniforme equivalente a `Info`, `Warning`, `RecoverableError`, `FatalDocumentError`, `InternalError`;
+- introdurre `Information`, `Warning`, `RecoverableError`, `FatalDocumentError`, `InternalError` nell’Application layer;
 - codice diagnostico stabile e machine-readable;
 - messaggio umano separato dai dettagli tecnici;
 - origine/componente, path OCF/risorsa/target quando applicabili;
 - recovery dichiarata esplicitamente;
-- esiti UX distinguibili almeno come `SUCCESS`, `SUCCESS_WITH_DIAGNOSTICS`, `DOCUMENT_UNREADABLE`;
+- esiti applicativi `Success`, `SuccessWithDiagnostics`, `DocumentUnreadable`, `InternalFailure`;
 - nessuna pagina/riga/viewport nella diagnostica persistente;
-- nessun catch-all che trasformi bug EReader in EPUB non valido.
+- bridge EPUB → tassonomia reader-wide confinato al CLI/composition root;
+- nessun catch-all che trasformi bug EReader in EPUB non valido;
+- output CLI esplicito `DOCUMENT_UNREADABLE` per `Invalid`/`Unsupported`.
 
 Documenti guida: `DIAGNOSTICS.md` e `EPUB_FAILURE_MODEL.md`.
 

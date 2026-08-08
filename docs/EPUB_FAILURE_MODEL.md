@@ -1,6 +1,6 @@
 # EPUB Failure Model
 
-**Stato:** contratto documentale pianificato per M3.8–M3.13.  
+**Stato:** foundation M3.8 implementata; casi concreti/recovery estesi pianificati M3.9–M3.13.  
 **Baseline:** M3.7 Hotfix 1 VALIDATED.
 
 ## Obiettivo
@@ -17,7 +17,7 @@ L'obiettivo non è rendere valido qualunque EPUB. L'obiettivo è ottenere un com
 
 ## Classi di fallimento
 
-### Info
+### Information
 
 Evento utile per diagnosi ma senza impatto sulla lettura.
 
@@ -119,6 +119,6 @@ Se due interpretazioni differenti sono entrambe plausibili e cambierebbero l'ord
 
 ## Relazione con M0.7
 
-M0.7 classifica l'ingestione in `Valid`, `Invalid`, `Unsupported`. M3.8 non deve rompere questo contratto. Deve costruire sopra di esso una vista diagnostica coerente per l'intera applicazione.
+M0.7 classifica l'ingestione in `Valid`, `Invalid`, `Unsupported`. M3.8 preserva questo contratto e costruisce sopra di esso `ReaderDiagnostic` / `ReaderOperationSummary` nell’Application layer; il bridge EPUB resta nel CLI/composition root.
 
 Vedi [`VALIDATION_DIAGNOSTICS.md`](VALIDATION_DIAGNOSTICS.md) e [`DIAGNOSTICS.md`](DIAGNOSTICS.md).

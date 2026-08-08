@@ -66,7 +66,9 @@ public sealed class FirstReadableEpubTests
 
             Assert.Equal(3, exitCode);
             Assert.Equal(string.Empty, output.ToString());
-            Assert.Contains("ER-EPUB-CONTAINER-", error.ToString(), StringComparison.Ordinal);
+            Assert.Contains("[DOCUMENT-UNREADABLE ER-EPUB-CONTAINER-", error.ToString(), StringComparison.Ordinal);
+            Assert.Contains("[DOCUMENT_UNREADABLE] Impossibile aprire il libro in modo affidabile.", error.ToString(), StringComparison.Ordinal);
+            Assert.Contains("lo stato di lettura esistente non viene aggiornato", error.ToString(), StringComparison.Ordinal);
         }
         finally
         {
@@ -87,7 +89,8 @@ public sealed class FirstReadableEpubTests
 
             Assert.Equal(4, exitCode);
             Assert.Equal(string.Empty, output.ToString());
-            Assert.Contains("ER-EPUB-PROTECTION-UNSUPPORTED-001", error.ToString(), StringComparison.Ordinal);
+            Assert.Contains("[DOCUMENT-UNREADABLE ER-EPUB-PROTECTION-UNSUPPORTED-001]", error.ToString(), StringComparison.Ordinal);
+            Assert.Contains("[DOCUMENT_UNREADABLE] Impossibile aprire il libro in modo affidabile.", error.ToString(), StringComparison.Ordinal);
         }
         finally
         {
@@ -120,7 +123,7 @@ public sealed class FirstReadableEpubTests
         Assert.Equal(string.Empty, error.ToString());
         Assert.Contains("ereader <libro.epub>", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("ereader --plain <libro.epub>", output.ToString(), StringComparison.Ordinal);
-        Assert.Contains("M3.7 Highlights & Personal Notes", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("M3.8 Diagnostics Foundation & Failure Taxonomy", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("nella libreria: / cerca, Esc cancella filtro", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("ereader --resume", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("/              cerca nel testo logico", output.ToString(), StringComparison.Ordinal);

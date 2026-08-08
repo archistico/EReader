@@ -137,17 +137,19 @@ La CLI M1.0 scrive `Diagnostics` su stderr senza dipendere dagli enum e dalle ec
 
 Questi riferimenti descrivono il formato da riconoscere; non costituiscono una decisione di implementare decrittazione o DRM support.
 
-## Evoluzione pianificata dopo M3.7
+## Evoluzione M3.8 e roadmap successiva
 
-M0.7 resta il contratto autoritativo dell'**ingestione** (`Valid`, `Invalid`, `Unsupported`). Dopo la baseline M3.7 Hotfix 1, la roadmap M3.8–M3.13 estenderà la diagnostica all'intera esperienza reader senza rompere questo contratto.
+M0.7 resta il contratto autoritativo dell'**ingestione** (`Valid`, `Invalid`, `Unsupported`). M3.8 introduce la tassonomia reader-wide format-neutral senza rompere questo contratto; M3.9–M3.13 estenderanno i casi concreti di sicurezza, recovery e containment.
 
 La nuova documentazione distingue esplicitamente:
 
 - esito di ingestione EPUB;
 - severità della diagnostica;
 - recovery della risorsa/documento;
-- `FatalDocumentError`, cioè documento irrecuperabile ma applicazione ancora operativa;
-- `InternalError`, che non deve essere mascherato come EPUB non valido.
+- `FatalDocumentError`, cioè documento irrecuperabile ma non guasto interno;
+- `InternalError`, che non deve essere mascherato come EPUB non valido;
+- `ReaderOperationStatus` con `Success`, `SuccessWithDiagnostics`, `DocumentUnreadable`, `InternalFailure`;
+- bridge adapter-specific → reader-wide confinato al composition root CLI.
 
 Riferimenti:
 

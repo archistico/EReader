@@ -4,8 +4,18 @@ Lettore EPUB da terminale scritto in C# per .NET 10.
 
 **Ultima baseline autoritativa validata:** M3.7 Hotfix 1 — Highlights & Personal Notes + Compilation Integration.  
 **Gate autoritativo:** `M3.7 HOTFIX 1 VALIDATION PASSED` (08/08/2026).  
-**Revisione documentale corrente:** M3.7 Docs1 — consolidamento baseline + roadmap reliability/security M3.8–M3.13.  
-**Codice/runtime:** invariato rispetto alla baseline M3.7 Hotfix 1 validata.
+**Candidate corrente:** M3.8 Hotfix 1 — CA1859 Analyzer Alignment.  
+**Gate candidate:** `M3.8 HOTFIX 1 VALIDATION PASSED`.
+
+
+
+### M3.8 Hotfix 1 — CA1859 Analyzer Alignment
+
+Correzione di compilazione senza variazioni funzionali: il metodo privato `ReaderOperationSummary.Validate(...)` riceve ora direttamente `ReaderDiagnostic[]`, cioè il tipo concreto già materializzato dal costruttore. Questo soddisfa `CA1859` con analyzers-as-errors senza modificare l’API pubblica né la tassonomia diagnostica M3.8.
+
+M3.8 introduce una tassonomia diagnostica reader-wide format-neutral nell'Application layer: `Information`, `Warning`, `RecoverableError`, `FatalDocumentError`, `InternalError`; gli outcome sono `Success`, `SuccessWithDiagnostics`, `DocumentUnreadable`, `InternalFailure`. Il validator EPUB M0.7 resta invariato e viene adattato soltanto nel composition root CLI. Gli EPUB `Invalid`/`Unsupported` mostrano ora chiaramente `DOCUMENT_UNREADABLE` senza cambiare gli exit code esistenti.
+
+Dettagli: [`docs/DIAGNOSTICS.md`](docs/DIAGNOSTICS.md).
 
 M3.5 rende azionabili gli hyperlink Domain: salti interni su `ReadingLocation`, Backspace su stack transiente e handoff esplicito di `http`/`https`/`mailto` al sistema operativo, senza network client o browser embedded.
 

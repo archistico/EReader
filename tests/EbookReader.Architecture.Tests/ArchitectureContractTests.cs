@@ -1133,6 +1133,27 @@ public sealed class ArchitectureContractTests
         Assert.DoesNotContain("personalNote", preferences, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void M38DiagnosticsTaxonomyLivesInApplicationAndStaysFormatAndUiIndependent()
+    {
+        string root = RepositoryRoot.Find();
+        string diagnosticsDirectory = Path.Combine(root, "src", "EbookReader.Application", "Diagnostics");
+        string diagnostics = string.Join(
+            Environment.NewLine,
+            Directory.EnumerateFiles(diagnosticsDirectory, "*.cs", SearchOption.AllDirectories).Select(File.ReadAllText));
+        string bridge = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Cli", "Diagnostics", "EpubReaderDiagnosticBridge.cs"));
+
+        Assert.Contains("FatalDocumentError", diagnostics, StringComparison.Ordinal);
+        Assert.Contains("InternalError", diagnostics, StringComparison.Ordinal);
+        Assert.Contains("DocumentUnreadable", diagnostics, StringComparison.Ordinal);
+        Assert.DoesNotContain("EbookReader.Epub", diagnostics, StringComparison.Ordinal);
+        Assert.DoesNotContain("Terminal.Gui", diagnostics, StringComparison.Ordinal);
+        Assert.DoesNotContain("BookLayout", diagnostics, StringComparison.Ordinal);
+        Assert.Contains("EpubValidationStatus.Invalid => ReaderOperationStatus.DocumentUnreadable", bridge, StringComparison.Ordinal);
+        Assert.Contains("EpubValidationStatus.Unsupported => ReaderOperationStatus.DocumentUnreadable", bridge, StringComparison.Ordinal);
+    }
+
     private static bool ProjectReferencesAngleSharp(string projectFile)
     {
         XDocument document = XDocument.Load(projectFile);

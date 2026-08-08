@@ -2,9 +2,11 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Reflection;
 using EbookReader.Application.Annotations;
+using EbookReader.Application.Diagnostics;
 using EbookReader.Application.Library;
 using EbookReader.Application.State;
 using EbookReader.Cli.Configuration;
+using EbookReader.Cli.Diagnostics;
 using EbookReader.Cli.Reading;
 using EbookReader.Cli.State;
 using EbookReader.Cli.Tui;
@@ -19,7 +21,7 @@ namespace EbookReader.Cli;
 /// </summary>
 public static class CliEntryPoint
 {
-    public const string Milestone = "M3.7";
+    public const string Milestone = "M3.8";
     public const string Status = "CANDIDATE";
 
     private const int Success = 0;
@@ -230,7 +232,8 @@ public static class CliEntryPoint
             return IoFailure;
         }
 
-        WriteDiagnostics(result, error);
+        ReaderOperationSummary operation = EpubReaderDiagnosticBridge.Create(result);
+        ReaderDiagnosticTextWriter.Write(operation, error);
 
         return result.Status switch
         {
@@ -545,19 +548,6 @@ public static class CliEntryPoint
         }
     }
 
-    private static void WriteDiagnostics(EpubValidationResult result, TextWriter error)
-    {
-        foreach (EpubDiagnostic diagnostic in result.Diagnostics)
-        {
-            error.Write('[');
-            error.Write(diagnostic.Severity.ToString().ToUpperInvariant());
-            error.Write(' ');
-            error.Write(diagnostic.Code);
-            error.Write("] ");
-            error.WriteLine(diagnostic.Message);
-        }
-    }
-
     private static string GetProductVersion()
     {
         Assembly assembly = typeof(CliEntryPoint).Assembly;
@@ -578,6 +568,7 @@ public static class CliEntryPoint
         output.WriteLine("EPUB navigation: M0.5 NCX/nav.xhtml available");
         output.WriteLine("Semantic content: M0.6 AngleSharp XHTML to Domain available");
         output.WriteLine("Validation diagnostics: M0.7 stable ingestion result available");
+        output.WriteLine("Diagnostics foundation: M3.8 application-wide severity + operation outcome candidate");
         output.WriteLine("Readable EPUB CLI: M1.0 non-paginated Domain projection available via --plain");
         output.WriteLine("Deterministic layout: M1.1 viewport, Unicode wrapping and visual pages validated");
         output.WriteLine("Logical navigation: M1.2 ReadingLocation-based line/page/chapter navigation validated");
@@ -597,12 +588,12 @@ public static class CliEntryPoint
         output.WriteLine("Images: M3.4 bounded local raster preview through the system viewer validated");
         output.WriteLine("Hyperlinks: M3.5 logical internal navigation + transient back stack + explicit external OS handoff validated");
         output.WriteLine("Footnotes/endnotes: M3.6 EPUB noteref mapped to format-neutral note-reference UX validated");
-        output.WriteLine("Annotations: M3.7 logical highlight ranges + personal notes in state schema 4 candidate");
+        output.WriteLine("Annotations: M3.7 logical highlight ranges + personal notes in state schema 4 validated");
     }
 
     private static void WriteHelp(TextWriter output)
     {
-        output.WriteLine("EReader — M3.7 Highlights & Personal Notes");
+        output.WriteLine("EReader — M3.8 Diagnostics Foundation & Failure Taxonomy");
         output.WriteLine();
         output.WriteLine("Uso:");
         output.WriteLine("  ereader <libro.epub>          apre il reader fullscreen");

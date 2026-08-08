@@ -1,139 +1,119 @@
-# Project Handoff — EReader M3.7 Docs1 — Reliability & Security Roadmap
+# Project Handoff — EReader M3.8 Hotfix 1 CA1859 Analyzer Alignment Candidate
 
-## Baseline autoritativa
+## Baseline
 
-- Baseline validata: `EReader_M3.7_Hotfix1_CompilationIntegration_NET10_Candidate.zip`.
-- Gate: `M3.7 HOTFIX 1 VALIDATION PASSED`.
-- Validazione utente: 08/08/2026.
-- M3.7 include Highlights & Personal Notes con `state.json` schema 4.
-- M3.7 Hotfix 1 corregge i tre difetti di integrazione/compilazione del primo candidato M3.7 senza cambiare il contratto funzionale.
+- baseline funzionale validata: `EReader_M3.7_Hotfix1_CompilationIntegration_NET10_Candidate.zip`;
+- gate validato: `M3.7 HOTFIX 1 VALIDATION PASSED`;
+- data validazione: 08/08/2026;
+- documentazione consolidata: M3.7 Docs1 Reliability/Security Roadmap;
+- candidate corrente: M3.8 Hotfix 1 — CA1859 Analyzer Alignment.
 
-## Revisione Docs1
+## Hotfix 1 — motivo
 
-Questa revisione è **documentazione-only**. Non modifica:
+La prima candidate M3.8 ha fallito il build locale esclusivamente per `CA1859`: il metodo privato `ReaderOperationSummary.Validate(...)` dichiarava `IReadOnlyCollection<ReaderDiagnostic>` pur ricevendo sempre un `ReaderDiagnostic[]`. La Hotfix 1 usa il tipo concreto richiesto dall’analyzer; API pubblica e comportamento M3.8 restano invariati.
 
-- file sotto `src/`;
-- file sotto `tests/`;
-- fixture EPUB;
-- `Directory.Build.props` / versione assembly;
-- `CliEntryPoint.Milestone`;
-- `validate.cmd` / `validate.sh`;
-- schema `state.json` o `config.json`;
-- comportamento runtime.
+## Obiettivo M3.8
 
-Docs1 consolida lo stato validato e rende autoritativa la roadmap di robustezza da affrontare prima della libreria M4.0.
+Formalizzare una tassonomia reader-wide prima dell'hardening concreto M3.9–M3.13, preservando il validator EPUB M0.7 già validato.
 
-Documenti aggiunti:
+Principio:
 
-- `docs/DIAGNOSTICS.md`;
-- `docs/EPUB_FAILURE_MODEL.md`;
-- `docs/EPUB_SECURITY_MODEL.md`;
-- `docs/EPUB_RECOVERY_POLICY.md`;
-- `docs/EPUB_COMPATIBILITY.md`.
+> Un EPUB può essere illeggibile. EReader no.
 
-Documenti aggiornati:
+## Implementazione
 
-- `README.md`;
-- `docs/ROADMAP.md`;
-- `docs/ARCHITECTURE.md`;
-- `docs/VALIDATION_DIAGNOSTICS.md`;
-- `docs/PROJECT_HANDOFF.md`.
+Nuovo namespace `EbookReader.Application.Diagnostics`:
 
-## Principio guida della prossima fase
+- `ReaderDiagnosticSeverity`;
+- `ReaderDiagnosticArea`;
+- `ReaderRecoveryAction`;
+- `ReaderDiagnostic`;
+- `ReaderOperationStatus`;
+- `ReaderOperationSummary`.
 
-> **Un EPUB può essere illeggibile. EReader no.**
-
-Un errore recuperabile deve degradare soltanto la risorsa o parte del libro interessata. Un errore irreversibile del documento può impedire l'apertura di quel libro, ma EReader deve restare operativo, preservare lo stato valido precedente e spiegare chiaramente il motivo.
-
-## Roadmap immediata
-
-1. **M3.8 — Diagnostics Foundation & Failure Taxonomy**
-2. **M3.9 — Defensive EPUB Loading & Input Security**
-3. **M3.10 — EPUB Recovery & Degraded Reading**
-4. **M3.11 — Link Integrity & Navigation Security**
-5. **M3.12 — Crash Containment & Diagnostics UX**
-6. **M3.13 — Corrupted EPUB Corpus & Reliability Gate**
-7. **M4.0 — Managed Library**
-
-M3.8–M3.13 hanno priorità su M4.0.
-
-## Contratti da preservare
-
-### Ingestione M0.7
+Tassonomia:
 
 ```text
-EpubPublicationValidator
-  → Valid
-  → Invalid
-  → Unsupported
-```
-
-La nuova tassonomia non deve rompere questo contratto.
-
-### Stato logico
-
-- `ReadingLocation` resta l'unica coordinata autoritativa di lettura;
-- nessuna pagina/riga/viewport persistita;
-- bookmark, highlight e note restano book-scoped e logici;
-- un'apertura fallita non deve sostituire uno stato valido precedente.
-
-### Security boundary già presente
-
-- nessuna estrazione generale dell'EPUB;
-- path OCF normalizzati e traversal rifiutato;
-- DTD/XXE disabilitati ai boundary XML;
-- input Content bounded;
-- nessuna rete automatica;
-- nessun JavaScript;
-- nessuna decrittazione/circumvention DRM;
-- viewer/browser esterni solo dopo azione esplicita e secondo i contratti M3.4/M3.5.
-
-## Target M3.8
-
-M3.8 deve essere una milestone piccola e infrastrutturale. Deve definire un modello diagnostico uniforme, lasciando a M3.9–M3.13 i casi concreti di hardening e recovery.
-
-Tassonomia documentale target:
-
-```text
-Info
+Information
 Warning
 RecoverableError
 FatalDocumentError
 InternalError
 ```
 
-Esiti UX minimi target:
+Outcome:
 
 ```text
-SUCCESS
-SUCCESS_WITH_DIAGNOSTICS
-DOCUMENT_UNREADABLE
+Success
+SuccessWithDiagnostics
+DocumentUnreadable
+InternalFailure
 ```
 
-`FatalDocumentError` significa documento irrecuperabile; non autorizza il crash dell'applicazione. `InternalError` resta distinto dagli errori EPUB attesi per non nascondere bug.
+Il modello è format-neutral e non contiene tipi EPUB, Terminal.Gui, layout o coordinate di pagina/riga/viewport.
 
-## Validation baseline
+## Compatibilità M0.7
 
-Da estrazione pulita:
+`EpubPublicationValidator` e `EpubValidationResult` restano invariati.
+
+Il nuovo `EpubReaderDiagnosticBridge` vive nel CLI/composition root:
+
+```text
+Valid + 0 diagnostics -> Success
+Valid + diagnostics   -> SuccessWithDiagnostics
+Invalid               -> DocumentUnreadable
+Unsupported           -> DocumentUnreadable
+```
+
+`Invalid` e `Unsupported` mantengono i rispettivi exit code CLI 3 e 4.
+
+## UX minima introdotta
+
+Quando il validator rifiuta il documento, stderr contiene sia la diagnostica specifica sia un riepilogo esplicito:
+
+```text
+[DOCUMENT_UNREADABLE] Impossibile aprire il libro in modo affidabile.
+```
+
+Il messaggio dichiara inoltre che il file non viene modificato e che lo stato di lettura esistente non viene aggiornato.
+
+## Contratti preservati
+
+- Domain format-neutral;
+- Application senza dipendenza EPUB/UI/Layout;
+- `ReadingLocation` autoritativa e logica;
+- state schema 4;
+- config schema 1;
+- M3.5 hyperlink/back-stack;
+- M3.6 footnotes/endnotes;
+- M3.7 highlight/note;
+- M0.7 non cattura eccezioni runtime inattese.
+
+## ADR
+
+Nuovo ADR-0052: `reader-wide-diagnostics-stay-format-neutral`.
+
+## Gate atteso
 
 ```bat
 .\validate.cmd
 ```
 
-Gate baseline già validato:
+Successo:
 
 ```text
-M3.7 HOTFIX 1 VALIDATION PASSED
+M3.8 HOTFIX 1 VALIDATION PASSED
 ```
 
-Audit statico baseline:
+Conteggio statico atteso:
 
-- 454 `[Fact]`;
-- 4 `[Theory]`;
-- 16 `[InlineData]`;
-- 470 casi attesi;
-- 51 ADR numerati;
-- 12 step nel validation gate;
-- nessun `bin/`, `obj/`, `graphify-out/` nel package sorgente pulito.
+- 463 Fact;
+- 4 Theory;
+- 16 InlineData;
+- 479 casi complessivi.
 
-La Docs1 non richiede un nuovo gate funzionale perché non cambia codice o test; prima di usarla come base di sviluppo va comunque verificato che il package differisca dalla baseline soltanto nella documentazione dichiarata.
+## Prossimo punto dopo validazione
+
+**M3.9 — Defensive EPUB Loading & Input Security**.
+
+M3.9 deve partire esclusivamente dalla M3.8 validata e concentrarsi sui guardrail dell'EPUB come input non attendibile: archive structure, path, limiti, XML/XHTML safety, risorse e URI. Non deve ancora diventare una milestone di recovery generale; quella resta M3.10.

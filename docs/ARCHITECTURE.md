@@ -1,8 +1,8 @@
 # Architettura di EReader
 
-Stato: **M3.7 Hotfix 1 — Highlights & Personal Notes + Compilation Integration VALIDATED**  
+Stato: **M3.8 Hotfix 1 — Diagnostics Foundation & CA1859 Analyzer Alignment CANDIDATE**  
 Baseline autoritativa: **M3.7 Hotfix 1 — `M3.7 HOTFIX 1 VALIDATION PASSED` (08/08/2026)**  
-Revisione documentale: **M3.7 Docs1 — reliability/security roadmap, nessuna modifica runtime**  
+Base documentale: **M3.7 Docs1 — reliability/security roadmap**  
 Target: **.NET 10 / C# 14**
 
 ## 1. Obiettivo
@@ -88,7 +88,8 @@ Casi d'uso indipendenti dalla UI:
 - bookmark;
 - progresso logico stabile;
 - storia e stato;
-- impostazioni.
+- impostazioni;
+- diagnostica reader-wide format-neutral da M3.8.
 
 Dipende dal Domain, non dalla TUI. M2.0 aggiunge `ReadingStateSnapshot`, `ReadingStateRestore` e `JsonReadingStateStore`: la persistenza contiene soltanto coordinate logiche e usa JSON versionato con sostituzione atomica.
 
@@ -529,14 +530,15 @@ Gli hyperlink restano semantica Domain (`HyperlinkSpan` + `LinkTarget`) e vengon
 `EbookReader.Application.Annotations` possiede il modello logico di highlight/note e la policy di restore/replace. `EbookReader.Layout` non conosce annotazioni. Il CLI/TUI riceve i range già logici e applica soltanto la resa terminale. `state.json` schema 4 persiste annotazioni; `config.json` schema 1 resta separato.
 
 
-## Reliability boundary pianificato M3.8–M3.13
+## Reliability boundary M3.8–M3.13
 
 La prossima fase non modifica la separazione dei layer: estende i contratti di errore e recovery senza introdurre semantica EPUB nel Domain o coordinate di layout nella persistenza.
 
-Principi architetturali pianificati:
+M3.8 implementa la foundation; M3.9–M3.13 ne estendono sicurezza, recovery e containment. Principi architetturali:
 
 - `EpubPublicationValidator` conserva il contratto M0.7 `Valid` / `Invalid` / `Unsupported`;
-- la tassonomia reader-wide distingue warning, recovery, documento irrecuperabile e guasto interno;
+- `EbookReader.Application.Diagnostics` distingue information, warning, recovery, documento irrecuperabile e guasto interno senza dipendere da EPUB/UI/Layout;
+- il mapping da `EpubDiagnostic` vive nel CLI/composition root;
 - `FatalDocumentError` è fatale per il documento, non per il processo EReader;
 - la recovery resta nel boundary che possiede l'errore e non inventa path, contenuti o reading order;
 - `ReadingLocation` cambia solo dopo una navigazione completata con successo;
@@ -544,4 +546,4 @@ Principi architetturali pianificati:
 - nessuna rete automatica e nessun ampliamento dei privilegi filesystem;
 - il corpus M3.13 deve verificare comportamento, stato e containment, non soltanto il tipo di eccezione.
 
-Specifiche di pianificazione: `DIAGNOSTICS.md`, `EPUB_FAILURE_MODEL.md`, `EPUB_SECURITY_MODEL.md`, `EPUB_RECOVERY_POLICY.md`, `EPUB_COMPATIBILITY.md`.
+Specifiche della fase: `DIAGNOSTICS.md`, `EPUB_FAILURE_MODEL.md`, `EPUB_SECURITY_MODEL.md`, `EPUB_RECOVERY_POLICY.md`, `EPUB_COMPATIBILITY.md`.
