@@ -1,7 +1,7 @@
 # EPUB Failure Model
 
-**Stato:** foundation M3.8, hardening input M3.9 Hotfix 1 e recovery M3.10 Hotfix 2 VALIDATED; link integrity M3.11 CANDIDATE; M3.12–M3.13 pianificati.  
-**Baseline:** M3.10 Hotfix 2 VALIDATED; M3.11 Link Integrity & Navigation Security è la candidate corrente.
+**Stato:** M3.8–M3.11 VALIDATED; M3.12 e M3.13 CANDIDATE STACKED.  
+**Baseline:** M3.11 Hotfix 1 VALIDATED; M3.12 e M3.13 sono candidate stacked non ancora validate, con M3.13 corrente.
 
 ## Obiettivo
 
@@ -121,7 +121,7 @@ Se due interpretazioni differenti sono entrambe plausibili e cambierebbero l'ord
 
 M0.7 classifica l'ingestione in `Valid`, `Invalid`, `Unsupported`. M3.8 preserva questo contratto e costruisce sopra di esso `ReaderDiagnostic` / `ReaderOperationSummary` nell’Application layer; il bridge EPUB resta nel CLI/composition root.
 
-Vedi [`VALIDATION_DIAGNOSTICS.md`](VALIDATION_DIAGNOSTICS.md) e [`DIAGNOSTICS.md`](DIAGNOSTICS.md).
+Vedi [`DIAGNOSTICS.md`](DIAGNOSTICS.md) per la tassonomia reader-wide e i codici diagnostici.
 
 
 ## Regole rese eseguibili in M3.10
@@ -133,3 +133,19 @@ Vedi [`VALIDATION_DIAGNOSTICS.md`](VALIDATION_DIAGNOSTICS.md) e [`DIAGNOSTICS.md
 - altra risorsa locale non essenziale assente → `Valid` + `Warning`;
 - Container corruption/security continua a prevalere sulla recovery;
 - nessun catch-all converte un bug EReader in errore documento.
+
+
+## M3.12 — Containment degli InternalError
+
+M3.12 implementa il ramo `InternalError` senza alterare la classificazione EPUB. Il solo catch generale produttivo è nel composition root CLI. Una failure contenibile produce `ER-READER-INTERNAL-001`, `InternalFailure`, action `AbortOperation` ed exit code 6.
+
+Regole:
+
+- `InternalFailure` non può contenere `FatalDocumentError`;
+- il messaggio principale chiarisce che l'errore non dimostra che il file sia illeggibile;
+- lo stato già salvato resta il riferimento persistente;
+- `--diagnostics` espone i dettagli tecnici separatamente;
+- `OutOfMemoryException`, `StackOverflowException` e `AccessViolationException` non vengono trattate come normali failure recuperabili;
+- parser e validator EPUB restano privi di catch-all.
+
+Vedi [`CRASH_CONTAINMENT.md`](CRASH_CONTAINMENT.md).

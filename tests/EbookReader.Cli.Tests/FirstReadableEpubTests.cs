@@ -169,9 +169,9 @@ public sealed class FirstReadableEpubTests
 
         Assert.Equal(0, exitCode);
         Assert.Equal(string.Empty, error.ToString());
-        Assert.Contains("ereader <libro.epub>", output.ToString(), StringComparison.Ordinal);
-        Assert.Contains("ereader --plain <libro.epub>", output.ToString(), StringComparison.Ordinal);
-        Assert.Contains("M3.11 Link Integrity & Navigation Security", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("ereader [--diagnostics] <libro.epub>", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("ereader [--diagnostics] --plain <libro.epub>", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("M3.13 Corrupted EPUB Corpus & Reliability Gate", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("nella libreria: / cerca, Esc cancella filtro", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("ereader --resume", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("/              cerca nel testo logico", output.ToString(), StringComparison.Ordinal);
@@ -188,6 +188,7 @@ public sealed class FirstReadableEpubTests
         Assert.Contains("ereader --config-path", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("ereader --init-config", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("EREADER_CONFIG_FILE", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("exit code 6", output.ToString(), StringComparison.Ordinal);
     }
 
     private static string CreateReadableEpub(

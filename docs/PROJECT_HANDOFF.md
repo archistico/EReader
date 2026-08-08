@@ -1,116 +1,67 @@
-# Project Handoff — EReader M3.11 Hotfix 1 Navigation Invariant Alignment Candidate
+# Project Handoff — EReader M3.13 Corrupted EPUB Corpus & Reliability Gate Candidate
 
-## Baseline
+> **Hotfix 1 corrente:** allineamento analyzer `CA2201` nel solo test `ProcessCriticalFailureIsNotContainedAsOrdinaryInternalFailure`; runtime e corpus M3.13 restano invariati.
 
-- baseline autoritativa validata: **M3.10 Hotfix 2**;
-- gate baseline: `M3.10 HOTFIX 2 VALIDATION PASSED` (08/08/2026);
-- candidate corrente: **M3.11 Hotfix 1 — Navigation Invariant Alignment**;
-- gate candidate: `M3.11 HOTFIX 1 VALIDATION PASSED`.
+## Baseline e catena
 
-La candidate deve essere considerata non validata finché il gate locale non termina con la stringa sopra.
+- ultima baseline autoritativa validata: **M3.11 Hotfix 1**;
+- gate baseline: `M3.11 HOTFIX 1 VALIDATION PASSED` (08/08/2026);
+- dipendenza stacked non ancora validata: **M3.12 — Crash Containment & Diagnostics UX**;
+- candidate corrente: **M3.13 — Corrupted EPUB Corpus & Reliability Gate**;
+- gate cumulativo: `M3.13 HOTFIX 1 VALIDATION PASSED`.
 
-## Obiettivo
+La candidate M3.13 include integralmente M3.12. Non promuovere M3.12 o M3.13 a baseline autoritativa finché il gate locale non passa.
 
-M3.11 impedisce che link e target di navigazione difettosi rendano inutilizzabile un EPUB altrimenti leggibile. La recovery è granulare e non autorizza guessing, filesystem esterno o rete.
+## Obiettivo M3.13
 
-## Decisioni implementate
+Rendere riproducibili i contratti reliability/security M3.8–M3.12 usando file EPUB reali su disco e verificare che document failure previsti restino distinti dagli errori interni EReader.
 
-### Hyperlink interni
+## Revisione documentazione e tooling release
 
-Nel percorso `EpubBookReader.ReadRecovering(...)`:
+Dopo la preparazione della candidate M3.13 è stata applicata una revisione **docs/tooling-only** senza modifiche a `src/`, `tests/` o `test-books/`:
 
-- fragment inesistente;
-- target fuori dal reading order;
-- riferimento locale malformato;
-- traversal/percent-encoding che esce dalla root OCF;
+- README radice riscritto come guida semplice per installazione e uso;
+- nuovo indice `docs/README.md`;
+- nuovi script `clean.cmd|sh`;
+- nuovi script `publish-release.cmd|sh`, con gate obbligatorio e output self-contained `win-x64`/`linux-x64`;
+- nuovo `docs/RELEASE.md`;
+- eliminati documenti transitori/duplicati: `FIRST_READABLE_EPUB.md`, `READER_COLORS.md`, `VALIDATION_DIAGNOSTICS.md` e il vecchio report `docs/analysis/M1.1_GRAPHIFY_REPORT.md`.
 
-vengono convertiti in testo non azionabile + `EpubContentRecoveryKind.InternalHyperlinkDropped`. Il validator proietta l'issue in `ER-EPUB-RECOVERY-LINK-001` con severity EPUB `Error`, quindi `RecoverableError` reader-wide.
+Questa manutenzione non promuove M3.12 o M3.13: l'ultima baseline autoritativa validata resta M3.11 Hotfix 1 finché il gate cumulativo M3.13 non passa.
 
-Il parser pubblico strict conserva i contratti precedenti e continua a poter lanciare `EpubContentException` per gli stessi input.
+## Corpus
 
-### Note
+`test-books/reliability/` contiene 20 EPUB. `README.md` nella stessa cartella dichiara outcome e diagnostic code attesi. Il corpus copre validità, degraded reading, warning, corruption, unsupported encryption e input ZIP ostili/pathologici.
 
-`epub:type="noteref"` continua a essere `HyperlinkRole.NoteReference` quando il target è valido. Se il target è rotto, il testo viene preservato e la diagnostica usa il wording `Rimando nota`.
+`oversized-entry-metadata.epub` è volutamente compatto: dichiara nel metadata ZIP una entry >256 MiB senza distribuire un payload enorme. `compression-ratio-bomb.epub` contiene invece 17 MiB logici altamente comprimibili ed è circa pochi KiB sul disco.
 
-### TOC
+## Test principali
 
-M3.10 poteva omettere l'intero TOC se un target era irrisolvibile. M3.11 introduce `BuildTableOfContentsRecovering(...)`: ogni nodo viene risolto indipendentemente. Un target rotto produce `ER-EPUB-RECOVERY-NAVIGATION-003`; se la voce è foglia viene omessa per rispettare l’invariante Domain, mentre se contiene figli validi resta come grouping node `Target == null`. Un grouping che perde tutti i figli durante la recovery viene omesso, così il Domain non riceve mai un nodo senza target e senza figli. Target validi fratelli/figli restano navigabili.
+- `ReliabilityCorpusTests`: tutti i 20 file attraverso `EpubPublicationValidator`;
+- security fixture: confronto byte-before/after per assicurare che il sorgente non venga mutato;
+- `ReliabilityCorpusCliTests`: casi rappresentativi via `CliEntryPoint --plain`, con verifica che non appaia `INTERNAL_FAILURE`;
+- test M3.12 crash containment restano integralmente inclusi.
 
-### Link esterni
+## Invarianti
 
-`EbookReader.Domain.Content.ExternalLinkPolicy` centralizza la allow-list:
-
-```text
-http
-https
-mailto
-```
-
-`EpubBookReader` usa la policy prima di creare `ExternalLinkTarget`; `SystemExternalLinkService` la verifica nuovamente prima di `Process.Start`. Schemi non ammessi restano testo e, nel percorso recovery-aware, producono `ER-EPUB-SECURITY-LINK-001` Warning.
-
-Nessun URL viene verificato via rete.
-
-### Transazione ReaderSession
-
-`FollowCurrentInternalHyperlink()` verifica:
-
-1. esistenza del current internal hyperlink;
-2. target diverso dalla posizione corrente;
-3. appartenenza del target al `Book`;
-4. solo dopo la validazione esegue push origine + salto.
-
-Un self-link o un link non seguibile restituisce `false` senza cambiare posizione/back-stack.
-
-## File principali M3.11
-
-Produzione:
-
-- `src/EbookReader.Domain/Content/ExternalLinkPolicy.cs`;
-- `src/EbookReader.Epub/Content/EpubBookReader.cs`;
-- `src/EbookReader.Epub/Content/EpubBookRecoveryResult.cs`;
-- `src/EbookReader.Epub/Validation/EpubDiagnosticCodes.cs`;
-- `src/EbookReader.Epub/Validation/EpubPublicationValidator.cs`;
-- `src/EbookReader.Cli/Links/SystemExternalLinkService.cs`;
-- `src/EbookReader.Cli/Tui/ReaderSession.cs`;
-- `src/EbookReader.Cli/CliEntryPoint.cs`.
-
-Test principali:
-
-- `tests/EbookReader.Domain.Tests/Content/InlineContentTests.cs`;
-- `tests/EbookReader.Epub.Tests/Content/EpubBookReaderTests.cs`;
-- `tests/EbookReader.Epub.Tests/Validation/EpubPublicationValidatorTests.cs`;
-- `tests/EbookReader.Cli.Tests/ReaderSessionTests.cs`;
-- `tests/EbookReader.Architecture.Tests/ArchitectureContractTests.cs`.
-
-Fixture:
-
-- `test-books/m3.11-link-integrity-smoke.epub`.
-
-ADR:
-
-- `docs/adr/0055-broken-links-degrade-without-escaping-publication.md`.
-
-## Invarianti da preservare
-
-- Domain/Application/Layout non dipendono da `EbookReader.Epub`;
-- nessuna coordinata layout persistita;
-- `state.json` schema 4;
-- `config.json` schema 1;
-- back-stack runtime-only e bounded a 128;
+- M3.11 Hotfix 1 integralmente preservata;
+- unico catch generale produttivo resta il boundary M3.12;
+- parser/validator EPUB senza catch-all;
 - nessun fetch automatico;
 - nessuna estrazione generale dell'EPUB;
-- limiti M3.9 invariati;
-- primary reading order ancora necessario;
-- nessun catch-all di eccezioni interne prima di M3.12.
+- nessuna modifica al file EPUB sorgente;
+- state schema 4 e config schema 1 invariati;
+- exit 3/4 = document failure, exit 6 = internal failure contenibile.
 
 ## Gate
 
 ```text
-495 Fact
-7 Theory
-27 InlineData
-524 casi attesi
-14 step
+503 Fact
+10 Theory
+57 InlineData
+560 casi eseguibili attesi
+16 step
+20 EPUB nel corpus reliability
 ```
 
 Eseguire da estrazione pulita:
@@ -121,6 +72,4 @@ Eseguire da estrazione pulita:
 
 ## Prossimo punto dopo il gate
 
-**M3.12 — Crash Containment & Diagnostics UX**.
-
-Obiettivo: separare in modo visibile un `FatalDocumentError` da un guasto interno EReader, confinare il fallimento alla sessione/libro, preservare stato preesistente e mostrare dettagli tecnici separatamente senza trasformare eccezioni inattese in falsi errori EPUB.
+Con M3.8–M3.13 chiusi, la roadmap torna alle feature: **M4.0 — Managed Library**.

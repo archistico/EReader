@@ -1,390 +1,138 @@
 # EReader
 
-Lettore EPUB da terminale scritto in C# per .NET 10.
+EReader è un lettore di libri **EPUB 2/3 reflowable** pensato per il terminale. Offre una modalità fullscreen semplice, mantiene la posizione di lettura tra una sessione e l'altra e funziona senza convertire o modificare il file EPUB originale.
 
-**Ultima baseline autoritativa validata:** M3.10 Hotfix 2 — EPUB Recovery & Degraded Reading + analyzer alignment.  
-**Gate autoritativo:** `M3.10 HOTFIX 2 VALIDATION PASSED` (08/08/2026).  
-**Candidate corrente:** M3.11 Hotfix 1 — Navigation Invariant Alignment.  
-**Gate candidate:** `M3.11 HOTFIX 1 VALIDATION PASSED`.
+## Cosa offre
 
-### M3.11 — Link Integrity & Navigation Security
+- lettura fullscreen nel terminale;
+- indice interattivo e navigazione per capitoli;
+- ricerca nel testo;
+- bookmark persistenti;
+- evidenziazioni e note personali;
+- progresso di lettura stabile;
+- cronologia e libreria recente;
+- temi e tasti configurabili;
+- link interni, note EPUB e ritorno alla posizione precedente;
+- apertura esplicita di link esterni `http`, `https` e `mailto`;
+- anteprima di immagini raster locali;
+- diagnostica chiara per EPUB danneggiati, incompleti o non supportati;
+- protezioni contro path traversal, ZIP anomali e altre strutture EPUB ostili.
 
-M3.11 rende granulari i failure di hyperlink e TOC senza indebolire i guardrail M3.9/M3.10. Il principio operativo è: **un collegamento rotto non rende il libro illeggibile e non autorizza mai accessi fuori dal package**.
+EReader non supporta DRM, PDF, MOBI, AZW3 o FB2.
 
-In questa candidate:
+## Installazione
 
-- fragment/anchor interno inesistente → testo preservato, link reso non azionabile, diagnostica recoverable `ER-EPUB-RECOVERY-LINK-001`;
-- `epub:type="noteref"` rotto → stesso recovery, con messaggio specifico `Rimando nota`;
-- target locale verso risorsa non appartenente al reading order → testo preservato e link disattivato;
-- riferimento locale malformato, traversal o percent-encoding che tenta di uscire dalla root OCF → link disattivato, nessun accesso filesystem, diagnostica recoverable;
-- percent-encoding valido dei fragment continua a risolversi nello spazio logico degli anchor;
-- un target TOC irrisolvibile non elimina più l'intero indice: una voce foglia rotta viene omessa; una voce con figli validi resta come gruppo non navigabile (`Target == null`); gli altri target validi restano disponibili (`ER-EPUB-RECOVERY-NAVIGATION-003`);
-- la allow-list esterna è centralizzata in `ExternalLinkPolicy` e accetta esclusivamente `http`, `https`, `mailto`;
-- `file:`, `javascript:`, `data:`, `ftp:`, shell e schemi sconosciuti sono testo non azionabile e producono warning `ER-EPUB-SECURITY-LINK-001` nel percorso recovery-aware;
-- EReader non usa `HttpClient`, `WebRequest` o altri probe di rete per verificare URL;
-- `ReaderSession` verifica il target logico prima di mutare back-stack/`ReadingLocation`; self-link o link non seguibile non alterano lo stato;
-- il parser pubblico `EpubBookReader.Read(...)` resta strict per i contratti parser esistenti; la facade operativa `EpubPublicationValidator` usa il percorso recovery-aware;
-- nessun catch-all di eccezioni interne viene introdotto: crash containment resta M3.12.
+### Da una GitHub Release
 
-M3.10 Hotfix 2 è la baseline validata. M3.11 non modifica `state.json` schema 4, `config.json` schema 1, layout o persistenza.
+1. Scarica l'archivio adatto al tuo sistema:
+   - `EReader-<versione>-win-x64.zip` per Windows 64 bit;
+   - `EReader-<versione>-linux-x64.tar.gz` per Linux 64 bit.
+2. Estrai l'archivio in una cartella a tua scelta.
+3. Avvia EReader dal terminale.
 
-Dettagli: [`docs/HYPERLINKS.md`](docs/HYPERLINKS.md), [`docs/EPUB_SECURITY_MODEL.md`](docs/EPUB_SECURITY_MODEL.md), [`docs/EPUB_RECOVERY_POLICY.md`](docs/EPUB_RECOVERY_POLICY.md), ADR [`0055`](docs/adr/0055-broken-links-degrade-without-escaping-publication.md).
+Le release prodotte dagli script del progetto sono **self-contained**: non richiedono un'installazione separata di .NET.
 
-M3.5 rende azionabili gli hyperlink Domain: salti interni su `ReadingLocation`, Backspace su stack transiente e handoff esplicito di `http`/`https`/`mailto` al sistema operativo, senza network client o browser embedded.
+Windows:
 
-M3.5 Hotfix 1 corregge esclusivamente il fixture `test-books/m3.5-link-smoke.epub`: `nav.xhtml` e `ch1.xhtml` sono XHTML/XML senza DOCTYPE, coerenti con il parser sicuro EReader (`DtdProcessing.Prohibit`). Nessun file produttivo sotto `src/` cambia rispetto alla candidate M3.5 originale.
-
-## Scope autoritativo
-
-- EPUB 2 e EPUB 3 **reflowable**;
-- solo pubblicazioni **senza DRM/cifratura del contenuto**;
-- nessun PDF, MOBI, AZW3 o FB2;
-- Domain indipendente dal formato sorgente;
-- parser EPUB separato da Domain, application layer, layout e TUI;
-- Terminal.Gui 2.x confinato al CLI/TUI;
-- AngleSharp confinato all'adapter EPUB Content;
-- posizione logica indipendente dal layout;
-- ricerca sul contenuto logico prima del wrapping;
-- persistenza iniziale JSON;
-- ADR autoritativi.
-
-## Primo comando di lettura
-
-Da M1.3 il comando naturale apre il reader fullscreen:
-
-```text
-ereader libro.epub
+```bat
+ereader.exe "C:\Libri\libro.epub"
 ```
 
-Durante lo sviluppo:
+Linux:
+
+```sh
+./ereader "/home/utente/Libri/libro.epub"
+```
+
+Se Linux non conserva il bit eseguibile dopo l'estrazione:
+
+```sh
+chmod +x ereader
+```
+
+### Dal codice sorgente
+
+Per compilare il repository è richiesto il **.NET 10 SDK**.
 
 ```sh
 dotnet run --project src/EbookReader.Cli/EbookReader.Cli.csproj -- libro.epub
 ```
 
-La proiezione lineare M1.0 resta disponibile esplicitamente per pipe, smoke e diagnostica:
+## Uso principale
 
 ```text
-ereader --plain libro.epub
+ereader libro.epub            apre il reader fullscreen
+ereader --resume              riapre l'ultimo libro alla posizione salvata
+ereader --library             apre la libreria recente
+ereader --history             stampa la cronologia recente
+ereader --plain libro.epub    stampa il contenuto leggibile su stdout
+ereader --help                mostra tutti i comandi
 ```
 
-M2.0 aggiunge il resume dell'ultima sessione interattiva:
+Se EReader segnala un errore interno e servono dettagli tecnici:
 
 ```text
-ereader --resume
+ereader --diagnostics libro.epub
 ```
 
-Lo stato predefinito è `LocalApplicationData/EReader/state.json`; `EREADER_STATE_FILE` può sovrascriverne il percorso per test o uso portabile.
+Un errore interno di EReader viene distinto da un EPUB realmente illeggibile: il programma non attribuisce automaticamente al libro un problema che potrebbe invece essere del reader.
 
-La TUI usa il layout M1.1 e la navigazione logica M1.2. M1.4 aggiunge il reflow live. M2.0 salva e ripristina la stessa `ReadingLocation` logica tra esecuzioni.
+## Comandi durante la lettura
 
-Dettagli TUI: [`docs/READER_TUI.md`](docs/READER_TUI.md).
+| Tasto | Azione |
+|---|---|
+| `↑` / `↓` | riga precedente / successiva |
+| `PgUp` / `PgDn` | pagina precedente / successiva |
+| `Space` | pagina successiva |
+| `[` / `]` | capitolo precedente / successivo |
+| `g` / `G` | inizio / fine capitolo |
+| `t` o `Tab` | indice |
+| `/` | ricerca |
+| `n` / `N` | risultato successivo / precedente |
+| `b` | aggiunge o rimuove un bookmark |
+| `B` | elenco bookmark |
+| `m` | metadati |
+| `c` | cambia tema |
+| `Enter` | segue un link o una nota; altrimenti apre l'immagine corrente |
+| `Backspace` | torna indietro dopo un link interno |
+| `F2` | aggiunge/rimuove un'evidenziazione |
+| `F3` | aggiunge/modifica una nota personale |
+| `F4` | elenco annotazioni |
+| `F1` | aiuto |
+| `q` | esce e salva la posizione |
 
-Dettagli resize: [`docs/RESIZE_STABILITY.md`](docs/RESIZE_STABILITY.md).
+I tasti stampabili possono essere personalizzati; frecce, `PgUp/PgDn`, `Space`, `Tab`, `Enter`, `Backspace`, `Esc` e `F1-F4` restano sempre disponibili.
 
-Dettagli persistenza: [`docs/READING_STATE.md`](docs/READING_STATE.md).
+## Dove salva i dati
 
-M2.0 Hotfix 1 rende visibile lo scorrimento per singola riga; Hotfix 2 aggiunge i separatori TUI. Entrambe sono ora validate.
+EReader salva localmente posizione di lettura, bookmark, note, evidenziazioni, cronologia e preferenze. Non modifica il file EPUB.
 
-M2.1 aggiunge `t`/`Tab` per aprire un indice gerarchico interattivo; `↑/↓` o `j/k` selezionano e `Enter` salta alla `ReadingLocation` della voce. M2.1 è validata.
-
-M2.2 aggiunge `m` per aprire la vista metadata format-neutral; `↑/↓` o `j/k` scorrono una riga e `PgUp/PgDn` una pagina. M2.2 è validata.
-
-M2.3 aggiunge `/` per il prompt di ricerca sul testo logico; `n` e `N` navigano i risultati avanti/indietro con wrap-around. I risultati sono `ReadingLocation` e non dipendono dal layout. M2.3 Hotfix 1 è validata.
-
-M2.4 aggiunge `b` per aggiungere/rimuovere un bookmark alla posizione corrente e `B` per aprire l'elenco persistente. I bookmark sono multi-book e non contengono pagina/riga.
-
-M2.4 Hotfix 1 aggiunge la palette di lettura: heading azzurri/cyan, strong verdi, emphasis gialli, testo bianco e cornici/separatori grigi. I colori esistono solo nel frontend Terminal.Gui; il layout conserva esclusivamente style span semantici. Hotfix 2 applica gli schemi tramite `View.SetScheme(...)`, API effettiva di Terminal.Gui 2.4.17.
-
-Dettagli ricerca: [`docs/SEARCH.md`](docs/SEARCH.md).  
-Dettagli bookmark: [`docs/BOOKMARKS.md`](docs/BOOKMARKS.md).
-
-M2.5 aggiunge una percentuale stabile calcolata da `ReadingLocation` e testo logico UTF-16. Pagina e percentuale sono mostrate insieme ma hanno semantica distinta: la pagina può cambiare al resize, la percentuale no.
-
-Dettagli progresso: [`docs/STABLE_PROGRESS.md`](docs/STABLE_PROGRESS.md).
-
-M3.0 aggiunge libreria/history locale; M3.1 aggiunge filtro ranked/fuzzy con path escluso dal fuzzy-subsequence. Entrambe sono validate.
-
-M3.2 aggiunge `c` per ciclare i temi Semantico scuro, Carta chiara e Monocromatico. M3.3 mantiene i temi nel boundary CLI/TUI ma persiste la preferenza in un nuovo `config.json`, separato dallo stato dei libri.
-
-M3.3 rende configurabili gli alias stampabili del reader (`j/k`, `b/B`, `t`, `m`, `/`, `n/N`, `c`, ecc.). Frecce, PgUp/PgDn, Space, Tab, Enter, Backspace, Esc e F1 restano sempre disponibili. `ereader --config-path` mostra il percorso e `ereader --init-config` crea il file predefinito senza sovrascriverne uno esistente.
-
-M3.4 usa `Enter` nella lettura normale per aprire l’immagine raster locale alla posizione corrente nel viewer associato dal sistema. Il layout resta testuale; JPEG/PNG/GIF/WebP sono bounded a 16 MiB, mentre SVG e risorse remote non vengono avviati. M3.4 Hotfix 1 è validata.
-
-M3.5 dà priorità al link corrente/visibile su `Enter`: i link interni saltano a una `ReadingLocation` e `Backspace` torna all’origine; `http`/`https`/`mailto` sono delegati al sistema solo dopo azione esplicita. Se non c’è link, `Enter` conserva il fallback immagine M3.4.
-
-Dettagli temi: [`docs/THEMES.md`](docs/THEMES.md).  
-Dettagli configurazione: [`docs/CONFIGURATION_KEYMAP.md`](docs/CONFIGURATION_KEYMAP.md).
-Dettagli immagini: [`docs/IMAGES.md`](docs/IMAGES.md).  
-Dettagli hyperlink: [`docs/HYPERLINKS.md`](docs/HYPERLINKS.md).
-
-## Pipeline corrente
+Per vedere o inizializzare la configurazione:
 
 ```text
-.epub
-  ↓
-EpubContainer                         M0.3 VALIDATED
-  ↓
-EpubProtectionInspector               M0.7 VALIDATED
-  ↓
-EpubPackageReader                     M0.4 VALIDATED
-  ↓
-EpubNavigationReader                  M0.5 VALIDATED
-  ↓
-EpubBookReader                        M0.6 VALIDATED
-  ↓
-Book                                  format-neutral Domain
-  ↓
-├── BookConsoleRenderer               M1.0 VALIDATED → stdout
-└── DeterministicLayoutEngine         M1.1 VALIDATED
-  ↓
-BookLayout → LayoutPage[] → VisualLine[]
-  ↓
-LayoutLocationResolver / LayoutNavigator   M1.2 VALIDATED
-  ↓
-ReaderSession → ReaderWindow / Terminal.Gui   M1.3 VALIDATED
-  ↓
-Resize → Reflow stesso ReadingLocation          M1.4 VALIDATED
-  ↓
-JsonReadingStateStore → resume logico            M2.0 VALIDATED
-  ↓
-Line scroll + separatori TUI                         M2.0 HF1/HF2 VALIDATED
-  ↓
-Interactive TOC → ReadingLocation                    M2.1 VALIDATED
-  ↓
-Metadata View → BookMetadata                            M2.2 VALIDATED
-  ↓
-BookTextSearch → ReadingLocation                        M2.3 VALIDATED
-ReadingBookmarkState → bookmark logici multi-book              M2.4 VALIDATED
-  ↓
-BookProgressIndex → percentuale logica UTF-16                M2.5 VALIDATED
-  ↓
-ReadingHistoryState → libreria recente / --library             M3.0 VALIDATED
-ReadingHistorySearch → filtro ranked libreria                    M3.1 VALIDATED
-  ↓
-ReaderTheme → palette semantiche Terminal.Gui                   M3.2 VALIDATED
-  ↓
-JsonReaderPreferencesStore → theme + printable keymap            M3.3 VALIDATED
-  ↓
-EpubImageResourceReader → preview raster locale bounded          M3.4 VALIDATED
-  ↓
-BookHyperlinkIndex → internal ReadingLocation / external OS handoff M3.5 VALIDATED
-  ↓
-HyperlinkRole.NoteReference → note/endnote UX                    M3.6 VALIDATED
-  ↓
-ReadingAnnotationState → highlight/note logici → JSON schema 4   M3.7 VALIDATED
+ereader --config-path
+ereader --init-config
 ```
 
-La facade di ingestione resta:
+I percorsi possono essere sovrascritti con `EREADER_STATE_FILE` e `EREADER_CONFIG_FILE`, utile soprattutto per installazioni portabili o test.
 
-```text
-EpubPublicationValidator.Validate(...)
-  ↓
-EpubValidationResult
-├── Valid       → Book disponibile
-├── Invalid     → EPUB malformato/non conforme al contratto supportato
-└── Unsupported → feature deliberatamente fuori scope
-```
+## EPUB problematici
 
-## Contratto CLI
+EReader tenta di continuare quando il problema è non essenziale, ad esempio una risorsa opzionale mancante. Se invece la struttura necessaria alla lettura è realmente compromessa, rifiuta il singolo libro e mostra una diagnostica esplicita.
 
-```text
-0  successo / help / version
-2  uso non valido o file non trovato
-3  EPUB Invalid
-4  EPUB Unsupported
-5  errore I/O atteso
-```
-
-Il reader non cattura genericamente bug/runtime failure inattesi.
-
-## Sicurezza / bounded input
-
-La catena mantiene:
-
-- nessuna estrazione dell'archivio EPUB sul filesystem; M3.4 consente soltanto la copia temporanea esplicita di una singola risorsa raster bounded per il viewer esterno;
-- nessun retrieval di rete: M3.5 può soltanto delegare esplicitamente `http`/`https`/`mailto` al sistema operativo dopo `Enter`;
-- XML DTD/XXE disabilitati ai boundary XML;
-- nessun JavaScript o CSS engine;
-- Content Document massimo 8 MiB;
-- massimo 250.000 nodi DOM;
-- profondità Content massima 64;
-- massimo 50.000 blocchi per Content Document;
-- `encryption.xml` massimo 1 MiB;
-- massimo 10.000 risorse protette;
-- traversal e separator percent-encoded rifiutati;
-- contenuto cifrato fermato prima di AngleSharp;
-- nessuna decrittazione o circumvention DRM.
-
-## Dipendenze
-
-```text
-Domain
-  ↑
-  ├── Epub          OCF + OPF + Navigation + XHTML + Validation
-  ├── Application
-  └── Layout       M1.1 layout + M1.2 location mapping/navigation
-        ↑
-       Cli          --plain M1.0 + Terminal.Gui reader M1.3
-```
-
-Dipendenze runtime:
-
-- `Terminal.Gui` 2.4.17 — solo `EbookReader.Cli`;
-- `AngleSharp` 1.7.1 — solo `EbookReader.Epub`, boundary Content.
-
-## Requisiti
-
-- .NET SDK 10.x compatibile con `global.json`;
-- Windows, Linux o macOS.
-
-## Validation gate
-
-Da estrazione pulita:
-
-### Windows
-
-```bat
-validate.cmd
-```
-
-### Linux/macOS
-
-```sh
-./validate.sh
-```
-
-Il gate M3.11 esegue **14 step**: restore, build Release, suite completa, smoke CLI help/version/foundation-info, smoke `--plain` sui libri M1.0/M3.4/M3.5/M3.6, smoke degradato M3.10, smoke link-integrity M3.11, history e config. Nessuno smoke avvia viewer o browser esterni.
-
-La candidate M3.11 Hotfix 1 contiene staticamente **497 `[Fact]` + 7 `[Theory]` + 27 `[InlineData]`**, quindi sono attesi **524 casi**. Il conteggio autoritativo resta quello prodotto dal gate locale.
-
-Output atteso:
-
-```text
-M3.11 HOTFIX 1 VALIDATION PASSED
-```
-
-## Documentazione
-
-```text
-docs/
-  ARCHITECTURE.md
-  DOMAIN_MODEL.md
-  EPUB_CONTAINER.md
-  OPF_PACKAGE.md
-  NAVIGATION.md
-  XHTML_SEMANTIC_DOMAIN.md
-  VALIDATION_DIAGNOSTICS.md
-  DIAGNOSTICS.md
-  EPUB_FAILURE_MODEL.md
-  EPUB_SECURITY_MODEL.md
-  EPUB_RECOVERY_POLICY.md
-  EPUB_COMPATIBILITY.md
-  FIRST_READABLE_EPUB.md
-  DETERMINISTIC_LAYOUT.md
-  LOGICAL_NAVIGATION.md
-  READER_TUI.md
-  RESIZE_STABILITY.md
-  READING_STATE.md
-  INTERACTIVE_TOC.md
-  METADATA_VIEW.md
-  SEARCH.md
-  BOOKMARKS.md
-  READER_COLORS.md
-  STABLE_PROGRESS.md
-  LOCAL_LIBRARY.md
-  LIBRARY_SEARCH.md
-  THEMES.md
-  CONFIGURATION_KEYMAP.md
-  IMAGES.md
-  HYPERLINKS.md
-  FOOTNOTES_ENDNOTES.md
-  HIGHLIGHTS_NOTES.md
-  ROADMAP.md
-  VALIDATION.md
-  PROJECT_HANDOFF.md
-  adr/
-```
-
-Gli ADR in [`docs/adr`](docs/adr/README.md) sono il registro autoritativo delle decisioni architetturali.
-
-## Licenza
-
-Non è ancora stata scelta una licenza. I riferimenti esterni sono usati per studiare standard, UX e problemi del dominio; il codice di EReader è un'implementazione originale.
-
-
-
-## M3.0 — Library & Reading History
-
-M3.0 aggiunge una libreria locale bounded basata esclusivamente sui libri realmente aperti.
-
-```text
-ereader --library   # selezione fullscreen
-ereader --history   # elenco testuale
-ereader --resume    # ultimo libro globale
-```
-
-La cronologia conserva soltanto metadata format-neutral e `ReadingLocation`; non salva pagina, riga, viewport o percentuale.
-
-
-## M3.1 Hotfix 1 — Library Search
-
-M3.1 aggiunge filtro fuzzy live a `ereader --library`. Premi `/`, digita titolo/autore/path e i risultati vengono aggiornati mentre scrivi. `Enter` applica il filtro; `Esc` durante l'input annulla, mentre `Esc` con un filtro già applicato lo cancella.
-
-La policy di ranking vive in `EbookReader.Application.Library.ReadingHistorySearch`, non nella View Terminal.Gui. La query non viene persistita. Vedi [`docs/LIBRARY_SEARCH.md`](docs/LIBRARY_SEARCH.md).
-
-## M3.6 — Footnotes / Endnotes UX
-
-M3.6 riconosce `epub:type="noteref"` al solo boundary EPUB e lo traduce in `HyperlinkRole.NoteReference`. Nel reader il rimando viene indicato come `NOTA`; `Enter` apre il target logico e `Backspace` torna immediatamente al testo usando lo stack transiente validato in M3.5. Nessun popup, pagina/riga o stato nota viene persistito.
-
-Il gate M3.6 aggiunge lo smoke `test-books/m3.6-notes-smoke.epub` e non avvia browser o viewer esterni.
-
-
-Audit statico M3.6: **444 Fact + 4 Theory + 16 InlineData = 460 casi attesi**.
-
-Documentazione decisionale: **50 ADR** totali con ADR-0050 per M3.6.
-
-
-## M3.6 Hotfix 1 — Help contract alignment
-
-Hotfix 1 riallinea il test `HelpDocumentsReadableEpubCommand` alla formulazione help M3.6 `Enter segue link/rimando nota corrente`. Nessun file produttivo sotto `src/` cambia rispetto alla candidate M3.6.
-
-Nota temi: il tema scelto è persistito in `config.json`. `semantic-dark` usa heading cyan, strong verde e emphasis giallo; `monochrome` usa intenzionalmente bianco/grigio e stili Bold/Italic. In TUI premere `c` per ciclare i temi oppure usare `ereader --config-path` per individuare la configurazione.
-
-
-## M3.7 — Highlights & Personal Notes
-
-M3.7 evolve `state.json` a schema 4 e aggiunge annotazioni logiche book-scoped. F2 evidenzia la riga logica corrente, F3 modifica una nota personale alla posizione esatta e F4 apre l'elenco annotazioni. Le coordinate restano `ReadingLocation`/UTF-16; nessuna pagina, riga o viewport viene persistita.
-
-Audit statico baseline validata: **454 Fact + 4 Theory + 16 InlineData = 470 casi attesi**.
-
-Documentazione decisionale: **51 ADR numerati** con ADR-0051 per il modello annotazioni/schema 4.
-
-## Reliability e sicurezza — fase M3.8–M3.13
-
-Prima di M4.0 la roadmap introduce un blocco dedicato a diagnostica, input EPUB non attendibile, recovery controllata, link integrity, crash containment e corpus di EPUB corrotti.
-
-Principio guida:
+Il principio del progetto è:
 
 > **Un EPUB può essere illeggibile. EReader no.**
 
-Un documento realmente irrecuperabile può essere rifiutato, ma EReader deve restare operativo, preservare lo stato valido precedente e comunicare chiaramente il motivo. Gli errori recuperabili devono degradare soltanto la risorsa o parte interessata, senza guessing silenzioso.
+Il reader tratta ogni EPUB come input non attendibile, non estrae l'archivio sul filesystem e non esegue codice contenuto nel libro.
 
-Documenti:
+## Documentazione
 
-- [`docs/DIAGNOSTICS.md`](docs/DIAGNOSTICS.md)
-- [`docs/EPUB_FAILURE_MODEL.md`](docs/EPUB_FAILURE_MODEL.md)
-- [`docs/EPUB_SECURITY_MODEL.md`](docs/EPUB_SECURITY_MODEL.md)
-- [`docs/EPUB_RECOVERY_POLICY.md`](docs/EPUB_RECOVERY_POLICY.md)
-- [`docs/EPUB_COMPATIBILITY.md`](docs/EPUB_COMPATIBILITY.md)
+La documentazione completa è indicizzata in [`docs/README.md`](docs/README.md). Per compatibilità e limitazioni EPUB vedere [`docs/EPUB_COMPATIBILITY.md`](docs/EPUB_COMPATIBILITY.md).
+
+Per chi sviluppa o prepara una release:
+
+- [`docs/VALIDATION.md`](docs/VALIDATION.md)
+- [`docs/RELEASE.md`](docs/RELEASE.md)
 - [`docs/ROADMAP.md`](docs/ROADMAP.md)
-
-
-## M3.10 Hotfix 1 — CA2208 analyzer alignment
-
-Correzione build-only sopra M3.10: `AddContentRecoveryDiagnostics(...)` mantiene `ArgumentOutOfRangeException` ma usa `nameof(issues)` come `paramName`, coerente con CA2208. Nessuna modifica alla policy di recovery o all’API pubblica. Gate: `M3.10 HOTFIX 2 VALIDATION PASSED`.
-
-
-## M3.10 Hotfix 2 — xUnit2031 analyzer alignment
-
-Correzione test/analyzer-only sopra M3.10 Hotfix 1: i due test di recovery usano l’overload predicate di `Assert.Single(...)` invece del pattern `Where(...)+Assert.Single(...)`, eliminando xUnit2031. Nessuna modifica al codice produttivo, alla recovery policy o all’API pubblica. Gate: `M3.10 HOTFIX 2 VALIDATION PASSED`.
+- [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)

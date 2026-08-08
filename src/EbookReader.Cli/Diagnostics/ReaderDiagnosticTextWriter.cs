@@ -4,7 +4,10 @@ namespace EbookReader.Cli.Diagnostics;
 
 internal static class ReaderDiagnosticTextWriter
 {
-    public static void Write(ReaderOperationSummary summary, TextWriter error)
+    public static void Write(
+        ReaderOperationSummary summary,
+        TextWriter error,
+        bool includeTechnicalDetails = false)
     {
         ArgumentNullException.ThrowIfNull(summary);
         ArgumentNullException.ThrowIfNull(error);
@@ -35,6 +38,36 @@ internal static class ReaderDiagnosticTextWriter
         {
             error.WriteLine("[DOCUMENT_UNREADABLE] Impossibile aprire il libro in modo affidabile.");
             error.WriteLine("EReader ha rifiutato questo documento; il file EPUB non è stato modificato e lo stato di lettura esistente non viene aggiornato.");
+        }
+        else if (summary.Status == ReaderOperationStatus.InternalFailure)
+        {
+            error.WriteLine("[INTERNAL_FAILURE] EReader ha interrotto l'operazione corrente per un errore interno inatteso.");
+            error.WriteLine("Questo errore non dimostra che l'EPUB sia illeggibile. Se l'operazione riguardava un EPUB, il file non viene modificato; lo stato di lettura già salvato resta il riferimento persistente.");
+
+            if (includeTechnicalDetails)
+            {
+                WriteTechnicalDetails(summary.Diagnostics, error);
+            }
+            else
+            {
+                error.WriteLine("Ripeti il comando con --diagnostics per mostrare i dettagli tecnici.");
+            }
+        }
+    }
+
+    private static void WriteTechnicalDetails(IReadOnlyList<ReaderDiagnostic> diagnostics, TextWriter error)
+    {
+        foreach (ReaderDiagnostic diagnostic in diagnostics)
+        {
+            if (diagnostic.TechnicalDetails is null)
+            {
+                continue;
+            }
+
+            error.Write("[TECHNICAL_DETAILS ");
+            error.Write(diagnostic.Code);
+            error.WriteLine("]");
+            error.WriteLine(diagnostic.TechnicalDetails);
         }
     }
 

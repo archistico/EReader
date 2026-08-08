@@ -1,8 +1,8 @@
 # EPUB Recovery Policy
 
-**Stato:** M3.10 Hotfix 2 VALIDATED; estensione link-integrity M3.11 CANDIDATE.  
-**Baseline autoritativa:** M3.10 Hotfix 2 VALIDATED.  
-**Gate candidate:** `M3.11 HOTFIX 1 VALIDATION PASSED`.
+**Stato:** M3.10 Hotfix 2 e M3.11 Hotfix 1 VALIDATED; M3.12/M3.13 CANDIDATE STACKED.  
+**Baseline autoritativa:** M3.11 Hotfix 1 VALIDATED.  
+**Gate candidate stacked corrente:** `M3.13 HOTFIX 1 VALIDATION PASSED`.
 
 ## Principio
 
@@ -131,3 +131,8 @@ Restano esplicitamente alle milestone successive:
 Nel percorso recovery-aware sono recuperabili a granularità di singolo link: fragment inesistente, target fuori dal reading order navigabile e riferimenti locali non validi/traversal. Il testo inline resta nel `Book`, ma non viene creato un target azionabile. Gli schemi esterni non ammessi sono soppressi con Warning; non vengono reinterpretati come link locali.
 
 La recovery non esegue guessing: non cerca anchor simili, file omonimi, backlink alternativi o URL remoti.
+
+
+## M3.12 — Internal failure non è una recovery EPUB
+
+Una `InternalFailure` non entra nella matrice di repair/degraded reading. Il composition root interrompe l'operazione, preserva come riferimento lo stato persistente già valido e segnala `ER-READER-INTERNAL-001`. Nessuna exception inattesa autorizza skip di capitoli, sintesi di TOC, ricerca fuori package o riclassificazione `Invalid`.

@@ -1,6 +1,8 @@
-# Validation — M3.11 Hotfix 1 Navigation Invariant Alignment
+# Validation — M3.13 Corrupted EPUB Corpus & Reliability Gate
 
-M3.11 è costruita esclusivamente sopra la baseline autoritativa validata **M3.10 Hotfix 2** (`M3.10 HOTFIX 2 VALIDATION PASSED`, 08/08/2026).
+> **Hotfix 1 — CA2201 analyzer alignment.** Il test di crash containment che verifica l'esclusione di `OutOfMemoryException` costruisce intenzionalmente l'eccezione riservata; la soppressione `CA2201` è confinata a quel solo metodo di test. Nessun file produttivo cambia rispetto alla candidate M3.13 Docs1.
+
+M3.13 è una candidate **stacked sopra M3.12**, preparata mentre M3.12 non era ancora validata localmente. L'ultima baseline autoritativa validata resta **M3.11 Hotfix 1** (`M3.11 HOTFIX 1 VALIDATION PASSED`, 08/08/2026). Il gate M3.13 è cumulativo: se passa, valida anche la catena M3.12 inclusa nel pacchetto.
 
 ## Gate
 
@@ -16,62 +18,49 @@ Linux/macOS:
 ./validate.sh
 ```
 
-Il gate esegue 14 step: restore, build Release, suite completa, help/version/foundation-info, smoke M1.0/M3.4/M3.5/M3.6, smoke recovery M3.10, smoke link-integrity M3.11, history e config.
+Il gate esegue 16 step. La suite completa include il corpus M3.13 e lo step dedicato ne verifica anche l'inventory fisico di 20 EPUB.
 
 Output finale atteso:
 
 ```text
-M3.11 HOTFIX 1 VALIDATION PASSED
+M3.13 HOTFIX 1 VALIDATION PASSED
 ```
 
-## Contratti M3.11
+## Contratti M3.13
 
-- `CliEntryPoint.Milestone == "M3.11"`;
-- `state.json` resta schema 4 e `config.json` resta schema 1;
-- `ExternalLinkPolicy` è format-neutral e consente solo `http`, `https`, `mailto`;
-- adapter EPUB e `SystemExternalLinkService` usano la stessa allow-list;
-- link `file:`, `javascript:`, `data:`, `ftp:` e schemi sconosciuti non sono azionabili;
-- nessun `HttpClient`/`WebRequest` viene introdotto per validare URL;
-- fragment/anchor interno irrisolvibile nel percorso recovery-aware preserva il testo e produce `ER-EPUB-RECOVERY-LINK-001`;
-- `noteref` rotto produce la stessa diagnostica con wording nota-specifico;
-- target locale fuori dal reading order o riferimento traversal/malformato non provoca accessi filesystem;
-- target TOC rotto produce `ER-EPUB-RECOVERY-NAVIGATION-003`: la foglia senza figli viene omessa, il parent con figli validi resta come grouping node;
-- percent-encoding valido dei fragment continua a risolversi correttamente;
-- `ReaderSession` verifica il target prima di mutare lo stack; self-link/non-followable non cambiano posizione né back-stack;
-- parser pubblico `EpubBookReader.Read(...)` resta strict;
-- nessun catch-all `Exception` viene aggiunto alla facade EPUB.
+- `CliEntryPoint.Milestone == "M3.13"`;
+- 20 EPUB sotto `test-books/reliability/`;
+- ogni fixture ha outcome e diagnostic code documentati;
+- `ReliabilityCorpusTests` attraversa tutti i file tramite `EpubPublicationValidator`;
+- fixture security-sensitive non vengono mutate durante la validazione;
+- `ReliabilityCorpusCliTests` attraversa casi rappresentativi via `--plain`;
+- document failure previsti non diventano `[INTERNAL_FAILURE]`;
+- M3.12 mantiene un solo catch-all al composition root;
+- state schema 4, config schema 1 e `ReadingLocation` invariati;
+- nessun fetch di rete e nessuna estrazione generale del contenitore.
 
-## Smoke M3.11
+## Corpus
 
-`test-books/m3.11-link-integrity-smoke.epub` contiene intenzionalmente:
-
-- un target TOC con fragment inesistente e uno valido;
-- un hyperlink interno rotto;
-- un `epub:type="noteref"` rotto;
-- un `javascript:` non azionabile;
-- un link HTTPS valido.
-
-Il comando `--plain` deve terminare con exit code 0: il testo rimane leggibile e le anomalie di link sono diagnostiche, non motivo per rifiutare il libro.
+Vedi `RELIABILITY_CORPUS.md` e `test-books/reliability/README.md`.
 
 ## Conteggio statico
 
-La candidate contiene:
-
 ```text
-495 Fact
-7 Theory
-27 InlineData
-524 casi attesi (Fact + InlineData)
+503 Fact
+10 Theory
+57 InlineData
+560 casi eseguibili attesi (Fact + InlineData)
 ```
 
 Il conteggio autoritativo resta quello prodotto dal gate locale.
 
-## Non incluso
 
-M3.11 non implementa ancora:
+## Tooling di manutenzione e release
 
-- crash containment globale o conversione delle eccezioni interne in messaggi UX — M3.12;
-- corpus esteso di EPUB corrotti e gate di affidabilità dedicato — M3.13;
-- network reputation/checking degli URL;
-- browser embedded o download di risorse remote;
-- persistenza del back-stack o di URI esterni.
+La revisione documentale/tooling successiva alla preparazione M3.13 non modifica `src/`, `tests/` o il corpus. Aggiunge:
+
+- `clean.cmd` / `clean.sh` per rimuovere ricorsivamente `bin` e `obj`;
+- `publish-release.cmd` / `publish-release.sh` per produrre asset self-contained GitHub-ready **solo dopo il superamento di questo gate**;
+- `docs/RELEASE.md` e un README radice orientato all'utente.
+
+Lo script release richiama il gate invece di duplicarne la logica.

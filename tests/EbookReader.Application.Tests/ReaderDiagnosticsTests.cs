@@ -107,6 +107,10 @@ public sealed class ReaderDiagnosticsTests
         Assert.Throws<ArgumentException>(() => new ReaderOperationSummary(
             ReaderOperationStatus.InternalFailure,
             [Fatal()]));
+
+        Assert.Throws<ArgumentException>(() => new ReaderOperationSummary(
+            ReaderOperationStatus.InternalFailure,
+            [internalError, Fatal()]));
     }
 
     [Fact]

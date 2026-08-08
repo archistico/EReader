@@ -65,10 +65,10 @@ public sealed class ReaderOperationSummary
                 break;
 
             case ReaderOperationStatus.InternalFailure:
-                if (!hasInternalError)
+                if (!hasInternalError || hasFatalDocumentError)
                 {
                     throw new ArgumentException(
-                        "InternalFailure richiede almeno un InternalError.",
+                        "InternalFailure richiede almeno un InternalError e nessun FatalDocumentError.",
                         nameof(diagnostics));
                 }
 

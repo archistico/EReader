@@ -1,8 +1,8 @@
 # Roadmap
 
-**Baseline autoritativa corrente:** M3.9 Hotfix 1 VALIDATED (`M3.9 HOTFIX 1 VALIDATION PASSED`, 08/08/2026).  
-**Candidate corrente:** M3.10 — EPUB Recovery & Degraded Reading.  
-**Priorità immediata:** validare M3.11, poi M3.12–M3.13 reliability/recovery prima di M4.0.
+**Baseline autoritativa corrente:** M3.11 Hotfix 1 VALIDATED (`M3.11 HOTFIX 1 VALIDATION PASSED`, 08/08/2026).  
+**Candidate stacked corrente:** M3.13 — Corrupted EPUB Corpus & Reliability Gate.  
+**Priorità immediata:** validare M3.12, poi M3.13 Corrupted EPUB Corpus & Reliability Gate prima di M4.0.
 
 Per impostazione predefinita ogni milestone si costruisce esclusivamente sulla più recente baseline validata. Se l’utente chiede esplicitamente di proseguire prima del gate, la catena viene marcata come **stacked candidate** e resta non autoritativa fino alla validazione cumulativa.
 
@@ -259,7 +259,7 @@ Implementato:
 - lettura retrocompatibile dello schema 1;
 - nessuna pagina/riga/viewport persistita;
 - ADR-0040 e `BOOKMARKS.md`;
-- Hotfix 1: style span Strong/Emphasis preservati nel layout, palette TUI e cornici/separatori grigi; ADR-0041 e `READER_COLORS.md`.
+- Hotfix 1: style span Strong/Emphasis preservati nel layout, palette TUI e cornici/separatori grigi; ADR-0041. La documentazione utente dei colori è stata consolidata in `THEMES.md`.
 - Hotfix 2: applicazione degli schemi via `View.SetScheme(...)`, API effettiva di Terminal.Gui 2.4.17; ADR-0042.
 
 ### M2.5 — Stable Progress — VALIDATED
@@ -414,7 +414,7 @@ Implementato e validato:
 
 Documento guida: `EPUB_SECURITY_MODEL.md`. ADR: `0053-defensive-epub-input-stays-virtual-and-bounded.md`. Hotfix 1 allinea `OpenValidatedEntry(...)` al tipo concreto `ValidatedZipEntryStream` richiesto da CA1859 senza cambiare comportamento.
 
-### M3.10 — EPUB Recovery & Degraded Reading — CANDIDATE
+### M3.10 — EPUB Recovery & Degraded Reading — VALIDATED (Hotfix 2)
 
 Applicare una matrice problema → recovery/esito verificabile senza indebolire M3.9.
 
@@ -435,7 +435,7 @@ Implementato nella candidate:
 
 Documento guida: `EPUB_RECOVERY_POLICY.md`. ADR: `0054-degraded-reading-recovers-only-deterministic-nonessential-failures.md`.
 
-### M3.11 — Link Integrity & Navigation Security — CANDIDATE
+### M3.11 — Link Integrity & Navigation Security — VALIDATED (Hotfix 1)
 
 Hardening di M3.5/M3.6 sopra M3.10 Hotfix 2 validata.
 
@@ -452,43 +452,42 @@ Hardening di M3.5/M3.6 sopra M3.10 Hotfix 2 validata.
 
 Documento guida: `HYPERLINKS.md`, `EPUB_SECURITY_MODEL.md`, `EPUB_RECOVERY_POLICY.md`. ADR: `0055-broken-links-degrade-without-escaping-publication.md`.
 
-### M3.12 — Crash Containment & Diagnostics UX — PLANNED
+### M3.12 — Crash Containment & Diagnostics UX — CANDIDATE
 
-Rendere esplicito il confine tra errore documento e guasto interno.
+Implementato nella candidate:
 
-- fallimento di apertura confinato alla sessione/libro;
-- cleanup delle risorse temporanee;
-- stato, bookmark, highlight e note preesistenti preservati;
-- ritorno alla shell/libreria quando possibile;
-- messaggio primario leggibile, non stack trace;
-- codice diagnostico EReader per errori interni;
-- dettagli tecnici separati e disponibili per troubleshooting.
+- unico catch generale al composition root `CliEntryPoint.Run(...)`, con CA1031 documentata;
+- nessun catch-all nei parser/validator EPUB;
+- `OutOfMemoryException`, `StackOverflowException`, `AccessViolationException` escluse dal containment ordinario;
+- outcome `InternalFailure` + severity `InternalError` + action `AbortOperation`;
+- codice stabile `ER-READER-INTERNAL-001` ed exit code CLI 6;
+- messaggio primario che non attribuisce automaticamente la colpa all'EPUB;
+- stato già persistito preservato come riferimento, senza commit di snapshot incompleti;
+- `--diagnostics` come modifier globale per mostrare `Exception.ToString()` separatamente;
+- architecture regression: una sola occorrenza produttiva di `catch (Exception`;
+- nessuna modifica a state schema 4, config schema 1, ReadingLocation o parsing EPUB.
 
-### M3.13 — Corrupted EPUB Corpus & Reliability Gate — PLANNED
+Documento guida: `CRASH_CONTAINMENT.md`. ADR: `0056-unexpected-failures-are-contained-only-at-composition-root.md`.
 
-Corpus sintetico di pubblicazioni volutamente danneggiate e gate deterministico.
+### M3.13 — Corrupted EPUB Corpus & Reliability Gate — CANDIDATE STACKED
 
-Casi iniziali:
+Implementato nella candidate stacked sopra M3.12:
 
-- container/OPF/XHTML malformati;
-- capitolo/spine item/immagine mancanti;
-- link e anchor rotti;
-- traversal/path assoluti/duplicate entry;
+- 20 EPUB reali su disco sotto `test-books/reliability/`;
+- controllo valido, recovery navigation/image/link e unsafe external scheme;
+- container/OPF/primary content corrotti o mancanti;
+- UTF-8 invalido ed encryption non supportata;
+- duplicate entry, traversal, drive-prefixed path e symlink;
+- compression bomb sintetica e oversized entry tramite metadata ZIP compatti;
 - ZIP troncato;
-- entry oversized / compression bomb sintetica;
-- encryption non supportata;
-- input Unicode/encoding problematici.
+- outcome/diagnostic code verificati dal validator;
+- casi rappresentativi verificati anche attraverso il CLI;
+- regressione di immutabilità per fixture security-sensitive;
+- inventory di 20 file come step esplicito del gate.
 
-Outcome attesi per fixture:
+Stato catena: M3.11 Hotfix 1 è l'ultima baseline validata; M3.12 e M3.13 restano candidate finché il gate cumulativo non viene eseguito.
 
-```text
-OPEN
-OPEN_WITH_WARNINGS
-OPEN_DEGRADED
-REJECT_DOCUMENT
-```
-
-Il gate deve verificare anche che l'applicazione resti operativa, che non avvengano scritture fuori scope e che lo stato valido precedente non venga corrotto.
+Documento guida: `RELIABILITY_CORPUS.md`. ADR: `0057-reliability-is-gated-by-versioned-on-disk-epub-corpus.md`.
 
 ## M4 — Libreria gestita
 
@@ -549,6 +548,8 @@ Secondo passaggio su diagnostics/recovery basato sui casi emersi dal corpus real
 ## M6 — Release
 
 ### M6.0 — Packaging & First Release Candidate — PLANNED
+
+Tooling preparatorio già disponibile: `publish-release.cmd`, `publish-release.sh`, `clean.cmd` e `clean.sh`. Questo tooling non chiude M6.0: la milestone resta responsabile della matrice finale, degli smoke sui pacchetti pubblicati e del gate RC.
 
 - publish framework-dependent/self-contained secondo matrice definita;
 - Windows/Linux;

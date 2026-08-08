@@ -26,3 +26,8 @@ EPUB 3 minimale per M3.5. Contiene un link interno `#target` e un link esterno `
 ## m3.10-recovery-smoke.epub
 
 EPUB 3 volutamente degradato ma leggibile: il Package Document dichiara `nav.xhtml`, ma la entry navigation è assente; il Content Document primary è invece valido. Il gate M3.10 lo apre con `--plain` e richiede exit code 0. L'esito atteso è `READABLE_DEGRADED` con diagnostica navigation recoverable, senza TOC sintetico e senza modificare il file.
+
+
+## M3.13 reliability corpus
+
+`reliability/` contiene 20 EPUB volutamente validi, degradati, corrotti o ostili. Non sono sample book: sono input di regressione per `ReliabilityCorpusTests` e per il gate M3.13. Vedi `reliability/README.md`.

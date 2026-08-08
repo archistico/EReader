@@ -11,4 +11,5 @@ public enum ReaderRecoveryAction
     RejectDocument = 3,
     KeepCurrentLocation = 4,
     UseFallback = 5,
+    AbortOperation = 6,
 }

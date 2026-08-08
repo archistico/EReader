@@ -1,7 +1,7 @@
 # EPUB Security Model
 
-**Stato:** hardening M3.9 Hotfix 1 e recovery M3.10 Hotfix 2 VALIDATED; link security M3.11 CANDIDATE; M3.12 resta pianificata.  
-**Baseline:** M3.10 Hotfix 2 VALIDATED.
+**Stato:** hardening M3.9, recovery M3.10 e link security M3.11 VALIDATED; M3.12/M3.13 CANDIDATE STACKED.  
+**Baseline:** M3.11 Hotfix 1 VALIDATED.
 
 ## Threat model
 
@@ -94,7 +94,7 @@ I Content Document continuano a essere letti in memoria bounded prima di AngleSh
 
 I boundary XML veri e propri continuano a usare `XmlReader` con resolver `null`, DTD proibiti salvo il caso NCX canonico già vincolato e senza external resolution.
 
-## Sicurezza dei link — M3.11 candidate
+## Sicurezza dei link — M3.11 Hotfix 1 VALIDATED
 
 ### Link interni
 
@@ -172,3 +172,8 @@ Vedi [`EPUB_RECOVERY_POLICY.md`](EPUB_RECOVERY_POLICY.md).
 La recovery M3.10 è subordinata ai guardrail M3.9. Una `EpubContainerException` che indica corruzione, budget, ZIP feature non supportata, entry speciale o path non sicuro resta un failure documento. Solo l'assenza semplice della risorsa navigation può essere degradata a TOC vuoto.
 
 Il percorso OPF recovery-aware non autorizza accessi a risorse mancanti: differisce esclusivamente il controllo `container.Contains(...)` per permettere al validator di classificare la risorsa. Non estrae file, non attraversa directory e non effettua network retrieval.
+
+
+## M3.12 — Il crash boundary non indebolisce il threat model
+
+Il catch generale M3.12 vive soltanto nel composition root e non nel parser EPUB. Di conseguenza path traversal, resource limit, XML/ZIP corruption e schemi URI vietati continuano a essere classificati dai boundary tipizzati M3.9–M3.11. Un'eccezione interna inattesa non viene convertita in `Invalid EPUB` e non abilita fallback, filesystem o rete aggiuntivi.

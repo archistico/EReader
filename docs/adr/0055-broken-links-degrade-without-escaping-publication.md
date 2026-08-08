@@ -1,6 +1,6 @@
 # ADR-0055 — Broken links degrade without escaping the publication
 
-**Status:** Accepted for M3.11 candidate
+**Status:** Accepted — validated with M3.11 Hotfix 1
 
 ## Context
 

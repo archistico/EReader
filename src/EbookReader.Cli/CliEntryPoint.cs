@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Reflection;
 using EbookReader.Application.Annotations;
@@ -21,7 +22,7 @@ namespace EbookReader.Cli;
 /// </summary>
 public static class CliEntryPoint
 {
-    public const string Milestone = "M3.11";
+    public const string Milestone = "M3.13";
     public const string Status = "CANDIDATE";
 
     private const int Success = 0;
@@ -29,6 +30,7 @@ public static class CliEntryPoint
     private const int InvalidPublication = 3;
     private const int UnsupportedPublication = 4;
     private const int IoFailure = 5;
+    private const int InternalFailure = 6;
 
     public static int Run(string[] args) => Run(args, Console.Out, Console.Error);
 
@@ -36,12 +38,32 @@ public static class CliEntryPoint
     /// Testable/hostable entry point. Plain reading output is written only to <paramref name="output"/>,
     /// while diagnostics and usage errors are written to <paramref name="error"/>.
     /// </summary>
+    [SuppressMessage(
+        "Design",
+        "CA1031:Do not catch general exception types",
+        Justification = "M3.12 defines this composition-root method as the single crash-containment boundary. Format/parser layers keep typed catches only.")]
     public static int Run(string[] args, TextWriter output, TextWriter error)
     {
         ArgumentNullException.ThrowIfNull(args);
         ArgumentNullException.ThrowIfNull(output);
         ArgumentNullException.ThrowIfNull(error);
 
+        bool includeTechnicalDetails = ExtractDiagnosticsOption(args, out string[] effectiveArgs);
+
+        try
+        {
+            return RunCore(effectiveArgs, output, error);
+        }
+        catch (Exception exception) when (ReaderInternalFailureBridge.IsContainable(exception))
+        {
+            ReaderOperationSummary operation = ReaderInternalFailureBridge.Create(exception);
+            ReaderDiagnosticTextWriter.Write(operation, error, includeTechnicalDetails);
+            return InternalFailure;
+        }
+    }
+
+    private static int RunCore(string[] args, TextWriter output, TextWriter error)
+    {
         if (args.Length == 0)
         {
             WriteHelp(output);
@@ -103,6 +125,21 @@ public static class CliEntryPoint
 
         error.WriteLine("Argomenti non validi. Usa --help.");
         return UsageError;
+    }
+
+    private static bool ExtractDiagnosticsOption(string[] args, out string[] effectiveArgs)
+    {
+        bool hasDiagnosticsOption = Array.IndexOf(args, "--diagnostics") >= 0;
+        if (!hasDiagnosticsOption)
+        {
+            effectiveArgs = args;
+            return false;
+        }
+
+        effectiveArgs = args
+            .Where(argument => !string.Equals(argument, "--diagnostics", StringComparison.Ordinal))
+            .ToArray();
+        return true;
     }
 
     public static string GetTerminalGuiVersion()
@@ -591,22 +628,25 @@ public static class CliEntryPoint
         output.WriteLine("Footnotes/endnotes: M3.6 EPUB noteref mapped to format-neutral note-reference UX validated");
         output.WriteLine("Annotations: M3.7 logical highlight ranges + personal notes in state schema 4 validated");
         output.WriteLine("EPUB recovery: M3.10 deterministic degraded reading validated");
-        output.WriteLine("Link integrity: M3.11 granular broken-link diagnostics, partial TOC recovery and shared external-scheme allow-list candidate");
+        output.WriteLine("Link integrity: M3.11 granular broken-link diagnostics, partial TOC recovery and shared external-scheme allow-list validated");
+        output.WriteLine("Crash containment: M3.12 composition-root internal-failure boundary + optional technical diagnostics candidate");
+        output.WriteLine("Reliability corpus: M3.13 corrupted/degraded/security fixture gate candidate");
     }
 
     private static void WriteHelp(TextWriter output)
     {
-        output.WriteLine("EReader — M3.11 Link Integrity & Navigation Security");
+        output.WriteLine("EReader — M3.13 Corrupted EPUB Corpus & Reliability Gate");
         output.WriteLine();
         output.WriteLine("Uso:");
-        output.WriteLine("  ereader <libro.epub>          apre il reader fullscreen");
+        output.WriteLine("  --diagnostics                  mostra dettagli tecnici per eventuali errori interni");
+        output.WriteLine("  ereader [--diagnostics] <libro.epub> apre il reader fullscreen");
         output.WriteLine("  ereader --resume              riapre l'ultimo libro e la posizione salvata");
         output.WriteLine("  ereader --library             apre la libreria recente interattiva");
         output.WriteLine("                               nella libreria: / cerca, Esc cancella filtro");
         output.WriteLine("  ereader --history             stampa la cronologia recente su stdout");
         output.WriteLine("  ereader --config-path         stampa il percorso di config.json");
         output.WriteLine("  ereader --init-config         crea config.json predefinito se assente");
-        output.WriteLine("  ereader --plain <libro.epub> stampa il reading order su stdout");
+        output.WriteLine("  ereader [--diagnostics] --plain <libro.epub> stampa il reading order su stdout");
         output.WriteLine("  ereader --help");
         output.WriteLine("  ereader --version");
         output.WriteLine("  ereader --foundation-info");
@@ -638,6 +678,7 @@ public static class CliEntryPoint
         output.WriteLine("Note EPUB: epub:type=\"noteref\" usa ReadingLocation + Backspace per il ritorno immediato al testo.");
         output.WriteLine("Link: interni via ReadingLocation; esterni http/https/mailto soltanto su azione esplicita Enter.");
         output.WriteLine("Anteprima immagini: JPEG/PNG/GIF/WebP locali, max 16 MiB; SVG e risorse remote restano placeholder.");
+        output.WriteLine("Crash containment: exit code 6 = errore interno inatteso; non implica automaticamente EPUB illeggibile.");
         output.WriteLine("Override percorso configurazione: EREADER_CONFIG_FILE.");
     }
 }

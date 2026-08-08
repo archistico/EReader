@@ -1247,6 +1247,50 @@ public sealed class ArchitectureContractTests
         Assert.DoesNotContain("WebRequest", epubReader, StringComparison.Ordinal);
     }
 
+    [Fact]
+    public void M312CatchAllExistsOnlyAtCompositionRootCrashBoundary()
+    {
+        string root = RepositoryRoot.Find();
+        string cliEntryPoint = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Cli", "CliEntryPoint.cs"));
+        string internalBridge = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Cli", "Diagnostics", "ReaderInternalFailureBridge.cs"));
+        string validator = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Epub", "Validation", "EpubPublicationValidator.cs"));
+        string allProductionSources = string.Join(
+            Environment.NewLine,
+            Directory.EnumerateFiles(Path.Combine(root, "src"), "*.cs", SearchOption.AllDirectories)
+                .Select(path => $"FILE:{path}{Environment.NewLine}{File.ReadAllText(path)}"));
+
+        Assert.Contains("catch (Exception exception) when (ReaderInternalFailureBridge.IsContainable(exception))", cliEntryPoint, StringComparison.Ordinal);
+        Assert.Contains("CA1031:Do not catch general exception types", cliEntryPoint, StringComparison.Ordinal);
+        Assert.Contains("InternalFailure", cliEntryPoint, StringComparison.Ordinal);
+        Assert.Contains("ER-READER-INTERNAL-001", internalBridge, StringComparison.Ordinal);
+        Assert.Contains("OutOfMemoryException", internalBridge, StringComparison.Ordinal);
+        Assert.Contains("StackOverflowException", internalBridge, StringComparison.Ordinal);
+        Assert.Contains("AccessViolationException", internalBridge, StringComparison.Ordinal);
+        Assert.DoesNotContain("catch (Exception", validator, StringComparison.Ordinal);
+        Assert.Equal(1, CountOccurrences(allProductionSources, "catch (Exception"));
+    }
+
+    private static int CountOccurrences(string value, string token)
+    {
+        int count = 0;
+        int offset = 0;
+
+        while (true)
+        {
+            int found = value.IndexOf(token, offset, StringComparison.Ordinal);
+            if (found < 0)
+            {
+                return count;
+            }
+
+            count++;
+            offset = found + token.Length;
+        }
+    }
+
     private static bool ProjectReferencesAngleSharp(string projectFile)
     {
         XDocument document = XDocument.Load(projectFile);

@@ -14,4 +14,10 @@
     <ProjectReference Include="../../src/EbookReader.Epub/EbookReader.Epub.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="../../test-books/reliability/**/*"
+             Link="reliability/%(RecursiveDir)%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

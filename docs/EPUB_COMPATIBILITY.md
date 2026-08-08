@@ -1,7 +1,7 @@
 # EPUB Compatibility
 
-**Baseline autoritativa:** M3.9 Hotfix 1 VALIDATED.  
-**Candidate descritta:** M3.10 — EPUB Recovery & Degraded Reading.  
+**Baseline autoritativa:** M3.11 Hotfix 1 VALIDATED.  
+**Candidate stacked corrente:** M3.13 — Corrupted EPUB Corpus & Reliability Gate, inclusiva di M3.12.  
 **Scopo:** distinguere supporto reale, limitazioni intenzionali e hardening futuro.
 
 ## Classificazioni
@@ -69,7 +69,7 @@ PLANNED_HARDENING
 
 ## Robustezza corrente e futura
 
-La baseline M3.10 Hotfix 2 possiede guardrail bounded/security e recovery non essenziale validati; la candidate M3.11 aggiunge link integrity granulare. Le milestone immediatamente successive non servono ad aggiungere un nuovo formato, ma a rendere **esplicito e testabile** il comportamento davanti a pubblicazioni degradate, rotte o ostili.
+La baseline M3.11 Hotfix 1 possiede guardrail bounded/security, recovery non essenziale e link integrity granulare validati; la candidate M3.12 aggiunge il crash containment reader-wide; la candidate stacked M3.13 aggiunge il corpus reliability su file reali. Queste milestone non aggiungono un nuovo formato, ma rendono **esplicito e testabile** il comportamento davanti a pubblicazioni degradate, rotte o ostili.
 
 ### M3.8–M3.13
 
@@ -78,11 +78,11 @@ Già implementato/validato o in candidate:
 - M3.8: diagnostica uniforme reader-wide e distinzione `FatalDocumentError` / `InternalError`;
 - M3.9 validata: budget ZIP, ratio guard, tipi entry speciali, path OCF difensivi, schemi manifest allow-listed, fallback bounded, decoding XHTML strict e classificazione della corruzione ZIP tardiva;
 - M3.10 Hotfix 2 validata: TOC degradabile, skip deterministico di spine `linear="no"`, risorse opzionali mancanti e immagini referenziate mancanti con diagnostica;
-- M3.11 candidate: broken hyperlink/noteref degradabili, target TOC granulare, allow-list esterna condivisa.
+- M3.11 Hotfix 1 validata: broken hyperlink/noteref degradabili, target TOC granulare, allow-list esterna condivisa;
+- M3.12 candidate: `InternalFailure`, exit code 6 e dettagli tecnici opzionali al composition root.
 
 `PLANNED_HARDENING` residuo:
 
-- M3.12 crash containment;
 - M3.13 corpus di EPUB corrotti con outcome attesi.
 
 ### M5.0–M5.2

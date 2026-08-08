@@ -1,14 +1,14 @@
 # M3.8 — Diagnostics Foundation & Failure Taxonomy
 
-**Stato:** M3.8 foundation, M3.9 security e M3.10 Hotfix 2 recovery VALIDATED; M3.11 link integrity CANDIDATE.  
-**Baseline autoritativa corrente:** M3.10 Hotfix 2 VALIDATED.  
-**Gate baseline:** `M3.10 HOTFIX 2 VALIDATION PASSED`.
+**Stato:** M3.8 foundation, M3.9 security, M3.10 recovery e M3.11 link integrity VALIDATED; M3.12 crash containment e M3.13 reliability corpus CANDIDATE STACKED.  
+**Baseline autoritativa corrente:** M3.11 Hotfix 1 VALIDATED.  
+**Gate baseline:** `M3.11 HOTFIX 1 VALIDATION PASSED`.
 
 ## Principio guida
 
 > Un EPUB può essere illeggibile. EReader no.
 
-M3.8 introduce il linguaggio comune con cui i boundary EReader descrivono problemi e risultati. M3.9 ha validato il defensive input hardening. M3.10 Hotfix 2 usa lo stesso contratto per rendere distinguibili libro leggibile con warning, libro leggibile degradato e documento irrecuperabile; crash containment globale resta M3.12.
+M3.8 introduce il linguaggio comune con cui i boundary EReader descrivono problemi e risultati. M3.9 ha validato il defensive input hardening, M3.10 il degraded reading e M3.11 la link integrity. M3.12 usa finalmente `InternalFailure` come boundary runtime esplicito senza riclassificare il documento.
 
 ## Contratto M0.7 preservato
 
@@ -57,7 +57,7 @@ Invarianti implementate:
 - `Success` non contiene diagnostics;
 - `SuccessWithDiagnostics` richiede almeno una diagnostica e vieta fatal/internal errors;
 - `DocumentUnreadable` richiede almeno un `FatalDocumentError` e nessun `InternalError`;
-- `InternalFailure` richiede almeno un `InternalError`.
+- `InternalFailure` richiede almeno un `InternalError` e vieta `FatalDocumentError`.
 
 `CanContinue` è true soltanto per `Success` e `SuccessWithDiagnostics`.
 
@@ -96,6 +96,7 @@ ContinueDegraded
 RejectDocument
 KeepCurrentLocation
 UseFallback
+AbortOperation
 ```
 
 M3.8 definisce il vocabolario; le milestone successive useranno progressivamente le recovery pertinenti.
@@ -172,3 +173,22 @@ ER-EPUB-RECOVERY-NAVIGATION-003  singolo target TOC non risolvibile
 ```
 
 I primi e il terzo usano `EpubDiagnosticSeverity.Error` su un risultato `Valid`, quindi il bridge li rende `RecoverableError` + `ContinueDegraded`. Lo schema esterno soppresso usa `Warning` + `Continue`. Nessuno di questi casi produce `DocumentUnreadable` se il reading order primario resta valido.
+
+
+## M3.12 — Internal failure e dettagli tecnici
+
+M3.12 rende eseguibile la categoria `InternalError` introdotta in M3.8. Il composition root intercetta una failure inattesa contenibile e la proietta in:
+
+```text
+ER-READER-INTERNAL-001
+InternalError
+InternalFailure
+AbortOperation
+exit code 6
+```
+
+Il messaggio primario non accusa il documento e non mostra lo stack trace. Con `--diagnostics`, `ReaderDiagnostic.TechnicalDetails` contiene e mostra `Exception.ToString()` in una sezione `[TECHNICAL_DETAILS ...]`.
+
+Il catch generale resta **fuori** da `EpubPublicationValidator`: un bug non viene trasformato in `Invalid` o `Unsupported`. Le failure process-critical (`OutOfMemoryException`, `StackOverflowException`, `AccessViolationException`) sono escluse dal containment ordinario.
+
+Vedi [`CRASH_CONTAINMENT.md`](CRASH_CONTAINMENT.md) e ADR-0056.

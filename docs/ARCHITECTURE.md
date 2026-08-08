@@ -1,7 +1,7 @@
 # Architettura di EReader
 
-Stato: **M3.10 — EPUB Recovery & Degraded Reading CANDIDATE**  
-Baseline autoritativa: **M3.9 Hotfix 1 — `M3.9 HOTFIX 1 VALIDATION PASSED` (08/08/2026)**  
+Stato: **M3.13 — Corrupted EPUB Corpus & Reliability Gate CANDIDATE STACKED**  
+Baseline autoritativa: **M3.11 Hotfix 1 — `M3.11 HOTFIX 1 VALIDATION PASSED` (08/08/2026)**  
 Base documentale: **M3.7 Docs1 — reliability/security roadmap, consolidata nella baseline M3.8**  
 Target: **.NET 10 / C# 14**
 
@@ -348,7 +348,7 @@ La font obfuscation EPUB standard non viene considerata DRM perché il reader te
 
 ## M1.0 — First readable boundary
 
-M1.0 non modifica il Domain né introduce layout. Il CLI riceve il `Book` già normalizzato dalla facade EPUB e lo proietta su `TextWriter`. stdout e stderr sono distinti, e gli exit code distinguono Invalid/Unsupported/I/O. Vedi [`FIRST_READABLE_EPUB.md`](FIRST_READABLE_EPUB.md) e ADR-0025/0026.
+M1.0 non modifica il Domain né introduce layout. Il CLI riceve il `Book` già normalizzato dalla facade EPUB e lo proietta su `TextWriter`. stdout e stderr sono distinti, e gli exit code distinguono Invalid/Unsupported/I/O. Le decisioni restano documentate negli ADR-0025/0026.
 
 ## M1.1 — Deterministic layout boundary
 
@@ -534,7 +534,7 @@ Gli hyperlink restano semantica Domain (`HyperlinkSpan` + `LinkTarget`) e vengon
 
 La prossima fase non modifica la separazione dei layer: estende i contratti di errore e recovery senza introdurre semantica EPUB nel Domain o coordinate di layout nella persistenza.
 
-M3.8 implementa la foundation ed è validata; M3.9 aggiunge e valida il defensive input boundary ZIP/OCF; M3.10 Hotfix 2 valida il recovery deterministico dei failure non essenziali; M3.11 candidate aggiunge link integrity granulare; M3.12–M3.13 restano containment e corpus. Principi architetturali:
+M3.8 implementa la foundation ed è validata; M3.9 aggiunge e valida il defensive input boundary ZIP/OCF; M3.10 Hotfix 2 valida il recovery deterministico dei failure non essenziali; M3.11 Hotfix 1 valida link integrity granulare. La catena candidate corrente aggiunge M3.12 crash containment al composition root e M3.13 corpus di affidabilità su file reali. Principi architetturali:
 
 - `EpubPublicationValidator` conserva il contratto M0.7 `Valid` / `Invalid` / `Unsupported`;
 - `EbookReader.Application.Diagnostics` distingue information, warning, recovery, documento irrecuperabile e guasto interno senza dipendere da EPUB/UI/Layout;
@@ -546,7 +546,7 @@ M3.8 implementa la foundation ed è validata; M3.9 aggiunge e valida il defensiv
 - nessuna rete automatica e nessun ampliamento dei privilegi filesystem;
 - il corpus M3.13 deve verificare comportamento, stato e containment, non soltanto il tipo di eccezione.
 
-Specifiche della fase: `DIAGNOSTICS.md`, `EPUB_FAILURE_MODEL.md`, `EPUB_SECURITY_MODEL.md`, `EPUB_RECOVERY_POLICY.md`, `EPUB_COMPATIBILITY.md`.
+Specifiche della fase: `DIAGNOSTICS.md`, `EPUB_FAILURE_MODEL.md`, `EPUB_SECURITY_MODEL.md`, `EPUB_RECOVERY_POLICY.md`, `EPUB_COMPATIBILITY.md`, `CRASH_CONTAINMENT.md`.
 
 
 ## M3.10 — Recovery boundary
@@ -567,3 +567,12 @@ La semantica esterna consentita è centralizzata in `EbookReader.Domain.Content.
 I broken link non vengono rappresentati nel Domain con target fittizi: nel percorso recovery-aware il testo inline viene risolto normalmente, la semantica `HyperlinkSpan` viene omessa e un `EpubContentRecoveryIssue` resta confinato all'adapter. Questo preserva l'invariante `Book`: ogni `InternalLinkTarget` realmente presente nel Domain punta sempre a una `ReadingLocation` valida.
 
 Il TOC recovery-aware omette una foglia con target non risolvibile; se il nodo contiene figli validi lo conserva come grouping node con `Target = null`. Un grouping rimasto senza figli dopo la recovery viene omesso. Non vengono inventate destinazioni. `ReaderSession` continua quindi a ricevere soltanto target Domain validi e verifica ulteriormente `Book.ContainsLocation` prima di mutare lo stack.
+
+
+## M3.12 — Crash containment boundary
+
+M3.12 autorizza un solo catch generale nei sorgenti produttivi: `CliEntryPoint.Run(...)`. Il catch è il boundary più esterno del composition root, è accompagnato da una soppressione CA1031 motivata e usa `ReaderInternalFailureBridge.IsContainable(...)` per escludere failure process-critical.
+
+Il parser EPUB resta strict: `EpubPublicationValidator` non usa `catch (Exception)` e continua a distinguere errori del documento da bug interni. Una failure inattesa contenibile viene tradotta in `InternalFailure` + `ER-READER-INTERNAL-001` + exit code 6. `--diagnostics` espone `Exception.ToString()` separatamente dal messaggio primario.
+
+Il commit di `state.json` resta successivo alla chiusura normale della sessione TUI e usa la scrittura atomica già validata; M3.12 non tenta di promuovere snapshot in-memory incompleti dopo una failure.
