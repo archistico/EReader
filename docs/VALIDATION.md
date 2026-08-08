@@ -1,8 +1,8 @@
-# Validation — M3.13 Corrupted EPUB Corpus & Reliability Gate
+# Validation — M3.13 Hotfix 4 Architecture Contract Alignment
 
-> **Hotfix 1 — CA2201 analyzer alignment.** Il test di crash containment che verifica l'esclusione di `OutOfMemoryException` costruisce intenzionalmente l'eccezione riservata; la soppressione `CA2201` è confinata a quel solo metodo di test. Nessun file produttivo cambia rispetto alla candidate M3.13 Docs1.
+**Baseline autoritativa:** M3.13 Hotfix 1, validata l'08/08/2026 con gate `M3.13 HOTFIX 1 VALIDATION PASSED`. Il gate cumulativo ha validato anche M3.12 Crash Containment e M3.13 Reliability Corpus.
 
-M3.13 è una candidate **stacked sopra M3.12**, preparata mentre M3.12 non era ancora validata localmente. L'ultima baseline autoritativa validata resta **M3.11 Hotfix 1** (`M3.11 HOTFIX 1 VALIDATION PASSED`, 08/08/2026). Il gate M3.13 è cumulativo: se passa, valida anche la catena M3.12 inclusa nel pacchetto.
+**Candidate corrente:** M3.13 Hotfix 4. Mantiene integralmente il runtime della Hotfix 3 e riallinea due architecture contract storici che attendevano ancora il footer singolo M2.x. I test ora verificano il body con `Dim.Fill(3)`, il separatore a `Pos.AnchorEnd(3)` e i due label `_footerPrimary` / `_footerSecondary` con `PlainScheme`. Nessuna modifica ai sorgenti produttivi rispetto a Hotfix 3.
 
 ## Gate
 
@@ -23,7 +23,7 @@ Il gate esegue 16 step. La suite completa include il corpus M3.13 e lo step dedi
 Output finale atteso:
 
 ```text
-M3.13 HOTFIX 1 VALIDATION PASSED
+M3.13 HOTFIX 4 VALIDATION PASSED
 ```
 
 ## Contratti M3.13
@@ -46,10 +46,10 @@ Vedi `RELIABILITY_CORPUS.md` e `test-books/reliability/README.md`.
 ## Conteggio statico
 
 ```text
-503 Fact
+506 Fact
 10 Theory
 57 InlineData
-560 casi eseguibili attesi (Fact + InlineData)
+563 casi eseguibili attesi (Fact + InlineData)
 ```
 
 Il conteggio autoritativo resta quello prodotto dal gate locale.

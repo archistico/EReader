@@ -1,6 +1,6 @@
 # ADR-0057 — Reliability is gated by a versioned on-disk EPUB corpus
 
-- Status: Accepted for M3.13 candidate
+- Status: Accepted — validated with M3.13 Hotfix 1
 - Date: 2026-08-08
 
 ## Context

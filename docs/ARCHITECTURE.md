@@ -1,7 +1,7 @@
 # Architettura di EReader
 
-Stato: **M3.13 — Corrupted EPUB Corpus & Reliability Gate CANDIDATE STACKED**  
-Baseline autoritativa: **M3.11 Hotfix 1 — `M3.11 HOTFIX 1 VALIDATION PASSED` (08/08/2026)**  
+Stato: **M3.13 Hotfix 4 — Architecture Contract Alignment CANDIDATE**  
+Baseline autoritativa: **M3.13 Hotfix 1 — `M3.13 HOTFIX 1 VALIDATION PASSED` (08/08/2026)**  
 Base documentale: **M3.7 Docs1 — reliability/security roadmap, consolidata nella baseline M3.8**  
 Target: **.NET 10 / C# 14**
 

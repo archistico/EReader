@@ -69,7 +69,7 @@ PLANNED_HARDENING
 
 ## Robustezza corrente e futura
 
-La baseline M3.11 Hotfix 1 possiede guardrail bounded/security, recovery non essenziale e link integrity granulare validati; la candidate M3.12 aggiunge il crash containment reader-wide; la candidate stacked M3.13 aggiunge il corpus reliability su file reali. Queste milestone non aggiungono un nuovo formato, ma rendono **esplicito e testabile** il comportamento davanti a pubblicazioni degradate, rotte o ostili.
+La baseline M3.13 Hotfix 1 include guardrail bounded/security, recovery non essenziale, link integrity granulare, crash containment reader-wide e corpus reliability su file reali, tutti validati. Queste milestone non aggiungono un nuovo formato, ma rendono **esplicito e testabile** il comportamento davanti a pubblicazioni degradate, rotte o ostili.
 
 ### M3.8–M3.13
 
@@ -79,7 +79,7 @@ Già implementato/validato o in candidate:
 - M3.9 validata: budget ZIP, ratio guard, tipi entry speciali, path OCF difensivi, schemi manifest allow-listed, fallback bounded, decoding XHTML strict e classificazione della corruzione ZIP tardiva;
 - M3.10 Hotfix 2 validata: TOC degradabile, skip deterministico di spine `linear="no"`, risorse opzionali mancanti e immagini referenziate mancanti con diagnostica;
 - M3.11 Hotfix 1 validata: broken hyperlink/noteref degradabili, target TOC granulare, allow-list esterna condivisa;
-- M3.12 candidate: `InternalFailure`, exit code 6 e dettagli tecnici opzionali al composition root.
+- M3.12 VALIDATED: `InternalFailure`, exit code 6 e dettagli tecnici opzionali al composition root.
 
 `PLANNED_HARDENING` residuo:
 

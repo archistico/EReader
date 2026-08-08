@@ -65,7 +65,7 @@ Formato adottato: numero progressivo, titolo, stato, data, contesto, decisione, 
 | [0053](0053-defensive-epub-input-stays-virtual-and-bounded.md) | Input EPUB non attendibile: ZIP/OCF virtuale, bounded e URI allow-listed | Accepted |
 | [0054](0054-degraded-reading-recovers-only-deterministic-nonessential-failures.md) | Degraded reading solo per failure non essenziali e deterministicamente recuperabili | Accepted |
 | [0055](0055-broken-links-degrade-without-escaping-publication.md) | Broken link degradati senza uscire dalla pubblicazione | Accepted |
-| [0056](0056-unexpected-failures-are-contained-only-at-composition-root.md) | Failure inattese contenute solo al composition root | Accepted for M3.12 candidate |
+| [0056](0056-unexpected-failures-are-contained-only-at-composition-root.md) | Failure inattese contenute solo al composition root | Accepted / validated with M3.13 Hotfix 1 |
 
 ## Stati
 

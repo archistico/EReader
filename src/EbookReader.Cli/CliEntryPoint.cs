@@ -24,6 +24,7 @@ public static class CliEntryPoint
 {
     public const string Milestone = "M3.13";
     public const string Status = "CANDIDATE";
+    public const string DisplayName = "EReader by Emilie Rollandin";
 
     private const int Success = 0;
     private const int UsageError = 2;
@@ -595,7 +596,7 @@ public static class CliEntryPoint
 
     private static void WriteFoundationInfo(TextWriter output)
     {
-        output.WriteLine($"EReader {GetProductVersion()}");
+        output.WriteLine($"{DisplayName} {GetProductVersion()}");
         output.WriteLine($"Milestone: {Milestone} ({Status})");
         output.WriteLine("Target framework: net10.0");
         output.WriteLine($"Terminal.Gui assembly: {GetTerminalGuiVersion()}");
@@ -629,13 +630,13 @@ public static class CliEntryPoint
         output.WriteLine("Annotations: M3.7 logical highlight ranges + personal notes in state schema 4 validated");
         output.WriteLine("EPUB recovery: M3.10 deterministic degraded reading validated");
         output.WriteLine("Link integrity: M3.11 granular broken-link diagnostics, partial TOC recovery and shared external-scheme allow-list validated");
-        output.WriteLine("Crash containment: M3.12 composition-root internal-failure boundary + optional technical diagnostics candidate");
-        output.WriteLine("Reliability corpus: M3.13 corrupted/degraded/security fixture gate candidate");
+        output.WriteLine("Crash containment: M3.12 composition-root internal-failure boundary + optional technical diagnostics validated");
+        output.WriteLine("Reliability corpus: M3.13 corrupted/degraded/security fixture gate validated");
     }
 
     private static void WriteHelp(TextWriter output)
     {
-        output.WriteLine("EReader — M3.13 Corrupted EPUB Corpus & Reliability Gate");
+        output.WriteLine($"{DisplayName} — M3.13 Corrupted EPUB Corpus & Reliability Gate");
         output.WriteLine();
         output.WriteLine("Uso:");
         output.WriteLine("  --diagnostics                  mostra dettagli tecnici per eventuali errori interni");

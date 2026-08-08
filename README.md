@@ -1,5 +1,7 @@
 # EReader
 
+Nella CLI il programma si presenta come **EReader by Emilie Rollandin**.
+
 EReader è un lettore di libri **EPUB 2/3 reflowable** pensato per il terminale. Offre una modalità fullscreen semplice, mantiene la posizione di lettura tra una sessione e l'altra e funziona senza convertire o modificare il file EPUB originale.
 
 ## Cosa offre
@@ -125,6 +127,9 @@ Il principio del progetto è:
 > **Un EPUB può essere illeggibile. EReader no.**
 
 Il reader tratta ogni EPUB come input non attendibile, non estrae l'archivio sul filesystem e non esegue codice contenuto nel libro.
+
+
+La barra dei comandi del reader usa due righe e passa automaticamente a una forma compatta sui terminali più stretti.
 
 ## Documentazione
 

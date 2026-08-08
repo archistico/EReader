@@ -1,8 +1,8 @@
 # M3.8 — Diagnostics Foundation & Failure Taxonomy
 
-**Stato:** M3.8 foundation, M3.9 security, M3.10 recovery e M3.11 link integrity VALIDATED; M3.12 crash containment e M3.13 reliability corpus CANDIDATE STACKED.  
-**Baseline autoritativa corrente:** M3.11 Hotfix 1 VALIDATED.  
-**Gate baseline:** `M3.11 HOTFIX 1 VALIDATION PASSED`.
+**Stato:** M3.8 foundation, M3.9 security, M3.10 recovery, M3.11 link integrity, M3.12 crash containment e M3.13 reliability corpus VALIDATED.  
+**Baseline autoritativa corrente:** M3.13 Hotfix 1 VALIDATED.  
+**Gate baseline:** `M3.13 HOTFIX 1 VALIDATION PASSED`.
 
 ## Principio guida
 

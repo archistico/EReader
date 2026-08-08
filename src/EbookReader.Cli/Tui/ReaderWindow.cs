@@ -28,7 +28,8 @@ internal sealed class ReaderWindow : Window
     private readonly Label _headerSeparator;
     private readonly ReaderBodyView _body;
     private readonly Label _footerSeparator;
-    private readonly Label _footer;
+    private readonly Label _footerPrimary;
+    private readonly Label _footerSecondary;
     private bool _helpVisible;
     private bool _tocVisible;
     private bool _metadataVisible;
@@ -65,7 +66,7 @@ internal sealed class ReaderWindow : Window
         _externalLinkService = externalLinkService;
         _themeIndex = ReaderThemeCatalog.IndexOfId(preferences.ThemeId);
 
-        Title = "EReader";
+        Title = CliEntryPoint.DisplayName;
         Width = Dim.Fill();
         Height = Dim.Fill();
         SetScheme(ReaderColorPalette.ChromeScheme);
@@ -94,31 +95,40 @@ internal sealed class ReaderWindow : Window
             X = 0,
             Y = 2,
             Width = Dim.Fill(),
-            Height = Dim.Fill(2),
+            Height = Dim.Fill(3),
         };
 
         _footerSeparator = new Label
         {
             X = 0,
-            Y = Pos.AnchorEnd(2),
+            Y = Pos.AnchorEnd(3),
             Width = Dim.Fill(),
             Height = 1,
             Text = HorizontalRule,
         };
         _footerSeparator.SetScheme(ReaderColorPalette.ChromeScheme);
 
-        _footer = new Label
+        _footerPrimary = new Label
+        {
+            X = 0,
+            Y = Pos.AnchorEnd(2),
+            Width = Dim.Fill(),
+            Height = 1,
+        };
+        _footerPrimary.SetScheme(ReaderColorPalette.PlainScheme);
+
+        _footerSecondary = new Label
         {
             X = 0,
             Y = Pos.AnchorEnd(1),
             Width = Dim.Fill(),
             Height = 1,
         };
-        _footer.SetScheme(ReaderColorPalette.PlainScheme);
+        _footerSecondary.SetScheme(ReaderColorPalette.PlainScheme);
 
         _body.ViewportChanged += (_, _) => SynchronizeViewport();
 
-        Add(_header, _headerSeparator, _body, _footerSeparator, _footer);
+        Add(_header, _headerSeparator, _body, _footerSeparator, _footerPrimary, _footerSecondary);
         ApplyTheme(ReaderThemeCatalog.All[_themeIndex]);
         RefreshReader();
     }
@@ -577,7 +587,8 @@ internal sealed class ReaderWindow : Window
         _headerSeparator.SetScheme(theme.ChromeScheme);
         _body.ApplyTheme(theme);
         _footerSeparator.SetScheme(theme.ChromeScheme);
-        _footer.SetScheme(theme.PlainScheme);
+        _footerPrimary.SetScheme(theme.PlainScheme);
+        _footerSecondary.SetScheme(theme.PlainScheme);
         SetNeedsDraw();
     }
 
@@ -1233,23 +1244,9 @@ internal sealed class ReaderWindow : Window
             _body.ShowReaderLines(_session.GetCurrentViewportLines());
         }
 
-        _footer.Text = _noteInputVisible
-            ? $"Nota: {_noteInput}_   Enter salva   Esc annulla   nota vuota = elimina"
-            : _searchInputVisible
-                ? $"Cerca: {_searchInput}_   Enter cerca   Esc annulla"
-            : _statusMessage is not null
-                ? $"{_statusMessage}   {Binding(ReaderCommand.Quit)}/Esc esci"
-                : _helpVisible
-                    ? $"F1/{Binding(ReaderCommand.Help)}/Esc chiudi aiuto   {Binding(ReaderCommand.Quit)} esci"
-                    : _tocVisible
-                        ? BuildTocFooter()
-                        : _metadataVisible
-                            ? BuildMetadataFooter()
-                            : _bookmarksVisible
-                                ? BuildBookmarkFooter()
-                                : _annotationsVisible
-                                    ? BuildAnnotationFooter()
-                                    : BuildNormalFooter();
+        var footer = BuildFooter();
+        _footerPrimary.Text = footer.Primary;
+        _footerSecondary.Text = footer.Secondary;
     }
 
     private string BuildHeader()
@@ -1316,49 +1313,121 @@ internal sealed class ReaderWindow : Window
             : $"   Cerca «{_session.SearchQuery}»: {_session.CurrentSearchMatchNumber}/{_session.SearchMatchCount}{truncation}";
     }
 
-    private string BuildNormalFooter()
+    private (string Primary, string Secondary) BuildFooter()
     {
-        string enterAction = _session.CurrentHyperlink switch
+        if (_noteInputVisible)
         {
-            { Role: HyperlinkRole.NoteReference, Target: InternalLinkTarget } => "Enter nota  ",
-            not null => "Enter link  ",
-            _ when _session.CurrentImage is not null => "Enter immagine  ",
-            _ => string.Empty,
-        };
-        string backAction = _session.CanNavigateBack ? "Backspace indietro  " : string.Empty;
-        return $"↑/{Binding(ReaderCommand.PreviousLine)} ↓/{Binding(ReaderCommand.NextLine)} riga  PgUp/PgDn pagina  "
-            + enterAction
-            + backAction
-            + $"{Binding(ReaderCommand.PreviousChapter)} {Binding(ReaderCommand.NextChapter)} cap.  "
-            + $"{Binding(ReaderCommand.Search)} cerca  {Binding(ReaderCommand.NextSearchResult)}/{Binding(ReaderCommand.PreviousSearchResult)} risultato  "
-            + $"{Binding(ReaderCommand.ToggleBookmark)} segnalibro  {Binding(ReaderCommand.OpenBookmarks)} elenco  "
-            + $"{Binding(ReaderCommand.ToggleToc)} indice  {Binding(ReaderCommand.ToggleMetadata)} metadati  "
-            + $"F2 evidenzia  F3 nota  F4 annotazioni  "
-            + $"{Binding(ReaderCommand.CycleTheme)} tema  {Binding(ReaderCommand.Quit)}/Esc esci";
+            return ($"Nota: {_noteInput}_", "Enter salva   Esc annulla   nota vuota = elimina");
+        }
+
+        if (_searchInputVisible)
+        {
+            return ($"Cerca: {_searchInput}_", "Enter cerca   Esc annulla");
+        }
+
+        if (_statusMessage is not null)
+        {
+            return (_statusMessage, $"F1/{Binding(ReaderCommand.Help)} aiuto   {Binding(ReaderCommand.Quit)}/Esc esci");
+        }
+
+        if (_helpVisible)
+        {
+            return ($"F1/{Binding(ReaderCommand.Help)}/Esc chiudi aiuto", $"{Binding(ReaderCommand.Quit)} esci");
+        }
+
+        if (_tocVisible)
+        {
+            return BuildTocFooter();
+        }
+
+        if (_metadataVisible)
+        {
+            return BuildMetadataFooter();
+        }
+
+        if (_bookmarksVisible)
+        {
+            return BuildBookmarkFooter();
+        }
+
+        if (_annotationsVisible)
+        {
+            return BuildAnnotationFooter();
+        }
+
+        return BuildNormalFooter();
     }
 
-    private string BuildTocFooter() =>
-        $"↑/{Binding(ReaderCommand.PreviousLine)} ↓/{Binding(ReaderCommand.NextLine)} voce  PgUp/PgDn scorri  Enter apri  "
-        + $"{Binding(ReaderCommand.ToggleToc)}/Tab/Esc chiudi  {Binding(ReaderCommand.OpenBookmarks)} segnalibri  "
-        + $"{Binding(ReaderCommand.ToggleMetadata)} metadati  {Binding(ReaderCommand.Quit)} esci";
+    private (string Primary, string Secondary) BuildNormalFooter()
+    {
+        bool compact = UseCompactFooter();
+        string enterAction = _session.CurrentHyperlink switch
+        {
+            { Role: HyperlinkRole.NoteReference, Target: InternalLinkTarget } => compact ? "  Enter" : "   Enter nota",
+            not null => compact ? "  Enter" : "   Enter link",
+            _ when _session.CurrentImage is not null => compact ? "  Enter" : "   Enter immagine",
+            _ => string.Empty,
+        };
+        string backAction = _session.CanNavigateBack
+            ? compact ? "  Backspace" : "   Backspace indietro"
+            : string.Empty;
 
-    private string BuildMetadataFooter() =>
-        $"↑/{Binding(ReaderCommand.PreviousLine)} ↓/{Binding(ReaderCommand.NextLine)} scorri  PgUp/PgDn pagina  "
-        + $"{Binding(ReaderCommand.ToggleMetadata)}/Esc chiudi  {Binding(ReaderCommand.OpenBookmarks)} segnalibri  "
-        + $"{Binding(ReaderCommand.ToggleToc)} indice  F1/{Binding(ReaderCommand.Help)} aiuto  {Binding(ReaderCommand.Quit)} esci";
+        if (compact)
+        {
+            string primary = $"↑/{Binding(ReaderCommand.PreviousLine)} ↓/{Binding(ReaderCommand.NextLine)}  PgUp/PgDn  "
+                + $"{Binding(ReaderCommand.PreviousChapter)}/{Binding(ReaderCommand.NextChapter)}  "
+                + $"{Binding(ReaderCommand.ChapterStart)}/{Binding(ReaderCommand.ChapterEnd)}"
+                + enterAction
+                + backAction;
+            string secondary = $"{Binding(ReaderCommand.Search)}  {Binding(ReaderCommand.NextSearchResult)}/{Binding(ReaderCommand.PreviousSearchResult)}  "
+                + $"{Binding(ReaderCommand.ToggleBookmark)}/{Binding(ReaderCommand.OpenBookmarks)}  "
+                + $"{Binding(ReaderCommand.ToggleToc)}  {Binding(ReaderCommand.ToggleMetadata)}  F2/F3/F4  "
+                + $"{Binding(ReaderCommand.CycleTheme)}  F1/{Binding(ReaderCommand.Help)}  {Binding(ReaderCommand.Quit)}/Esc";
+            return (primary, secondary);
+        }
 
-    private string BuildBookmarkFooter() =>
-        $"↑/{Binding(ReaderCommand.PreviousLine)} ↓/{Binding(ReaderCommand.NextLine)} voce  PgUp/PgDn scorri  Enter apri  "
-        + $"{Binding(ReaderCommand.DeleteBookmark)} elimina  {Binding(ReaderCommand.OpenBookmarks)}/Esc chiudi  "
-        + $"{Binding(ReaderCommand.Quit)} esci";
+        string widePrimary = $"↑/{Binding(ReaderCommand.PreviousLine)} ↓/{Binding(ReaderCommand.NextLine)} riga   PgUp/PgDn pagina   "
+            + $"{Binding(ReaderCommand.PreviousChapter)}/{Binding(ReaderCommand.NextChapter)} capitolo   "
+            + $"{Binding(ReaderCommand.ChapterStart)}/{Binding(ReaderCommand.ChapterEnd)} estremi"
+            + enterAction
+            + backAction;
+        string wideSecondary = $"{Binding(ReaderCommand.Search)} cerca   {Binding(ReaderCommand.NextSearchResult)}/{Binding(ReaderCommand.PreviousSearchResult)} risultati   "
+            + $"{Binding(ReaderCommand.ToggleBookmark)}/{Binding(ReaderCommand.OpenBookmarks)} segnalibri   "
+            + $"{Binding(ReaderCommand.ToggleToc)} indice   {Binding(ReaderCommand.ToggleMetadata)} meta   "
+            + $"F2 evid. F3 nota F4 annot.   {Binding(ReaderCommand.CycleTheme)} tema   "
+            + $"F1/{Binding(ReaderCommand.Help)} aiuto   {Binding(ReaderCommand.Quit)}/Esc esci";
+        return (widePrimary, wideSecondary);
+    }
 
-    private string BuildAnnotationFooter() =>
-        $"↑/{Binding(ReaderCommand.PreviousLine)} ↓/{Binding(ReaderCommand.NextLine)} voce  PgUp/PgDn scorri  Enter apri  "
-        + $"{Binding(ReaderCommand.DeleteBookmark)} elimina  F4/Esc chiudi  {Binding(ReaderCommand.Quit)} esci";
+    private (string Primary, string Secondary) BuildTocFooter() => UseCompactFooter()
+        ? ($"↑/{Binding(ReaderCommand.PreviousLine)} ↓/{Binding(ReaderCommand.NextLine)}  PgUp/PgDn  Enter",
+            $"{Binding(ReaderCommand.ToggleToc)}/Tab/Esc  {Binding(ReaderCommand.OpenBookmarks)}  {Binding(ReaderCommand.ToggleMetadata)}  F1/{Binding(ReaderCommand.Help)}  {Binding(ReaderCommand.Quit)}")
+        : ($"↑/{Binding(ReaderCommand.PreviousLine)} ↓/{Binding(ReaderCommand.NextLine)} voce   PgUp/PgDn scorri   Enter apri",
+            $"{Binding(ReaderCommand.ToggleToc)}/Tab/Esc chiudi   {Binding(ReaderCommand.OpenBookmarks)} segnalibri   {Binding(ReaderCommand.ToggleMetadata)} metadati   F1/{Binding(ReaderCommand.Help)} aiuto   {Binding(ReaderCommand.Quit)} esci");
+
+    private (string Primary, string Secondary) BuildMetadataFooter() => UseCompactFooter()
+        ? ($"↑/{Binding(ReaderCommand.PreviousLine)} ↓/{Binding(ReaderCommand.NextLine)}  PgUp/PgDn",
+            $"{Binding(ReaderCommand.ToggleMetadata)}/Esc  {Binding(ReaderCommand.OpenBookmarks)}  {Binding(ReaderCommand.ToggleToc)}  F1/{Binding(ReaderCommand.Help)}  {Binding(ReaderCommand.Quit)}")
+        : ($"↑/{Binding(ReaderCommand.PreviousLine)} ↓/{Binding(ReaderCommand.NextLine)} scorri   PgUp/PgDn pagina",
+            $"{Binding(ReaderCommand.ToggleMetadata)}/Esc chiudi   {Binding(ReaderCommand.OpenBookmarks)} segnalibri   {Binding(ReaderCommand.ToggleToc)} indice   F1/{Binding(ReaderCommand.Help)} aiuto   {Binding(ReaderCommand.Quit)} esci");
+
+    private (string Primary, string Secondary) BuildBookmarkFooter() => UseCompactFooter()
+        ? ($"↑/{Binding(ReaderCommand.PreviousLine)} ↓/{Binding(ReaderCommand.NextLine)}  PgUp/PgDn  Enter  {Binding(ReaderCommand.DeleteBookmark)}",
+            $"{Binding(ReaderCommand.OpenBookmarks)}/Esc  F1/{Binding(ReaderCommand.Help)}  {Binding(ReaderCommand.Quit)}")
+        : ($"↑/{Binding(ReaderCommand.PreviousLine)} ↓/{Binding(ReaderCommand.NextLine)} voce   PgUp/PgDn scorri   Enter apri   {Binding(ReaderCommand.DeleteBookmark)} elimina",
+            $"{Binding(ReaderCommand.OpenBookmarks)}/Esc chiudi   F1/{Binding(ReaderCommand.Help)} aiuto   {Binding(ReaderCommand.Quit)} esci");
+
+    private (string Primary, string Secondary) BuildAnnotationFooter() => UseCompactFooter()
+        ? ($"↑/{Binding(ReaderCommand.PreviousLine)} ↓/{Binding(ReaderCommand.NextLine)}  PgUp/PgDn  Enter  {Binding(ReaderCommand.DeleteBookmark)}",
+            $"F4/Esc  F1/{Binding(ReaderCommand.Help)}  {Binding(ReaderCommand.Quit)}")
+        : ($"↑/{Binding(ReaderCommand.PreviousLine)} ↓/{Binding(ReaderCommand.NextLine)} voce   PgUp/PgDn scorri   Enter apri   {Binding(ReaderCommand.DeleteBookmark)} elimina",
+            $"F4/Esc chiudi   F1/{Binding(ReaderCommand.Help)} aiuto   {Binding(ReaderCommand.Quit)} esci");
+
+    private bool UseCompactFooter() => Math.Max(Viewport.Width, _body.Viewport.Width) < 128;
 
     private string BuildHelp() =>
         $"""
-        EReader — comandi M3.7
+        EReader by Emilie Rollandin — comandi
 
         ↑ / {Binding(ReaderCommand.PreviousLine)}             riga precedente
         ↓ / {Binding(ReaderCommand.NextLine)}             riga successiva

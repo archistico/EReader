@@ -2,7 +2,8 @@
 
 **Stato:** M3.10 Hotfix 2 e M3.11 Hotfix 1 VALIDATED; M3.12/M3.13 CANDIDATE STACKED.  
 **Baseline autoritativa:** M3.11 Hotfix 1 VALIDATED.  
-**Gate candidate stacked corrente:** `M3.13 HOTFIX 1 VALIDATION PASSED`.
+**Baseline validata:** `M3.13 HOTFIX 1 VALIDATION PASSED`.  
+**Gate candidate UI corrente:** `M3.13 HOTFIX 4 VALIDATION PASSED`.
 
 ## Principio
 

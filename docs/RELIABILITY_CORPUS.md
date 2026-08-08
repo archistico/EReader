@@ -8,13 +8,7 @@ Il principio verificato resta: **un EPUB può essere illeggibile; EReader no**.
 
 ## Catena di validazione
 
-M3.13 è costruita sopra la candidate M3.12. Al momento della preparazione:
-
-- ultima baseline autoritativa validata: **M3.11 Hotfix 1**;
-- M3.12: candidate non ancora validata;
-- M3.13: candidate stacked che include integralmente M3.12.
-
-M3.13 non deve essere promossa a baseline autoritativa finché non sono superati il gate M3.12 implicito nella suite cumulativa e il gate M3.13.
+M3.13 e la M3.12 inclusa nella sua catena sono state validate cumulativamente l'08/08/2026 con `M3.13 HOTFIX 1 VALIDATION PASSED`. M3.13 Hotfix 1 è quindi la baseline autoritativa corrente per il corpus reliability.
 
 ## Corpus
 

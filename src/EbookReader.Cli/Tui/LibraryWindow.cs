@@ -16,7 +16,8 @@ internal sealed class LibraryWindow : Window
     private readonly ReadOnlyCollection<ReadingHistoryEntry> _entries;
     private readonly ReaderBodyView _body;
     private readonly Label _header;
-    private readonly Label _footer;
+    private readonly Label _footerPrimary;
+    private readonly Label _footerSecondary;
     private readonly StringBuilder _filterInput = new();
     private ReadOnlyCollection<ReadingHistoryEntry> _visibleEntries;
     private string _filterQuery = string.Empty;
@@ -30,7 +31,7 @@ internal sealed class LibraryWindow : Window
         ArgumentNullException.ThrowIfNull(entries);
         _entries = entries;
         _visibleEntries = entries;
-        Title = "EReader — Libreria";
+        Title = $"{CliEntryPoint.DisplayName} — Libreria";
         Width = Dim.Fill();
         Height = Dim.Fill();
         SetScheme(ReaderColorPalette.ChromeScheme);
@@ -46,20 +47,28 @@ internal sealed class LibraryWindow : Window
 
         Label top = new() { X = 0, Y = 1, Width = Dim.Fill(), Height = 1, Text = HorizontalRule };
         top.SetScheme(ReaderColorPalette.ChromeScheme);
-        Label bottom = new() { X = 0, Y = Pos.AnchorEnd(2), Width = Dim.Fill(), Height = 1, Text = HorizontalRule };
+        Label bottom = new() { X = 0, Y = Pos.AnchorEnd(3), Width = Dim.Fill(), Height = 1, Text = HorizontalRule };
         bottom.SetScheme(ReaderColorPalette.ChromeScheme);
-        _footer = new Label
+        _footerPrimary = new Label
+        {
+            X = 0,
+            Y = Pos.AnchorEnd(2),
+            Width = Dim.Fill(),
+            Height = 1,
+        };
+        _footerPrimary.SetScheme(ReaderColorPalette.PlainScheme);
+        _footerSecondary = new Label
         {
             X = 0,
             Y = Pos.AnchorEnd(1),
             Width = Dim.Fill(),
             Height = 1,
         };
-        _footer.SetScheme(ReaderColorPalette.PlainScheme);
+        _footerSecondary.SetScheme(ReaderColorPalette.PlainScheme);
 
-        _body = new ReaderBodyView { X = 0, Y = 2, Width = Dim.Fill(), Height = Dim.Fill(2) };
-        _body.ViewportChanged += (_, _) => RenderList();
-        Add(_header, top, _body, bottom, _footer);
+        _body = new ReaderBodyView { X = 0, Y = 2, Width = Dim.Fill(), Height = Dim.Fill(3) };
+        _body.ViewportChanged += (_, _) => RefreshLibrary();
+        Add(_header, top, _body, bottom, _footerPrimary, _footerSecondary);
         RefreshLibrary();
     }
 
@@ -104,7 +113,8 @@ internal sealed class LibraryWindow : Window
             ReadingHistoryEntry candidate = _visibleEntries[_selectedIndex];
             if (!File.Exists(candidate.BookPath))
             {
-                _footer.Text = "File non trovato. Sposta la selezione, / cerca oppure premi q/Esc.";
+                _footerPrimary.Text = "File non trovato.";
+                _footerSecondary.Text = "↑/k ↓/j cambia selezione   / cerca   q/Esc chiudi";
                 return true;
             }
             SelectedEntry = candidate;
@@ -220,7 +230,9 @@ internal sealed class LibraryWindow : Window
     private void RefreshLibrary()
     {
         _header.Text = BuildHeaderText();
-        _footer.Text = BuildFooterText();
+        var footer = BuildFooterText();
+        _footerPrimary.Text = footer.Primary;
+        _footerSecondary.Text = footer.Secondary;
         RenderList();
     }
 
@@ -234,19 +246,24 @@ internal sealed class LibraryWindow : Window
         return $"Libri recenti: {_entries.Count.ToString(CultureInfo.InvariantCulture)}   Filtro «{_filterQuery}»: {_visibleEntries.Count.ToString(CultureInfo.InvariantCulture)}";
     }
 
-    private string BuildFooterText()
+    private (string Primary, string Secondary) BuildFooterText()
     {
         if (_filterInputVisible)
         {
-            return $"Cerca libreria: {_filterInput}_   Enter applica   Esc annulla";
+            return ($"Cerca libreria: {_filterInput}_", "Enter applica   Esc annulla");
         }
 
+        bool compact = Math.Max(Viewport.Width, _body.Viewport.Width) < 88;
         if (_filterQuery.Length > 0)
         {
-            return "↑/k ↓/j seleziona  PgUp/PgDn pagina  Enter apri  / modifica filtro  Esc cancella filtro  q chiudi";
+            return compact
+                ? ("↑/k ↓/j  PgUp/PgDn  Enter", "/  Esc  q")
+                : ("↑/k ↓/j seleziona   PgUp/PgDn pagina   Enter apri", "/ modifica filtro   Esc cancella filtro   q chiudi");
         }
 
-        return "↑/k ↓/j seleziona  PgUp/PgDn pagina  Enter apri  / cerca  q/Esc chiudi";
+        return compact
+            ? ("↑/k ↓/j  PgUp/PgDn  Enter", "/  q/Esc")
+            : ("↑/k ↓/j seleziona   PgUp/PgDn pagina   Enter apri", "/ cerca   q/Esc chiudi");
     }
 
     private void RenderList()

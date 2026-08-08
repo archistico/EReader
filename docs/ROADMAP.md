@@ -1,8 +1,8 @@
 # Roadmap
 
-**Baseline autoritativa corrente:** M3.11 Hotfix 1 VALIDATED (`M3.11 HOTFIX 1 VALIDATION PASSED`, 08/08/2026).  
-**Candidate stacked corrente:** M3.13 — Corrupted EPUB Corpus & Reliability Gate.  
-**Priorità immediata:** validare M3.12, poi M3.13 Corrupted EPUB Corpus & Reliability Gate prima di M4.0.
+**Baseline autoritativa corrente:** M3.13 Hotfix 1 VALIDATED (`M3.13 HOTFIX 1 VALIDATION PASSED`, 08/08/2026).  
+**Candidate corrente:** M3.13 Hotfix 4 — Architecture Contract Alignment (mantiene branding e status bar a due righe di Hotfix 2 e il runtime della Hotfix 3).  
+**Priorità immediata:** validare M3.13 Hotfix 4; poi riprendere la roadmap funzionale da M4.0.
 
 Per impostazione predefinita ogni milestone si costruisce esclusivamente sulla più recente baseline validata. Se l’utente chiede esplicitamente di proseguire prima del gate, la catena viene marcata come **stacked candidate** e resta non autoritativa fino alla validazione cumulativa.
 
@@ -485,7 +485,7 @@ Implementato nella candidate stacked sopra M3.12:
 - regressione di immutabilità per fixture security-sensitive;
 - inventory di 20 file come step esplicito del gate.
 
-Stato catena: M3.11 Hotfix 1 è l'ultima baseline validata; M3.12 e M3.13 restano candidate finché il gate cumulativo non viene eseguito.
+Stato catena: M3.12 e M3.13 sono state validate cumulativamente con `M3.13 HOTFIX 1 VALIDATION PASSED`; M3.13 Hotfix 1 è la baseline autoritativa.
 
 Documento guida: `RELIABILITY_CORPUS.md`. ADR: `0057-reliability-is-gated-by-versioned-on-disk-epub-corpus.md`.
 

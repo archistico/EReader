@@ -1,7 +1,7 @@
 # Crash Containment & Diagnostics UX
 
-**Milestone:** M3.12 — candidate.  
-**Baseline:** M3.11 Hotfix 1 VALIDATED (`M3.11 HOTFIX 1 VALIDATION PASSED`, 08/08/2026).
+**Milestone:** M3.12 — VALIDATED cumulativamente con M3.13 Hotfix 1.  
+**Baseline:** M3.13 Hotfix 1 VALIDATED (`M3.13 HOTFIX 1 VALIDATION PASSED`, 08/08/2026).
 
 ## Principio
 

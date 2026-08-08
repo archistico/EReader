@@ -1,7 +1,7 @@
 # EPUB Failure Model
 
 **Stato:** M3.8–M3.11 VALIDATED; M3.12 e M3.13 CANDIDATE STACKED.  
-**Baseline:** M3.11 Hotfix 1 VALIDATED; M3.12 e M3.13 sono candidate stacked non ancora validate, con M3.13 corrente.
+**Baseline:** M3.13 Hotfix 1 VALIDATED; M3.12 Crash Containment e M3.13 Reliability Corpus sono incluse nella baseline validata.
 
 ## Obiettivo
 

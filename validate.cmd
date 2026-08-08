@@ -95,5 +95,5 @@ set "EREADER_CONFIG_FILE="
 if not "%_config_rc%"=="0" exit /b %_config_rc%
 
 echo.
-echo M3.13 HOTFIX 1 VALIDATION PASSED
+echo M3.13 HOTFIX 4 VALIDATION PASSED
 exit /b 0

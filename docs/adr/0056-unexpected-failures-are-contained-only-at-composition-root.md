@@ -1,6 +1,6 @@
 # ADR-0056 — Unexpected failures are contained only at the composition root
 
-- **Status:** Accepted for M3.12 candidate
+- **Status:** Accepted — validated cumulatively with M3.13 Hotfix 1
 - **Date:** 2026-08-08
 
 ## Context

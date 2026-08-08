@@ -11,6 +11,12 @@ public sealed class FoundationSmokeTests
     }
 
     [Fact]
+    public void ProductDisplayNameCreditsEmilieRollandin()
+    {
+        Assert.Equal("EReader by Emilie Rollandin", CliEntryPoint.DisplayName);
+    }
+
+    [Fact]
     public void TerminalGuiDependencyIsResolvable()
     {
         string version = CliEntryPoint.GetTerminalGuiVersion();

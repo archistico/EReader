@@ -1,16 +1,19 @@
-# Project Handoff — EReader M3.13 Corrupted EPUB Corpus & Reliability Gate Candidate
+# Project Handoff — EReader M3.13 Hotfix 4 Architecture Contract Alignment Candidate
 
-> **Hotfix 1 corrente:** allineamento analyzer `CA2201` nel solo test `ProcessCriticalFailureIsNotContainedAsOrdinaryInternalFailure`; runtime e corpus M3.13 restano invariati.
+> **Baseline validata:** M3.13 Hotfix 1 (`M3.13 HOTFIX 1 VALIDATION PASSED`, 08/08/2026).
+> **Candidate corrente:** M3.13 Hotfix 4 — architecture contract alignment sopra branding e status bar TUI responsive su due righe.
 
 ## Baseline e catena
 
-- ultima baseline autoritativa validata: **M3.11 Hotfix 1**;
-- gate baseline: `M3.11 HOTFIX 1 VALIDATION PASSED` (08/08/2026);
-- dipendenza stacked non ancora validata: **M3.12 — Crash Containment & Diagnostics UX**;
-- candidate corrente: **M3.13 — Corrupted EPUB Corpus & Reliability Gate**;
-- gate cumulativo: `M3.13 HOTFIX 1 VALIDATION PASSED`.
+- baseline autoritativa validata: **M3.13 Hotfix 1**;
+- M3.12 Crash Containment: validata cumulativamente dal gate M3.13 Hotfix 1;
+- M3.13 Reliability Corpus: validata cumulativamente dal gate M3.13 Hotfix 1;
+- candidate corrente: **M3.13 Hotfix 4 — Architecture Contract Alignment**;
+- gate candidate: `M3.13 HOTFIX 4 VALIDATION PASSED`.
+- Hotfix 3 ha corretto esclusivamente l'integrazione di compilazione (`RepositoryRoot.Find()` e tuple footer TUI tramite `var footer`).
+- Hotfix 4 riallinea due contratti architetturali storici al footer su due righe: il body usa `Dim.Fill(3)` / separatore `Pos.AnchorEnd(3)` e i due footer label `_footerPrimary` / `_footerSecondary` usano entrambi `PlainScheme`. Nessuna modifica al runtime rispetto a Hotfix 3.
 
-La candidate M3.13 include integralmente M3.12. Non promuovere M3.12 o M3.13 a baseline autoritativa finché il gate locale non passa.
+Le Hotfix 2–4 non modificano parser, recovery, security, diagnostica, persistence o corpus EPUB.
 
 ## Obiettivo M3.13
 
@@ -27,7 +30,7 @@ Dopo la preparazione della candidate M3.13 è stata applicata una revisione **do
 - nuovo `docs/RELEASE.md`;
 - eliminati documenti transitori/duplicati: `FIRST_READABLE_EPUB.md`, `READER_COLORS.md`, `VALIDATION_DIAGNOSTICS.md` e il vecchio report `docs/analysis/M1.1_GRAPHIFY_REPORT.md`.
 
-Questa manutenzione non promuove M3.12 o M3.13: l'ultima baseline autoritativa validata resta M3.11 Hotfix 1 finché il gate cumulativo M3.13 non passa.
+La successiva validazione `M3.13 HOTFIX 1 VALIDATION PASSED` ha promosso cumulativamente M3.12 e M3.13; M3.13 Hotfix 1 è ora la baseline autoritativa.
 
 ## Corpus
 
@@ -56,10 +59,10 @@ Questa manutenzione non promuove M3.12 o M3.13: l'ultima baseline autoritativa v
 ## Gate
 
 ```text
-503 Fact
+506 Fact
 10 Theory
 57 InlineData
-560 casi eseguibili attesi
+563 casi eseguibili attesi
 16 step
 20 EPUB nel corpus reliability
 ```
@@ -73,3 +76,11 @@ Eseguire da estrazione pulita:
 ## Prossimo punto dopo il gate
 
 Con M3.8–M3.13 chiusi, la roadmap torna alle feature: **M4.0 — Managed Library**.
+
+
+## M3.13 Hotfix 4 — Architecture Contract Alignment
+
+- preserva branding TUI/CLI `EReader by Emilie Rollandin`;
+- preserva footer reader e libreria su due righe e modalità compatta automatica;
+- aggiorna i vecchi architecture contract M2.0/M2.4 perché verifichino la nuova struttura a due label anziché il footer singolo rimosso;
+- nessuna modifica a `src/` rispetto a Hotfix 3, né a Domain/Application/EPUB/Layout, state schema o config schema.

@@ -171,7 +171,7 @@ public sealed class FirstReadableEpubTests
         Assert.Equal(string.Empty, error.ToString());
         Assert.Contains("ereader [--diagnostics] <libro.epub>", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("ereader [--diagnostics] --plain <libro.epub>", output.ToString(), StringComparison.Ordinal);
-        Assert.Contains("M3.13 Corrupted EPUB Corpus & Reliability Gate", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("EReader by Emilie Rollandin — M3.13 Corrupted EPUB Corpus & Reliability Gate", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("nella libreria: / cerca, Esc cancella filtro", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("ereader --resume", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("/              cerca nel testo logico", output.ToString(), StringComparison.Ordinal);

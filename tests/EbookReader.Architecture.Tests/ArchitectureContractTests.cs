@@ -464,10 +464,10 @@ public sealed class ArchitectureContractTests
         Assert.Contains("private readonly Label _headerSeparator;", source, StringComparison.Ordinal);
         Assert.Contains("private readonly Label _footerSeparator;", source, StringComparison.Ordinal);
         Assert.Contains("Y = 2,", source, StringComparison.Ordinal);
-        Assert.Contains("Height = Dim.Fill(2)", source, StringComparison.Ordinal);
-        Assert.Contains("Y = Pos.AnchorEnd(2)", source, StringComparison.Ordinal);
+        Assert.Contains("Height = Dim.Fill(3)", source, StringComparison.Ordinal);
+        Assert.Contains("Y = Pos.AnchorEnd(3)", source, StringComparison.Ordinal);
         Assert.Contains("Text = HorizontalRule", source, StringComparison.Ordinal);
-        Assert.Contains("Add(_header, _headerSeparator, _body, _footerSeparator, _footer);", source, StringComparison.Ordinal);
+        Assert.Contains("Add(_header, _headerSeparator, _body, _footerSeparator, _footerPrimary, _footerSecondary);", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -792,7 +792,8 @@ public sealed class ArchitectureContractTests
         Assert.Contains("_header.SetScheme(ReaderColorPalette.PlainScheme);", window, StringComparison.Ordinal);
         Assert.Contains("_headerSeparator.SetScheme(ReaderColorPalette.ChromeScheme);", window, StringComparison.Ordinal);
         Assert.Contains("_footerSeparator.SetScheme(ReaderColorPalette.ChromeScheme);", window, StringComparison.Ordinal);
-        Assert.Contains("_footer.SetScheme(ReaderColorPalette.PlainScheme);", window, StringComparison.Ordinal);
+        Assert.Contains("_footerPrimary.SetScheme(ReaderColorPalette.PlainScheme);", window, StringComparison.Ordinal);
+        Assert.Contains("_footerSecondary.SetScheme(ReaderColorPalette.PlainScheme);", window, StringComparison.Ordinal);
         Assert.DoesNotContain("Scheme = ReaderColorPalette", window, StringComparison.Ordinal);
         Assert.Contains("_headerSeparator", window, StringComparison.Ordinal);
         Assert.Contains("_footerSeparator", window, StringComparison.Ordinal);
@@ -1312,6 +1313,31 @@ public sealed class ArchitectureContractTests
                 "Terminal.Gui",
                 StringComparison.OrdinalIgnoreCase));
     }
+
+    [Fact]
+    public void M313Hotfix2ReaderStatusBarUsesTwoRowsAndResponsiveCompactMode()
+    {
+        string source = File.ReadAllText(Path.Combine(RepositoryRoot.Find(), "src", "EbookReader.Cli", "Tui", "ReaderWindow.cs"));
+
+        Assert.Contains("private readonly Label _footerPrimary;", source, StringComparison.Ordinal);
+        Assert.Contains("private readonly Label _footerSecondary;", source, StringComparison.Ordinal);
+        Assert.Contains("Height = Dim.Fill(3)", source, StringComparison.Ordinal);
+        Assert.Contains("Y = Pos.AnchorEnd(3)", source, StringComparison.Ordinal);
+        Assert.Contains("private bool UseCompactFooter()", source, StringComparison.Ordinal);
+        Assert.Contains("< 128", source, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void M313Hotfix2LibraryStatusBarUsesTwoRows()
+    {
+        string source = File.ReadAllText(Path.Combine(RepositoryRoot.Find(), "src", "EbookReader.Cli", "Tui", "LibraryWindow.cs"));
+
+        Assert.Contains("private readonly Label _footerPrimary;", source, StringComparison.Ordinal);
+        Assert.Contains("private readonly Label _footerSecondary;", source, StringComparison.Ordinal);
+        Assert.Contains("Height = Dim.Fill(3)", source, StringComparison.Ordinal);
+        Assert.Contains("Y = Pos.AnchorEnd(3)", source, StringComparison.Ordinal);
+    }
+
 }
 
 internal static class RepositoryRoot
