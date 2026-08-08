@@ -2,10 +2,10 @@
 
 Lettore EPUB da terminale scritto in C# per .NET 10.
 
-**Ultima baseline autoritativa validata:** M3.6 Hotfix 1 — Footnotes / Endnotes UX + Help Contract Alignment.  
-**Candidate corrente:** `EReader_M3.7_Hotfix1_CompilationIntegration_NET10_Candidate.zip` — M3.7 Hotfix 1 Compilation Integration.  
-**Stato M3.6 Hotfix 1:** **VALIDATED**.  
-**Stato M3.7:** **HOTFIX 1 CANDIDATE** sopra M3.7 originale, a sua volta costruita su M3.6 Hotfix 1 VALIDATED.
+**Ultima baseline autoritativa validata:** M3.7 Hotfix 1 — Highlights & Personal Notes + Compilation Integration.  
+**Gate autoritativo:** `M3.7 HOTFIX 1 VALIDATION PASSED` (08/08/2026).  
+**Revisione documentale corrente:** M3.7 Docs1 — consolidamento baseline + roadmap reliability/security M3.8–M3.13.  
+**Codice/runtime:** invariato rispetto alla baseline M3.7 Hotfix 1 validata.
 
 M3.5 rende azionabili gli hyperlink Domain: salti interni su `ReadingLocation`, Backspace su stack transiente e handoff esplicito di `http`/`https`/`mailto` al sistema operativo, senza network client o browser embedded.
 
@@ -149,7 +149,7 @@ BookHyperlinkIndex → internal ReadingLocation / external OS handoff M3.5 VALID
   ↓
 HyperlinkRole.NoteReference → note/endnote UX                    M3.6 VALIDATED
   ↓
-ReadingAnnotationState → highlight/note logici → JSON schema 4   M3.7 CANDIDATE
+ReadingAnnotationState → highlight/note logici → JSON schema 4   M3.7 VALIDATED
 ```
 
 La facade di ingestione resta:
@@ -231,14 +231,14 @@ validate.cmd
 ./validate.sh
 ```
 
-Il gate M3.5 Hotfix 1 esegue **11 step**: restore, build Release, suite completa, smoke CLI help/version/foundation-info, smoke `--plain` sui libri M1.0/M3.4/M3.5, history e config. Nessuno smoke avvia viewer o browser esterni.
+Il gate M3.7 Hotfix 1 esegue **12 step**: restore, build Release, suite completa, smoke CLI help/version/foundation-info, smoke `--plain` sui libri M1.0/M3.4/M3.5/M3.6, history e config. Nessuno smoke avvia viewer o browser esterni.
 
-La candidate contiene staticamente **438 `[Fact]` + 16 casi `[InlineData]` su 4 `[Theory]`**, quindi sono attesi **454 casi**. Il gate locale resta autoritativo.
+La baseline M3.7 Hotfix 1 contiene staticamente **454 `[Fact]` + 4 `[Theory]` + 16 `[InlineData]`**, quindi sono attesi **470 casi**. Il gate locale è stato superato dall'utente l'08/08/2026.
 
-Output finale atteso:
+Output autoritativo:
 
 ```text
-M3.5 HOTFIX 1 VALIDATION PASSED
+M3.7 HOTFIX 1 VALIDATION PASSED
 ```
 
 ## Documentazione
@@ -252,6 +252,11 @@ docs/
   NAVIGATION.md
   XHTML_SEMANTIC_DOMAIN.md
   VALIDATION_DIAGNOSTICS.md
+  DIAGNOSTICS.md
+  EPUB_FAILURE_MODEL.md
+  EPUB_SECURITY_MODEL.md
+  EPUB_RECOVERY_POLICY.md
+  EPUB_COMPATIBILITY.md
   FIRST_READABLE_EPUB.md
   DETERMINISTIC_LAYOUT.md
   LOGICAL_NAVIGATION.md
@@ -270,6 +275,8 @@ docs/
   CONFIGURATION_KEYMAP.md
   IMAGES.md
   HYPERLINKS.md
+  FOOTNOTES_ENDNOTES.md
+  HIGHLIGHTS_NOTES.md
   ROADMAP.md
   VALIDATION.md
   PROJECT_HANDOFF.md
@@ -326,6 +333,25 @@ Nota temi: il tema scelto è persistito in `config.json`. `semantic-dark` usa he
 
 M3.7 evolve `state.json` a schema 4 e aggiunge annotazioni logiche book-scoped. F2 evidenzia la riga logica corrente, F3 modifica una nota personale alla posizione esatta e F4 apre l'elenco annotazioni. Le coordinate restano `ReadingLocation`/UTF-16; nessuna pagina, riga o viewport viene persistita.
 
-Audit statico candidate: **454 Fact + 4 Theory + 16 InlineData = 470 casi attesi**.
+Audit statico baseline validata: **454 Fact + 4 Theory + 16 InlineData = 470 casi attesi**.
 
 Documentazione decisionale: **51 ADR numerati** con ADR-0051 per il modello annotazioni/schema 4.
+
+## Reliability e sicurezza — prossima fase M3.8–M3.13
+
+Prima di M4.0 la roadmap introduce un blocco dedicato a diagnostica, input EPUB non attendibile, recovery controllata, link integrity, crash containment e corpus di EPUB corrotti.
+
+Principio guida:
+
+> **Un EPUB può essere illeggibile. EReader no.**
+
+Un documento realmente irrecuperabile può essere rifiutato, ma EReader deve restare operativo, preservare lo stato valido precedente e comunicare chiaramente il motivo. Gli errori recuperabili devono degradare soltanto la risorsa o parte interessata, senza guessing silenzioso.
+
+Documenti:
+
+- [`docs/DIAGNOSTICS.md`](docs/DIAGNOSTICS.md)
+- [`docs/EPUB_FAILURE_MODEL.md`](docs/EPUB_FAILURE_MODEL.md)
+- [`docs/EPUB_SECURITY_MODEL.md`](docs/EPUB_SECURITY_MODEL.md)
+- [`docs/EPUB_RECOVERY_POLICY.md`](docs/EPUB_RECOVERY_POLICY.md)
+- [`docs/EPUB_COMPATIBILITY.md`](docs/EPUB_COMPATIBILITY.md)
+- [`docs/ROADMAP.md`](docs/ROADMAP.md)

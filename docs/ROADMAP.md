@@ -1,5 +1,8 @@
 # Roadmap
 
+**Baseline autoritativa corrente:** M3.7 Hotfix 1 VALIDATED (`M3.7 HOTFIX 1 VALIDATION PASSED`, 08/08/2026).  
+**Priorità immediata:** M3.8–M3.13 reliability/diagnostics/input safety prima di M4.0.
+
 Per impostazione predefinita ogni milestone si costruisce esclusivamente sulla più recente baseline validata. Se l’utente chiede esplicitamente di proseguire prima del gate, la catena viene marcata come **stacked candidate** e resta non autoritativa fino alla validazione cumulativa.
 
 ## M0 — Fondamenta e comprensione EPUB
@@ -269,7 +272,7 @@ Implementato:
 - header TUI mostra pagina effimera e percentuale stabile come informazioni distinte;
 - ADR-0043 e `STABLE_PROGRESS.md`.
 
-## M3 — Library e personalizzazione
+## M3 — Library, personalizzazione e reliability
 
 ### M3.0 — Library & Reading History — VALIDATED
 
@@ -350,10 +353,9 @@ Implementato:
 - nessuna coordinata di layout, modalità nota o stack persistito;
 - ADR-0050 e `FOOTNOTES_ENDNOTES.md`.
 
-### M3.7 — Highlights & Personal Notes — HOTFIX 1 CANDIDATE
+### M3.7 — Highlights & Personal Notes — VALIDATED
 
-Hotfix 1 corregge esclusivamente tre problemi di compilazione/integrazione rilevati nel primo build locale della candidate M3.7: collocazione del test architetturale, helper `TemporaryDirectory` mancante nei test annotazioni e namespace `BlockId` mancante nel TUI.
-
+M3.7 Hotfix 1 è stata validata dall'utente l'08/08/2026 con gate `M3.7 HOTFIX 1 VALIDATION PASSED` e costituisce la baseline autoritativa corrente.
 
 - F2 highlight della riga logica corrente;
 - F3 nota personale alla ReadingLocation corrente;
@@ -362,14 +364,185 @@ Hotfix 1 corregge esclusivamente tre problemi di compilazione/integrazione rilev
 - state schema 4 retrocompatibile con 1/2/3;
 - config schema 1 invariato;
 - rendering highlight line-level confinato al CLI/TUI;
-- ADR-0051 e `HIGHLIGHTS_NOTES.md`.
+- ADR-0051 e `HIGHLIGHTS_NOTES.md`;
+- Hotfix 1: ricollocazione del test architetturale M3.7, helper `TemporaryDirectory` nei test annotazioni e import Domain necessario a `BlockId`; nessuna variazione del contratto funzionale M3.7.
+
+## M3.8–M3.13 — Reliability, diagnostics & input safety
+
+Questa fase ha priorità rispetto alla libreria gestita M4.0. Il principio guida è:
+
+> **Un EPUB può essere illeggibile. EReader no.**
+
+Un errore recuperabile deve degradare soltanto la risorsa o parte del libro interessata. Un errore irreversibile del documento può impedire l'apertura di quel libro, ma non deve corrompere lo stato né rendere inutilizzabile l'applicazione.
+
+### M3.8 — Diagnostics Foundation & Failure Taxonomy — PLANNED
+
+Obiettivo: estendere il contratto M0.7 dall'ingestione all'intero reader senza romperlo.
+
+- preservare `Valid` / `Invalid` / `Unsupported` come esito della facade EPUB;
+- introdurre una tassonomia uniforme equivalente a `Info`, `Warning`, `RecoverableError`, `FatalDocumentError`, `InternalError`;
+- codice diagnostico stabile e machine-readable;
+- messaggio umano separato dai dettagli tecnici;
+- origine/componente, path OCF/risorsa/target quando applicabili;
+- recovery dichiarata esplicitamente;
+- esiti UX distinguibili almeno come `SUCCESS`, `SUCCESS_WITH_DIAGNOSTICS`, `DOCUMENT_UNREADABLE`;
+- nessuna pagina/riga/viewport nella diagnostica persistente;
+- nessun catch-all che trasformi bug EReader in EPUB non valido.
+
+Documenti guida: `DIAGNOSTICS.md` e `EPUB_FAILURE_MODEL.md`.
+
+### M3.9 — Defensive EPUB Loading & Input Security — PLANNED
+
+Audit e hardening dell'EPUB come input non attendibile.
+
+- ZIP corrotto/troncato e incoerenze directory;
+- duplicate entry e path ambigui;
+- path assoluti/traversal/percent-encoding patologico;
+- decompression ratio, dimensioni individuali/cumulative e numero entry;
+- XML/XHTML bounded con DTD/XXE sempre disabilitati;
+- fallback/cross-reference ciclici o eccessivi;
+- URI non consentiti;
+- nessuna rete automatica;
+- nessuna scrittura filesystem controllata dal contenuto;
+- preservare i guardrail già validati da M0.3–M3.7.
+
+Documento guida: `EPUB_SECURITY_MODEL.md`.
+
+### M3.10 — EPUB Recovery & Degraded Reading — PLANNED
+
+Definire una matrice problema → recovery/esito verificabile.
+
+- cover/CSS/metadata opzionali mancanti;
+- TOC assente con spine ancora leggibile;
+- immagini mancanti/corrotte → placeholder;
+- risorse remote → nessun fetch;
+- Content Document o spine item problematici: recovery solo quando non ambigua;
+- `container.xml`, OPF o reading order non determinabili → documento irrecuperabile;
+- nessun guessing silenzioso;
+- apertura con commit tardivo: lo stato valido precedente resta intatto fino a successo.
+
+Documento guida: `EPUB_RECOVERY_POLICY.md`.
+
+### M3.11 — Link Integrity & Navigation Security — PLANNED
+
+Hardening di M3.5/M3.6.
+
+- risorsa target inesistente;
+- fragment/anchor inesistente;
+- riferimenti relativi complessi e percent-encoding;
+- note/backlink rotti;
+- target verso risorse non navigabili;
+- link interni sempre confinati al package;
+- un salto fallito non modifica `ReadingLocation` né back-stack;
+- link esterni tramite allow-list esplicita;
+- nessun controllo URL tramite rete;
+- nessun `file:`, script, shell o schema sconosciuto avviato dal contenuto EPUB.
+
+### M3.12 — Crash Containment & Diagnostics UX — PLANNED
+
+Rendere esplicito il confine tra errore documento e guasto interno.
+
+- fallimento di apertura confinato alla sessione/libro;
+- cleanup delle risorse temporanee;
+- stato, bookmark, highlight e note preesistenti preservati;
+- ritorno alla shell/libreria quando possibile;
+- messaggio primario leggibile, non stack trace;
+- codice diagnostico EReader per errori interni;
+- dettagli tecnici separati e disponibili per troubleshooting.
+
+### M3.13 — Corrupted EPUB Corpus & Reliability Gate — PLANNED
+
+Corpus sintetico di pubblicazioni volutamente danneggiate e gate deterministico.
+
+Casi iniziali:
+
+- container/OPF/XHTML malformati;
+- capitolo/spine item/immagine mancanti;
+- link e anchor rotti;
+- traversal/path assoluti/duplicate entry;
+- ZIP troncato;
+- entry oversized / compression bomb sintetica;
+- encryption non supportata;
+- input Unicode/encoding problematici.
+
+Outcome attesi per fixture:
+
+```text
+OPEN
+OPEN_WITH_WARNINGS
+OPEN_DEGRADED
+REJECT_DOCUMENT
+```
+
+Il gate deve verificare anche che l'applicazione resti operativa, che non avvengano scritture fuori scope e che lo stato valido precedente non venga corrotto.
 
 ## M4 — Libreria gestita
 
-- scansione cartelle EPUB controllata;
-- cache metadata;
-- sorting/filtering di libreria;
-- relocation/maintenance dei libri spostati.
+### M4.0 — Managed Library — PLANNED
+
+- aggiunta di cartelle;
+- scansione controllata degli `.epub`;
+- deduplicazione;
+- gestione libri mancanti/spostati;
+- nessun obbligo di introdurre SQLite nella prima iterazione.
+
+### M4.1 — Library Metadata Cache — PLANNED
+
+- cache locale di titolo/autore e metadata necessari alla libreria;
+- invalidazione tramite identità/path e segnali file appropriati;
+- evitare ingestione integrale ripetuta per la sola lista biblioteca.
+
+### M4.2 — Library Sorting & Filtering — PLANNED
+
+- titolo;
+- autore;
+- ultimo accesso;
+- progresso derivato;
+- filtri in lettura/non iniziato/terminato/file mancante;
+- riuso del motore di ricerca M3.1 dove appropriato.
+
+### M4.3 — Reading Statistics — PLANNED
+
+- libri iniziati/completati;
+- avanzamento;
+- sessioni e tempo approssimativo;
+- statistiche derivate separate dalla posizione autoritativa.
+
+### M4.4 — Relocation & Library Maintenance — PLANNED
+
+- ricollegamento di EPUB spostati;
+- preservazione di progress, bookmark e annotazioni quando `BookId` conferma l'identità;
+- manutenzione esplicita, non guessing automatico su libri diversi.
+
+## M5 — Hardening esteso
+
+### M5.0 — Large Book / Performance Hardening — PLANNED
+
+- EPUB grandi e capitoli enormi;
+- migliaia di TOC entry;
+- molte immagini/bookmark/search result/annotazioni;
+- profiling memoria;
+- bounded collections e lazy loading solo dove preserva il modello deterministico.
+
+### M5.1 — EPUB Compatibility Corpus — PLANNED
+
+Ampliare il corpus con EPUB 2/3 reali e sintetici: navigation edge case, XHTML problematico ma supportabile, Unicode, RTL almeno diagnostico, SVG fallback, manifest complessi, note e anchor particolari.
+
+### M5.2 — Diagnostics & Recovery UX Final Hardening — PLANNED
+
+Secondo passaggio su diagnostics/recovery basato sui casi emersi dal corpus reale M5.1. M3.8–M3.13 costituiscono l'infrastruttura; M5.2 ne consolida copertura e UX prima della release candidate.
+
+## M6 — Release
+
+### M6.0 — Packaging & First Release Candidate — PLANNED
+
+- publish framework-dependent/self-contained secondo matrice definita;
+- Windows/Linux;
+- layout ZIP pulito;
+- manuale utente;
+- sample config;
+- smoke dal pacchetto pubblicato;
+- reliability/security gate cumulativo prima della RC.
 
 ## Fuori scope
 

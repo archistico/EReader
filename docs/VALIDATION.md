@@ -1,6 +1,6 @@
 # Validation — M3.7 Hotfix 1 — Compilation Integration
 
-La funzionalità M3.7 deriva esclusivamente dalla baseline validata M3.6 Hotfix 1. Hotfix 1 applica soltanto correzioni di compilazione/integrazione alla candidate M3.7 originale che ha fallito il primo build locale.
+La funzionalità M3.7 deriva esclusivamente dalla baseline validata M3.6 Hotfix 1. Hotfix 1 applica soltanto correzioni di compilazione/integrazione alla candidate M3.7 originale che ha fallito il primo build locale. La Hotfix 1 è stata successivamente validata dall'utente l'08/08/2026 ed è la baseline autoritativa corrente.
 
 ## Gate
 
@@ -31,7 +31,7 @@ M3.7 HOTFIX 1 VALIDATION PASSED
 ## Criteri M3.7
 
 - restore/build Release senza warning/errori;
-- suite completa: 454 Fact + 16 InlineData = 470 casi attesi;
+- suite completa: 454 Fact + 4 Theory + 16 InlineData = 470 casi attesi;
 - `CliEntryPoint.Milestone == "M3.7"`;
 - state schema corrente = 4 e loader compatibile 1/2/3;
 - round-trip highlight/note senza page/line/viewport;

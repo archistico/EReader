@@ -1,6 +1,6 @@
 # ADR-0051 — Annotations use logical ranges and state schema v4
 
-- Status: Accepted for M3.7 candidate
+- Status: Accepted — M3.7 Hotfix 1 VALIDATED
 - Date: 2026-08-08
 
 ## Context

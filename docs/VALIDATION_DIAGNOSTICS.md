@@ -136,3 +136,23 @@ La CLI M1.0 scrive `Diagnostics` su stderr senza dipendere dagli enum e dalle ec
 - Adobe/IDPF technical note — Simple content protection for embedded fonts, algoritmo legacy `http://ns.adobe.com/pdf/enc#RC`.
 
 Questi riferimenti descrivono il formato da riconoscere; non costituiscono una decisione di implementare decrittazione o DRM support.
+
+## Evoluzione pianificata dopo M3.7
+
+M0.7 resta il contratto autoritativo dell'**ingestione** (`Valid`, `Invalid`, `Unsupported`). Dopo la baseline M3.7 Hotfix 1, la roadmap M3.8–M3.13 estenderà la diagnostica all'intera esperienza reader senza rompere questo contratto.
+
+La nuova documentazione distingue esplicitamente:
+
+- esito di ingestione EPUB;
+- severità della diagnostica;
+- recovery della risorsa/documento;
+- `FatalDocumentError`, cioè documento irrecuperabile ma applicazione ancora operativa;
+- `InternalError`, che non deve essere mascherato come EPUB non valido.
+
+Riferimenti:
+
+- [`DIAGNOSTICS.md`](DIAGNOSTICS.md)
+- [`EPUB_FAILURE_MODEL.md`](EPUB_FAILURE_MODEL.md)
+- [`EPUB_SECURITY_MODEL.md`](EPUB_SECURITY_MODEL.md)
+- [`EPUB_RECOVERY_POLICY.md`](EPUB_RECOVERY_POLICY.md)
+- [`EPUB_COMPATIBILITY.md`](EPUB_COMPATIBILITY.md)

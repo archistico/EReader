@@ -1,7 +1,7 @@
 # M0.6 — XHTML to Semantic Domain
 
 Stato: **VALIDATED**.  
-Ultima baseline autoritativa validata: **M2.0 Hotfix 2 — UI Separators**.
+Ultima baseline autoritativa validata: **M3.7 Hotfix 1 — Highlights & Personal Notes + Compilation Integration**.
 
 ## Obiettivo
 
