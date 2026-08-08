@@ -53,6 +53,8 @@ Formato adottato: numero progressivo, titolo, stato, data, contesto, decisione, 
 
 | [0044](0044-recent-library-is-bounded-logical-json-state.md) | Libreria recente come stato JSON logico bounded | Accepted |
 | [0045](0045-library-search-is-transient-ranked-application-state.md) | Ricerca libreria transiente e classificata nell’Application layer | Accepted |
+| [0046](0046-reader-themes-map-semantic-roles-only-in-tui.md) | Temi reader come mapping TUI dei ruoli semantici | Accepted |
+| [0047](0047-user-preferences-are-separate-versioned-configuration.md) | Preferenze utente in config JSON separata dallo stato lettura | Accepted |
 
 ## Stati
 

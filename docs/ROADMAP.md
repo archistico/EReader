@@ -282,7 +282,7 @@ Implementato:
 - schema 1/2 retrocompatibili e promossi dal lastBook;
 - ADR-0044 e `LOCAL_LIBRARY.md`.
 
-### M3.1 — Library Search — HOTFIX 1 CANDIDATE
+### M3.1 — Library Search — VALIDATED
 
 - `/` apre il filtro live nella libreria;
 - matching case/accent-insensitive su titolo, autore, nome file e path;
@@ -291,13 +291,29 @@ Implementato:
 - query transiente, non persistita;
 - ADR-0045 e `LIBRARY_SEARCH.md`.
 
-### M3.2 — Themes — PLANNED
+### M3.2 — Themes — CANDIDATE
 
-- temi selezionabili mantenendo i ruoli semantici.
+- `c` cicla Semantico scuro / Carta chiara / Monocromatico;
+- `ReaderTheme` mappa i ruoli semantici del Layout a attributi Terminal.Gui;
+- tema predefinito = palette M2.4 validata;
+- header/footer/separatori/body cambiano insieme;
+- nessun tema o colore entra in Domain/Application/Layout;
+- scelta tema transiente, non persistita nello state JSON;
+- ADR-0046 e `THEMES.md`.
 
-### M3.3 — Configurable Keymap — PLANNED
+### M3.3 — Configurable Keymap & Preferences — STACKED CANDIDATE
 
-- keymap configurabile senza spostare la logica nella View.
+- costruita sopra M3.2 candidate, mentre M3.1 Hotfix 1 resta l'ultima baseline validata;
+- `config.json` schema 1 separato da `state.json` schema 3;
+- `ereader --config-path` e `ereader --init-config`;
+- override percorso tramite `EREADER_CONFIG_FILE`;
+- tema selezionato persistito con id stabile;
+- alias stampabili del reader configurabili e case-sensitive;
+- singolo grapheme per binding, collisioni rifiutate;
+- binding mancanti ereditano i default;
+- frecce/PgUp/PgDn/Space/Tab/Enter/Esc/F1 restano tasti speciali fissi;
+- configurazione bounded 64 KiB e scritta atomicamente;
+- ADR-0047 e `CONFIGURATION_KEYMAP.md`.
 
 ### M3.4 — Images — PLANNED
 

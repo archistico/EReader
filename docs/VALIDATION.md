@@ -1,13 +1,15 @@
-# Validation — M3.1 Hotfix 1 Library Search
+# Validation — M3.3 Hotfix 1 — Foundation Smoke Alignment
 
-## Baseline
+## Baseline e stacked chain
 
-- M3.0 — Library & Reading History: **VALIDATED**.
-- M3.1 era costruita esclusivamente sopra `EReader_M3.0_LibraryReadingHistory_NET10_Candidate.zip` validata. Hotfix 1 è costruita esclusivamente sulla candidate M3.1 che ha compilato ma ha fallito 2/422 test per falsi positivi fuzzy generati dal path completo.
+- M3.1 Hotfix 1 — **VALIDATED** (`M3.1 HOTFIX 1 VALIDATION PASSED`).
+- M3.2 Themes — **CANDIDATE non ancora validata**.
+- M3.3 è costruita esclusivamente sopra M3.2 e resta **STACKED CANDIDATE**.
+- M3.3 Hotfix 1 è costruita esclusivamente sopra M3.3 e corregge il solo smoke test milestone rimasto a `M3.2`.
 
 ## Gate
 
-Da una estrazione pulita:
+Da estrazione pulita:
 
 ```bat
 .\validate.cmd
@@ -19,54 +21,46 @@ oppure:
 ./validate.sh
 ```
 
-Il gate esegue restore, build Release con warnings-as-errors, suite completa, smoke CLI (`--help`, `--version`, `--foundation-info`, EPUB plain) e smoke `--history` con un `EREADER_STATE_FILE` temporaneo.
-
 Esito atteso:
 
 ```text
-M3.1 HOTFIX 1 VALIDATION PASSED
+M3.2+M3.3 HOTFIX 1 STACKED VALIDATION PASSED
 ```
 
-## Criteri M3.1
+## Criterio Hotfix 1
 
-Devono risultare veri tutti i seguenti punti:
+- `FoundationSmokeTests` deve verificare `M3.3`, coerentemente con `CliEntryPoint.Milestone`;
+- nessun file produttivo sotto `src/` deve differire dalla candidate M3.3 precedente.
 
-- `ReadingHistorySearch` vive in `EbookReader.Application.Library` e non dipende da Terminal.Gui;
-- query vuota mantiene l'ordine cronologico M3.0;
-- ricerca case-insensitive e accent-insensitive;
-- ricerca su titolo, autore, nome file e path;
-- sottosequenza fuzzy deterministica disponibile come fallback;
-- match di titolo classificati prima di match equivalenti trovati solo nel path;
-- query multi-token richiede un match per ogni token;
-- query bounded a 128 code unit UTF-16;
-- `/` apre il prompt filtro nella `LibraryWindow`;
-- typing e Backspace aggiornano live i risultati;
-- Backspace elimina l'ultimo grapheme, non un byte arbitrario;
-- `Enter` applica il filtro e torna alla navigazione;
-- `Esc` durante l'input annulla le modifiche e ripristina il filtro precedente;
-- `Esc` con filtro attivo lo cancella prima di chiudere la libreria;
-- `q` chiude sempre la libreria;
-- `state.json` resta schema 3 e non contiene query/filtro libreria;
-- Domain, EPUB e Layout restano indipendenti dalla funzione di ricerca libreria.
+## Criteri M3.2 + M3.3
 
-## Conteggio statico
-
-- 406 `[Fact]`;
-- 4 `[Theory]`;
-- 16 `[InlineData]`;
-- 423 casi attesi.
+- i tre temi M3.2 compilano e passano i regression test;
+- `config.json` è separato da `state.json` schema 3;
+- file config assente = preferenze default;
+- schema config diverso da 1 viene rifiutato;
+- tema sconosciuto viene rifiutato;
+- keymap parziale eredita i default;
+- collisioni e binding multi-grapheme vengono rifiutati;
+- `ReaderWindow` usa i binding configurati per i tasti stampabili;
+- frecce/PgUp/PgDn/Space/Tab/Enter/Esc/F1 restano disponibili;
+- cambio tema viene riportato dalla TUI e salvato nel file preferenze;
+- `--init-config` crea un file default bounded e `--config-path` espone il percorso;
+- `EREADER_CONFIG_FILE` consente uno smoke isolato;
+- ricerca, bookmark, progress, resize, TOC, metadata, library e library search non regrediscono.
 
 ## Prova manuale suggerita
 
-Dopo avere almeno due libri nella history:
+1. `ereader --init-config`;
+2. `ereader --config-path`;
+3. modificare ad esempio `NextLine` da `j` a `x` e `PreviousLine` da `k` a `z`;
+4. aprire un EPUB e verificare frecce + `x/z`;
+5. premere il binding `CycleTheme`, uscire e riaprire il libro;
+6. verificare che il tema scelto sia stato ripristinato;
+7. verificare che `state.json` non contenga `theme` o `keymap`.
 
-```bat
-ereader --library
-```
+## Conteggio statico candidate
 
-Premere `/`, digitare una parte del titolo o dell'autore, verificare il filtro live, premere `Enter`, navigare con `j/k`, quindi `Esc` per cancellare il filtro.
-
-
-## Hotfix 1
-
-Il gate M3.1 originale ha compilato tutti i progetti ma ha fallito `SearchMatchesTitleCaseInsensitively` e `SearchRequiresEveryTokenToMatch`: il fuzzy-subsequence sul path completo poteva ricostruire token usando caratteri sparsi nelle directory temporanee. Hotfix 1 limita il path a exact/prefix/substring e mantiene il fuzzy solo su titolo, autore e nome file.
+- 420 `[Fact]`;
+- 4 `[Theory]`;
+- 16 `[InlineData]`;
+- **436 casi attesi**.

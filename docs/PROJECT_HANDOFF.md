@@ -1,40 +1,60 @@
-# Project Handoff — EReader M2.5
+# Project Handoff — EReader M3.3 Hotfix 1
 
 ## Stato
 
-- **Ultima baseline autoritativa validata:** M2.5 — Stable Progress.
-- Gate utente: `M2.5 VALIDATION PASSED`.
-- **Baseline autoritativa validata:** M3.0 — Library & Reading History.
-- **Candidate corrente:** M3.1 Hotfix 1 — Library Search false-positive fix.
-- M3.0 è stata validata dall’utente. M3.1 ha compilato ma il gate ha fallito 2/422 test per falsi positivi fuzzy del path completo; Hotfix 1 corregge esclusivamente tale policy di matching e aggiunge un regression test.
+- **Baseline autoritativa validata:** M3.1 Hotfix 1 — Library Search.
+- Gate utente: `M3.1 HOTFIX 1 VALIDATION PASSED`.
+- **M3.2 Themes:** CANDIDATE non ancora validata.
+- **Candidate corrente:** M3.3 Hotfix 1 — Foundation smoke alignment, costruita sopra M3.3.
+- Stato corrente: **STACKED CANDIDATE**.
+- Hotfix 1 corregge esclusivamente il contratto `FoundationSmokeTests`: il prodotto dichiarava già `M3.3`, mentre il test attendeva ancora `M3.2`. Nessun file produttivo sotto `src/` viene modificato.
+- Target: .NET 10 / C# 14 / Terminal.Gui 2.4.17.
 
-## M2.5
-
-M2.5 introduce `EbookReader.Application.Progress`:
-
-- `BookProgress` — consumed/total logical units + fraction/percentage;
-- `BookProgressIndex` — indice precomputato per `Book.ReadingOrder`;
-- unità = `ContentText.GetPlainText(block).Length` code unit UTF-16;
-- location = somma dei blocchi precedenti + `ReadingLocation.CharacterOffset`;
-- supplementary incluse perché appartengono al reading order;
-- libro senza testo logico → `0.0%`;
-- fine ultimo blocco testuale → `100.0%`.
-
-`ReaderSession` costruisce l'indice una sola volta e espone `Progress`. L'header normale mostra contemporaneamente:
+## Catena candidate
 
 ```text
-Cap. x/y   Pag. p/n   37.4%
+M3.1 Hotfix 1 VALIDATED
+        ↓
+M3.2 Themes CANDIDATE
+        ↓
+M3.3 Configurable Keymap & Preferences STACKED CANDIDATE
+        ↓
+M3.3 Hotfix 1 Foundation Smoke Alignment STACKED CANDIDATE
 ```
 
-La pagina resta effimera; la percentuale è logica e stabile.
+M3.2 non deve essere promossa implicitamente a baseline finché il gate locale non passa. La validazione di M3.3 certifica insieme la catena M3.2→M3.3.
+
+## M3.3 Hotfix 1
+
+Correzione strettamente di test/handoff: `FoundationSmokeTests.MilestoneIsM33()` verifica `CliEntryPoint.Milestone == "M3.3"`. Tutti i 435 altri casi del tentativo locale erano già passati.
+
+## M3.3
+
+Nuovo `config.json` indipendente da `state.json`:
+
+- schema configurazione 1;
+- tema: `semantic-dark`, `paper-light`, `monochrome`;
+- keymap stampabile case-sensitive;
+- binding singolo grapheme e collision-free;
+- proprietà omesse = default;
+- massimo 64 KiB;
+- scrittura atomica same-directory;
+- `EREADER_CONFIG_FILE` per override;
+- `ereader --config-path`;
+- `ereader --init-config`.
+
+I tasti speciali frecce/PgUp/PgDn/Space/Tab/Enter/Esc/F1 restano sempre disponibili e non sono configurabili in M3.3.
+
+Il cambio tema con `CycleTheme` viene restituito dalla TUI e salvato in `config.json` all'uscita. Nessuna preferenza UI entra in `ReadingLocation`, bookmark, cronologia o `state.json` schema 3.
 
 ## Invarianti
 
-- nessun riferimento a `BookLayout`, `PageNumber`, `Viewport` nel modulo Progress;
-- nessun `Progress`/`Percentage` persistito nello state JSON;
-- resize/reflow della stessa `ReadingLocation` non modifica la percentuale;
-- Domain/Epub/Layout non devono conoscere il calcolo percentuale;
-- M2.4 bookmark, ricerca, colori e persistenza restano invariati.
+- Domain/Epub/Application/Layout non dipendono dalla configurazione TUI;
+- `ReadingLocation` resta l'unica posizione durevole;
+- pagina/riga/viewport/progresso non vengono persistiti come coordinate;
+- M3.1 search policy resta invariata;
+- M3.2 semantic roles restano nel Layout, colori concreti nel CLI/TUI;
+- configurazione invalida produce warning e fallback ai default senza bloccare la lettura.
 
 ## Gate
 
@@ -45,21 +65,7 @@ La pagina resta effimera; la percentuale è logica e stabile.
 Esito atteso:
 
 ```text
-M2.5 VALIDATION PASSED
+M3.2+M3.3 HOTFIX 1 STACKED VALIDATION PASSED
 ```
 
-Conteggio M2.5 validato: 405 casi.
-
-## Prossimo milestone
-
-M3.0 Library/History è validata. M3.1 implementa ora ricerca/filtro fuzzy transiente della libreria senza cambiare schema JSON.
-
-
-## Checkpoint M3.1
-
-- Baseline di partenza: M2.5 VALIDATED.
-- Baseline: M3.0 Library & Reading History — VALIDATED.
-- Candidate: M3.1 Library Search.
-- `state.json` schema 3, massimo 200 history entry.
-- `--library` TUI e `--history` plain.
-- M3.0 resta baseline autoritativa finché M3.1 Hotfix 1 non supera il gate.
+Conteggio statico: 420 Fact + 16 InlineData = **436 casi attesi** (4 Theory).

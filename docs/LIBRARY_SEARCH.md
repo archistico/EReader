@@ -1,5 +1,7 @@
 # M3.1 — Library Search
 
+Stato: VALIDATED (Hotfix 1)
+
 M3.1 aggiunge ricerca/filtro live alla libreria recente introdotta in M3.0.
 
 ## Uso

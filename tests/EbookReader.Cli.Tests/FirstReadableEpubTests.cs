@@ -120,13 +120,17 @@ public sealed class FirstReadableEpubTests
         Assert.Equal(string.Empty, error.ToString());
         Assert.Contains("ereader <libro.epub>", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("ereader --plain <libro.epub>", output.ToString(), StringComparison.Ordinal);
-        Assert.Contains("M3.1 Library Search", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("M3.3 Configurable Keymap & Preferences", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("nella libreria: / cerca, Esc cancella filtro", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("ereader --resume", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("/              cerca nel testo logico", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("n / N          risultato successivo/precedente", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("b              aggiunge/rimuove bookmark corrente", output.ToString(), StringComparison.Ordinal);
         Assert.Contains("B              apre/chiude elenco bookmark", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("c              cambia tema", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("ereader --config-path", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("ereader --init-config", output.ToString(), StringComparison.Ordinal);
+        Assert.Contains("EREADER_CONFIG_FILE", output.ToString(), StringComparison.Ordinal);
     }
 
     private static string CreateReadableEpub(bool encrypted = false)

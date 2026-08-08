@@ -178,3 +178,8 @@ L'elenco è una proiezione TUI di `ReadingLocation`; JSON e filesystem non sono 
 ## M2.5 — Stable Progress
 
 La vista normale aggiunge una percentuale logica accanto alla pagina, ad esempio `Pag. 12/84   37.4%`. La pagina deriva dal `BookLayout` e può cambiare dopo resize; la percentuale deriva da `BookProgressIndex` e dalla `ReadingLocation` e deve restare identica. Le overlay TOC/metadata/bookmark mantengono i propri header specializzati.
+
+
+## M3.3 — Keymap configurabile
+
+Da M3.3 gli alias stampabili mostrati da help/footer derivano da `config.json`. Le frecce, PgUp/PgDn, Space, Tab, Enter, Esc e F1 restano scorciatoie speciali fisse. Il file di configurazione è separato dallo stato di lettura; vedi `CONFIGURATION_KEYMAP.md`.

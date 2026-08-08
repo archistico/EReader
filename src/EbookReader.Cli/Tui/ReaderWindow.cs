@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using EbookReader.Cli.Configuration;
 using Terminal.Gui.Input;
 using Terminal.Gui.ViewBase;
 using Terminal.Gui.Views;
@@ -12,12 +13,8 @@ namespace EbookReader.Cli.Tui;
 /// </summary>
 internal sealed class ReaderWindow : Window
 {
-    private const string NormalFooter = "↑/k ↓/j riga  PgUp/PgDn pagina  [ ] cap.  / cerca  n/N risultato  b segnalibro  B elenco  t indice  m metadati  q/Esc esci";
-    private const string TocFooter = "↑/k ↓/j voce  PgUp/PgDn scorri  Enter apri  t/Tab/Esc chiudi  B segnalibri  m metadati  q esci";
-    private const string MetadataFooter = "↑/k ↓/j scorri  PgUp/PgDn pagina  m/Esc chiudi  B segnalibri  t indice  F1/? aiuto  q esci";
-    private const string BookmarkFooter = "↑/k ↓/j voce  PgUp/PgDn scorri  Enter apri  d elimina  B/Esc chiudi  q esci";
-
     private readonly ReaderSession _session;
+    private readonly ReaderKeymap _keymap;
     private static readonly string HorizontalRule = new('─', 1024);
 
     private readonly Label _header;
@@ -37,11 +34,15 @@ internal sealed class ReaderWindow : Window
     private int _bookmarkSelectedIndex = -1;
     private int _bookmarkScrollOffset;
     private bool _synchronizingViewport;
+    private int _themeIndex;
 
-    public ReaderWindow(ReaderSession session)
+    public ReaderWindow(ReaderSession session, ReaderPreferences preferences)
     {
         ArgumentNullException.ThrowIfNull(session);
+        ArgumentNullException.ThrowIfNull(preferences);
         _session = session;
+        _keymap = preferences.Keymap;
+        _themeIndex = ReaderThemeCatalog.IndexOfId(preferences.ThemeId);
 
         Title = "EReader";
         Width = Dim.Fill();
@@ -97,8 +98,11 @@ internal sealed class ReaderWindow : Window
         _body.ViewportChanged += (_, _) => SynchronizeViewport();
 
         Add(_header, _headerSeparator, _body, _footerSeparator, _footer);
+        ApplyTheme(ReaderThemeCatalog.All[_themeIndex]);
         RefreshReader();
     }
+
+    public string CurrentThemeId => ReaderThemeCatalog.All[_themeIndex].Id;
 
     protected override bool OnKeyDown(Key key)
     {
@@ -109,19 +113,25 @@ internal sealed class ReaderWindow : Window
             return HandleSearchInputKey(key);
         }
 
-        if (IsCharacter(key, '/'))
+        if (Matches(ReaderCommand.CycleTheme, key))
+        {
+            CycleTheme();
+            return true;
+        }
+
+        if (Matches(ReaderCommand.Search, key))
         {
             OpenSearchInput();
             return true;
         }
 
-        if (key == Key.F1 || IsCharacter(key, '?'))
+        if (key == Key.F1 || Matches(ReaderCommand.Help, key))
         {
             ToggleHelp();
             return true;
         }
 
-        if (key == Key.Q)
+        if (Matches(ReaderCommand.Quit, key))
         {
             App?.RequestStop();
             return true;
@@ -154,19 +164,19 @@ internal sealed class ReaderWindow : Window
             return true;
         }
 
-        if (key == Key.Tab || IsCharacter(key, 't'))
+        if (key == Key.Tab || Matches(ReaderCommand.ToggleToc, key))
         {
             ToggleToc();
             return true;
         }
 
-        if (IsCharacter(key, 'm'))
+        if (Matches(ReaderCommand.ToggleMetadata, key))
         {
             ToggleMetadata();
             return true;
         }
 
-        if (IsCharacter(key, 'B'))
+        if (Matches(ReaderCommand.OpenBookmarks, key))
         {
             ToggleBookmarks();
             return true;
@@ -192,68 +202,68 @@ internal sealed class ReaderWindow : Window
             return HandleBookmarkKey(key);
         }
 
-        if (IsCharacter(key, 'b'))
+        if (Matches(ReaderCommand.ToggleBookmark, key))
         {
             _session.ToggleBookmark();
             RefreshReader();
             return true;
         }
 
-        if (IsCharacter(key, 'n'))
+        if (Matches(ReaderCommand.NextSearchResult, key))
         {
             Navigate(_session.NextSearchResult);
             return true;
         }
 
-        if (IsCharacter(key, 'N'))
+        if (Matches(ReaderCommand.PreviousSearchResult, key))
         {
             Navigate(_session.PreviousSearchResult);
             return true;
         }
 
-        if (key == Key.CursorDown || IsCharacter(key, 'j'))
+        if (key == Key.CursorDown || Matches(ReaderCommand.NextLine, key))
         {
             Navigate(_session.NextLine);
             return true;
         }
 
-        if (key == Key.CursorUp || IsCharacter(key, 'k'))
+        if (key == Key.CursorUp || Matches(ReaderCommand.PreviousLine, key))
         {
             Navigate(_session.PreviousLine);
             return true;
         }
 
-        if (key == Key.PageDown || key == Key.L || key == Key.Space)
+        if (key == Key.PageDown || key == Key.Space || Matches(ReaderCommand.NextPage, key))
         {
             Navigate(_session.NextPage);
             return true;
         }
 
-        if (key == Key.PageUp || key == Key.H)
+        if (key == Key.PageUp || Matches(ReaderCommand.PreviousPage, key))
         {
             Navigate(_session.PreviousPage);
             return true;
         }
 
-        if (IsCharacter(key, ']'))
+        if (Matches(ReaderCommand.NextChapter, key))
         {
             Navigate(_session.NextChapter);
             return true;
         }
 
-        if (IsCharacter(key, '['))
+        if (Matches(ReaderCommand.PreviousChapter, key))
         {
             Navigate(_session.PreviousChapter);
             return true;
         }
 
-        if (key == Key.G.WithShift)
+        if (Matches(ReaderCommand.ChapterEnd, key))
         {
             Navigate(_session.ChapterEnd);
             return true;
         }
 
-        if (key == Key.G)
+        if (Matches(ReaderCommand.ChapterStart, key))
         {
             Navigate(_session.ChapterStart);
             return true;
@@ -308,13 +318,13 @@ internal sealed class ReaderWindow : Window
 
     private bool HandleTocKey(Key key)
     {
-        if (key == Key.CursorDown || IsCharacter(key, 'j'))
+        if (key == Key.CursorDown || Matches(ReaderCommand.NextLine, key))
         {
             MoveTocSelection(1);
             return true;
         }
 
-        if (key == Key.CursorUp || IsCharacter(key, 'k'))
+        if (key == Key.CursorUp || Matches(ReaderCommand.PreviousLine, key))
         {
             MoveTocSelection(-1);
             return true;
@@ -356,13 +366,13 @@ internal sealed class ReaderWindow : Window
 
     private bool HandleMetadataKey(Key key)
     {
-        if (key == Key.CursorDown || IsCharacter(key, 'j'))
+        if (key == Key.CursorDown || Matches(ReaderCommand.NextLine, key))
         {
             MoveMetadataScroll(1);
             return true;
         }
 
-        if (key == Key.CursorUp || IsCharacter(key, 'k'))
+        if (key == Key.CursorUp || Matches(ReaderCommand.PreviousLine, key))
         {
             MoveMetadataScroll(-1);
             return true;
@@ -385,13 +395,13 @@ internal sealed class ReaderWindow : Window
 
     private bool HandleBookmarkKey(Key key)
     {
-        if (key == Key.CursorDown || IsCharacter(key, 'j'))
+        if (key == Key.CursorDown || Matches(ReaderCommand.NextLine, key))
         {
             MoveBookmarkSelection(1);
             return true;
         }
 
-        if (key == Key.CursorUp || IsCharacter(key, 'k'))
+        if (key == Key.CursorUp || Matches(ReaderCommand.PreviousLine, key))
         {
             MoveBookmarkSelection(-1);
             return true;
@@ -420,13 +430,32 @@ internal sealed class ReaderWindow : Window
             return true;
         }
 
-        if (IsCharacter(key, 'd'))
+        if (Matches(ReaderCommand.DeleteBookmark, key))
         {
             DeleteSelectedBookmark();
             return true;
         }
 
         return true;
+    }
+
+    private void CycleTheme()
+    {
+        _themeIndex = (_themeIndex + 1) % ReaderThemeCatalog.All.Count;
+        ApplyTheme(ReaderThemeCatalog.All[_themeIndex]);
+        RefreshReader();
+    }
+
+    private void ApplyTheme(ReaderTheme theme)
+    {
+        ArgumentNullException.ThrowIfNull(theme);
+        SetScheme(theme.ChromeScheme);
+        _header.SetScheme(theme.PlainScheme);
+        _headerSeparator.SetScheme(theme.ChromeScheme);
+        _body.ApplyTheme(theme);
+        _footerSeparator.SetScheme(theme.ChromeScheme);
+        _footer.SetScheme(theme.PlainScheme);
+        SetNeedsDraw();
     }
 
     private void Navigate(Func<bool> movement)
@@ -437,8 +466,10 @@ internal sealed class ReaderWindow : Window
         }
     }
 
-    private static bool IsCharacter(Key key, char value) =>
-        string.Equals(key.GetPrintableText(), value.ToString(), StringComparison.Ordinal);
+    private bool Matches(ReaderCommand command, Key key) =>
+        _keymap.Matches(command, key.GetPrintableText());
+
+    private string Binding(ReaderCommand command) => _keymap.GetBinding(command);
 
     private void OpenSearchInput()
     {
@@ -822,14 +853,14 @@ internal sealed class ReaderWindow : Window
         _footer.Text = _searchInputVisible
             ? $"Cerca: {_searchInput}_   Enter cerca   Esc annulla"
             : _helpVisible
-                ? "F1/?/Esc chiudi aiuto   q esci"
+                ? $"F1/{Binding(ReaderCommand.Help)}/Esc chiudi aiuto   {Binding(ReaderCommand.Quit)} esci"
                 : _tocVisible
-                    ? TocFooter
+                    ? BuildTocFooter()
                     : _metadataVisible
-                        ? MetadataFooter
+                        ? BuildMetadataFooter()
                         : _bookmarksVisible
-                            ? BookmarkFooter
-                            : NormalFooter;
+                            ? BuildBookmarkFooter()
+                            : BuildNormalFooter();
     }
 
     private string BuildHeader()
@@ -877,31 +908,56 @@ internal sealed class ReaderWindow : Window
             : $"   Cerca «{_session.SearchQuery}»: {_session.CurrentSearchMatchNumber}/{_session.SearchMatchCount}{truncation}";
     }
 
-    private static string BuildHelp() =>
-        """
-        EReader — comandi M2.5
+    private string BuildNormalFooter() =>
+        $"↑/{Binding(ReaderCommand.PreviousLine)} ↓/{Binding(ReaderCommand.NextLine)} riga  PgUp/PgDn pagina  "
+        + $"{Binding(ReaderCommand.PreviousChapter)} {Binding(ReaderCommand.NextChapter)} cap.  "
+        + $"{Binding(ReaderCommand.Search)} cerca  {Binding(ReaderCommand.NextSearchResult)}/{Binding(ReaderCommand.PreviousSearchResult)} risultato  "
+        + $"{Binding(ReaderCommand.ToggleBookmark)} segnalibro  {Binding(ReaderCommand.OpenBookmarks)} elenco  "
+        + $"{Binding(ReaderCommand.ToggleToc)} indice  {Binding(ReaderCommand.ToggleMetadata)} metadati  "
+        + $"{Binding(ReaderCommand.CycleTheme)} tema  {Binding(ReaderCommand.Quit)}/Esc esci";
 
-        ↑ / k             riga precedente
-        ↓ / j             riga successiva
-        PgUp / h          pagina precedente
-        PgDn / l / Space  pagina successiva
-        [                 capitolo precedente
-        ]                 capitolo successivo
-        g                 inizio capitolo
-        G                 fine capitolo
-        t / Tab           apre/chiude indice
-        /                 cerca nel testo logico
-        n / N             risultato successivo / precedente
-        b                 aggiunge/rimuove bookmark corrente
-        B                 apre/chiude elenco bookmark
-        m                 apre/chiude metadati
-        F1 / ?            mostra/nasconde questo aiuto
-        q                 esci
+    private string BuildTocFooter() =>
+        $"↑/{Binding(ReaderCommand.PreviousLine)} ↓/{Binding(ReaderCommand.NextLine)} voce  PgUp/PgDn scorri  Enter apri  "
+        + $"{Binding(ReaderCommand.ToggleToc)}/Tab/Esc chiudi  {Binding(ReaderCommand.OpenBookmarks)} segnalibri  "
+        + $"{Binding(ReaderCommand.ToggleMetadata)} metadati  {Binding(ReaderCommand.Quit)} esci";
+
+    private string BuildMetadataFooter() =>
+        $"↑/{Binding(ReaderCommand.PreviousLine)} ↓/{Binding(ReaderCommand.NextLine)} scorri  PgUp/PgDn pagina  "
+        + $"{Binding(ReaderCommand.ToggleMetadata)}/Esc chiudi  {Binding(ReaderCommand.OpenBookmarks)} segnalibri  "
+        + $"{Binding(ReaderCommand.ToggleToc)} indice  F1/{Binding(ReaderCommand.Help)} aiuto  {Binding(ReaderCommand.Quit)} esci";
+
+    private string BuildBookmarkFooter() =>
+        $"↑/{Binding(ReaderCommand.PreviousLine)} ↓/{Binding(ReaderCommand.NextLine)} voce  PgUp/PgDn scorri  Enter apri  "
+        + $"{Binding(ReaderCommand.DeleteBookmark)} elimina  {Binding(ReaderCommand.OpenBookmarks)}/Esc chiudi  "
+        + $"{Binding(ReaderCommand.Quit)} esci";
+
+    private string BuildHelp() =>
+        $"""
+        EReader — comandi M3.3
+
+        ↑ / {Binding(ReaderCommand.PreviousLine)}             riga precedente
+        ↓ / {Binding(ReaderCommand.NextLine)}             riga successiva
+        PgUp / {Binding(ReaderCommand.PreviousPage)}          pagina precedente
+        PgDn / {Binding(ReaderCommand.NextPage)} / Space  pagina successiva
+        {Binding(ReaderCommand.PreviousChapter)}                 capitolo precedente
+        {Binding(ReaderCommand.NextChapter)}                 capitolo successivo
+        {Binding(ReaderCommand.ChapterStart)}                 inizio capitolo
+        {Binding(ReaderCommand.ChapterEnd)}                 fine capitolo
+        {Binding(ReaderCommand.ToggleToc)} / Tab           apre/chiude indice
+        {Binding(ReaderCommand.Search)}                 cerca nel testo logico
+        {Binding(ReaderCommand.NextSearchResult)} / {Binding(ReaderCommand.PreviousSearchResult)}             risultato successivo / precedente
+        {Binding(ReaderCommand.ToggleBookmark)}                 aggiunge/rimuove bookmark corrente
+        {Binding(ReaderCommand.OpenBookmarks)}                 apre/chiude elenco bookmark
+        {Binding(ReaderCommand.ToggleMetadata)}                 apre/chiude metadati
+        {Binding(ReaderCommand.CycleTheme)}                 cambia tema
+        F1 / {Binding(ReaderCommand.Help)}            mostra/nasconde questo aiuto
+        {Binding(ReaderCommand.Quit)}                 esci
         Esc               chiude bookmark/metadati/indice/aiuto, altrimenti esce
 
-        Nei bookmark: ↑/↓ o j/k selezionano, PgUp/PgDn scorrono, Enter apre, d elimina.
-        Nell'indice: ↑/↓ o j/k selezionano, PgUp/PgDn scorrono, Enter apre la voce.
-        Nei metadati: ↑/↓ o j/k scorrono una riga, PgUp/PgDn una pagina.
+        I tasti stampabili sopra riflettono config.json; frecce, PgUp/PgDn, Space, Tab, Enter, Esc e F1 restano sempre disponibili.
+        Nei bookmark: ↑/↓ o i binding riga selezionano, PgUp/PgDn scorrono, Enter apre, {Binding(ReaderCommand.DeleteBookmark)} elimina.
+        Nell'indice: ↑/↓ o i binding riga selezionano, PgUp/PgDn scorrono, Enter apre la voce.
+        Nei metadati: ↑/↓ o i binding riga scorrono una riga, PgUp/PgDn una pagina.
         La ricerca opera sul testo logico prima del wrapping; resize e larghezza terminale non cambiano i risultati.
         Il resize ricostruisce il layout mantenendo la stessa ReadingLocation logica.
         Numero pagina e riga possono cambiare dopo il reflow e restano coordinate effimere.

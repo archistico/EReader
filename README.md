@@ -2,12 +2,13 @@
 
 Lettore EPUB da terminale scritto in C# per .NET 10.
 
-**Ultima baseline autoritativa validata:** M2.5 — Stable Progress.  
-**Baseline validata:** M3.0 — Library & Reading History.  
-**Candidate corrente:** M3.1 Hotfix 1 — Library Search false-positive fix.  
-**Stato M3.1 Hotfix 1:** **CANDIDATE**.
+**Ultima baseline autoritativa validata:** M3.1 Hotfix 1 — Library Search.  
+**Candidate corrente:** M3.3 Hotfix 1 — Foundation Smoke Alignment (**STACKED sopra M3.3/M3.2 non validate**).  
+**Stato M3.2:** CANDIDATE non ancora validata.  
+**Stato M3.3:** **STACKED CANDIDATE**.  
+**Stato M3.3 Hotfix 1:** **STACKED CANDIDATE**; corregge solo il test milestone `M3.2`→`M3.3`, senza modifiche produttive.
 
-M3.0 ha superato il gate completo. M3.1 Hotfix 1 è costruita sulla candidate M3.1 dopo che il gate ha rilevato due falsi positivi fuzzy causati dal path completo; il path resta ricercabile per exact/prefix/substring ma non partecipa più al fuzzy-subsequence. Lo schema JSON 3 resta invariato.
+M3.1 Hotfix 1 ha superato il gate completo. M3.2 aggiunge tre temi semantici; M3.3 aggiunge `config.json` separato, keymap stampabile configurabile e persistenza del tema senza modificare `state.json` schema 3.
 
 ## Scope autoritativo
 
@@ -78,6 +79,15 @@ M2.5 aggiunge una percentuale stabile calcolata da `ReadingLocation` e testo log
 
 Dettagli progresso: [`docs/STABLE_PROGRESS.md`](docs/STABLE_PROGRESS.md).
 
+M3.0 aggiunge libreria/history locale; M3.1 aggiunge filtro ranked/fuzzy con path escluso dal fuzzy-subsequence. Entrambe sono validate.
+
+M3.2 aggiunge `c` per ciclare i temi Semantico scuro, Carta chiara e Monocromatico. M3.3 mantiene i temi nel boundary CLI/TUI ma persiste la preferenza in un nuovo `config.json`, separato dallo stato dei libri.
+
+M3.3 rende configurabili gli alias stampabili del reader (`j/k`, `b/B`, `t`, `m`, `/`, `n/N`, `c`, ecc.). Frecce, PgUp/PgDn, Space, Tab, Enter, Esc e F1 restano sempre disponibili. `ereader --config-path` mostra il percorso e `ereader --init-config` crea il file predefinito senza sovrascriverne uno esistente.
+
+Dettagli temi: [`docs/THEMES.md`](docs/THEMES.md).  
+Dettagli configurazione: [`docs/CONFIGURATION_KEYMAP.md`](docs/CONFIGURATION_KEYMAP.md).
+
 ## Pipeline corrente
 
 ```text
@@ -120,7 +130,11 @@ ReadingBookmarkState → JSON schema 3                    M2.4 VALIDATED
 BookProgressIndex → percentuale logica UTF-16                M2.5 VALIDATED
   ↓
 ReadingHistoryState → libreria recente / --library             M3.0 VALIDATED
-ReadingHistorySearch → filtro fuzzy libreria                     M3.1 CANDIDATE
+ReadingHistorySearch → filtro ranked libreria                    M3.1 VALIDATED
+  ↓
+ReaderTheme → palette semantiche Terminal.Gui                   M3.2 CANDIDATE
+  ↓
+JsonReaderPreferencesStore → theme + printable keymap            M3.3 STACKED CANDIDATE
 ```
 
 La facade di ingestione resta:

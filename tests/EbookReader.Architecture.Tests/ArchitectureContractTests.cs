@@ -446,8 +446,8 @@ public sealed class ArchitectureContractTests
             "ReaderWindow.cs"));
 
         Assert.Contains("_body.ShowReaderLines(_session.GetCurrentViewportLines());", source, StringComparison.Ordinal);
-        Assert.Contains("key == Key.CursorDown || IsCharacter(key, 'j')", source, StringComparison.Ordinal);
-        Assert.Contains("key == Key.CursorUp || IsCharacter(key, 'k')", source, StringComparison.Ordinal);
+        Assert.Contains("key == Key.CursorDown || Matches(ReaderCommand.NextLine, key)", source, StringComparison.Ordinal);
+        Assert.Contains("key == Key.CursorUp || Matches(ReaderCommand.PreviousLine, key)", source, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -563,7 +563,7 @@ public sealed class ArchitectureContractTests
             "EbookReader.Cli",
             "Tui",
             "ReaderTocEntry.cs")), StringComparison.Ordinal);
-        Assert.Contains("key == Key.Tab || IsCharacter(key, 't')", window, StringComparison.Ordinal);
+        Assert.Contains("key == Key.Tab || Matches(ReaderCommand.ToggleToc, key)", window, StringComparison.Ordinal);
         Assert.Contains("_session.NavigateToTocEntry(_tocSelectedIndex)", window, StringComparison.Ordinal);
         Assert.Contains("BuildToc()", window, StringComparison.Ordinal);
         Assert.DoesNotContain("ListView", window, StringComparison.Ordinal);
@@ -596,7 +596,7 @@ public sealed class ArchitectureContractTests
             "ReaderMetadataFormatter.cs"));
 
         Assert.Contains("BuildMetadataEntries(book)", session, StringComparison.Ordinal);
-        Assert.Contains("IsCharacter(key, 'm')", window, StringComparison.Ordinal);
+        Assert.Contains("Matches(ReaderCommand.ToggleMetadata, key)", window, StringComparison.Ordinal);
         Assert.Contains("BuildMetadata()", window, StringComparison.Ordinal);
         Assert.Contains("ReaderMetadataFormatter.Format", window, StringComparison.Ordinal);
         Assert.Contains("TerminalCellWidth.Measure", formatter, StringComparison.Ordinal);
@@ -640,7 +640,7 @@ public sealed class ArchitectureContractTests
             "Tui",
             "ReaderWindow.cs"));
 
-        Assert.Contains("IsCharacter(key, '/')", window, StringComparison.Ordinal);
+        Assert.Contains("Matches(ReaderCommand.Search, key)", window, StringComparison.Ordinal);
         Assert.Contains("_session.Search(query)", window, StringComparison.Ordinal);
         Assert.Contains("_session.NextSearchResult", window, StringComparison.Ordinal);
         Assert.Contains("_session.PreviousSearchResult", window, StringComparison.Ordinal);
@@ -699,8 +699,8 @@ public sealed class ArchitectureContractTests
             "Tui",
             "ReaderWindow.cs"));
 
-        Assert.Contains("IsCharacter(key, 'b')", window, StringComparison.Ordinal);
-        Assert.Contains("IsCharacter(key, 'B')", window, StringComparison.Ordinal);
+        Assert.Contains("Matches(ReaderCommand.ToggleBookmark, key)", window, StringComparison.Ordinal);
+        Assert.Contains("Matches(ReaderCommand.OpenBookmarks, key)", window, StringComparison.Ordinal);
         Assert.Contains("_session.ToggleBookmark()", window, StringComparison.Ordinal);
         Assert.Contains("_session.NavigateToBookmark", window, StringComparison.Ordinal);
         Assert.Contains("_session.RemoveBookmark", window, StringComparison.Ordinal);
@@ -809,8 +809,9 @@ public sealed class ArchitectureContractTests
 
         Assert.Contains("VisualLineKind.Heading", body, StringComparison.Ordinal);
         Assert.Contains("line.StyleSpans", body, StringComparison.Ordinal);
-        Assert.Contains("ReaderColorPalette.ForStyle", body, StringComparison.Ordinal);
+        Assert.Contains("_theme.ForStyle", body, StringComparison.Ordinal);
         Assert.Contains("SetScheme(ReaderColorPalette.PlainScheme);", body, StringComparison.Ordinal);
+        Assert.Contains("SetScheme(theme.PlainScheme);", body, StringComparison.Ordinal);
         Assert.DoesNotContain("Scheme = ReaderColorPalette", body, StringComparison.Ordinal);
         Assert.Contains("OnDrawingContent(DrawContext? context)", body, StringComparison.Ordinal);
     }
@@ -887,6 +888,118 @@ public sealed class ArchitectureContractTests
         Assert.DoesNotContain("ReadingLocation", search, StringComparison.Ordinal);
         Assert.DoesNotContain("filterQuery", state, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("libraryQuery", state, StringComparison.OrdinalIgnoreCase);
+    }
+
+
+    [Fact]
+    public void M32ReaderThemesDefineThreeSemanticPalettes()
+    {
+        string root = RepositoryRoot.Find();
+        string catalog = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Cli", "Tui", "ReaderThemeCatalog.cs"));
+        string theme = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Cli", "Tui", "ReaderTheme.cs"));
+
+        Assert.Contains("Semantico scuro", catalog, StringComparison.Ordinal);
+        Assert.Contains("Carta chiara", catalog, StringComparison.Ordinal);
+        Assert.Contains("Monocromatico", catalog, StringComparison.Ordinal);
+        Assert.Contains("ReaderColorPalette.ChapterHeading", catalog, StringComparison.Ordinal);
+        Assert.Contains("VisualTextStyle.Strong", theme, StringComparison.Ordinal);
+        Assert.Contains("VisualTextStyle.Emphasis", theme, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void M32ReaderWindowCyclesThemesThroughTheThinTuiBoundary()
+    {
+        string root = RepositoryRoot.Find();
+        string window = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Cli", "Tui", "ReaderWindow.cs"));
+        string body = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Cli", "Tui", "ReaderBodyView.cs"));
+
+        Assert.Contains("Matches(ReaderCommand.CycleTheme, key)", window, StringComparison.Ordinal);
+        Assert.Contains("ReaderThemeCatalog.All[_themeIndex]", window, StringComparison.Ordinal);
+        Assert.Contains("_body.ApplyTheme(theme)", window, StringComparison.Ordinal);
+        Assert.Contains("SetScheme(theme.ChromeScheme)", window, StringComparison.Ordinal);
+        Assert.Contains("SetScheme(theme.PlainScheme)", body, StringComparison.Ordinal);
+        Assert.Contains("_theme.ForStyle(span.Style)", body, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void M32ThemesStayOutOfLayoutAndReadingState()
+    {
+        string root = RepositoryRoot.Find();
+        string layoutRoot = Path.Combine(root, "src", "EbookReader.Layout");
+        string layout = string.Join(
+            Environment.NewLine,
+            Directory.EnumerateFiles(layoutRoot, "*.cs", SearchOption.AllDirectories).Select(File.ReadAllText));
+        string stateRoot = Path.Combine(root, "src", "EbookReader.Application", "State");
+        string state = string.Join(
+            Environment.NewLine,
+            Directory.EnumerateFiles(stateRoot, "*.cs", SearchOption.AllDirectories).Select(File.ReadAllText));
+
+        Assert.DoesNotContain("ReaderTheme", layout, StringComparison.Ordinal);
+        Assert.DoesNotContain("Semantico scuro", layout, StringComparison.Ordinal);
+        Assert.DoesNotContain("Carta chiara", layout, StringComparison.Ordinal);
+        Assert.DoesNotContain("theme", state, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void M33PreferencesAreSeparateFromReadingStateAndTerminalGui()
+    {
+        string root = RepositoryRoot.Find();
+        string configRoot = Path.Combine(root, "src", "EbookReader.Cli", "Configuration");
+        string config = string.Join(
+            Environment.NewLine,
+            Directory.EnumerateFiles(configRoot, "*.cs", SearchOption.AllDirectories).Select(File.ReadAllText));
+        string stateRoot = Path.Combine(root, "src", "EbookReader.Application", "State");
+        string state = string.Join(
+            Environment.NewLine,
+            Directory.EnumerateFiles(stateRoot, "*.cs", SearchOption.AllDirectories).Select(File.ReadAllText));
+
+        Assert.Contains("JsonReaderPreferencesStore", config, StringComparison.Ordinal);
+        Assert.Contains("EREADER_CONFIG_FILE", config, StringComparison.Ordinal);
+        Assert.Contains("ReaderKeymap", config, StringComparison.Ordinal);
+        Assert.DoesNotContain("Terminal.Gui", config, StringComparison.Ordinal);
+        Assert.DoesNotContain("ReaderKeymap", state, StringComparison.Ordinal);
+        Assert.DoesNotContain("config.json", state, StringComparison.Ordinal);
+        Assert.DoesNotContain("theme", state, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public void M33ReaderWindowUsesConfigurablePrintableAliasesAndFixedSpecialKeys()
+    {
+        string root = RepositoryRoot.Find();
+        string window = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Cli", "Tui", "ReaderWindow.cs"));
+
+        Assert.Contains("_keymap.Matches(command, key.GetPrintableText())", window, StringComparison.Ordinal);
+        Assert.Contains("Matches(ReaderCommand.NextLine, key)", window, StringComparison.Ordinal);
+        Assert.Contains("Matches(ReaderCommand.CycleTheme, key)", window, StringComparison.Ordinal);
+        Assert.Contains("key == Key.CursorDown", window, StringComparison.Ordinal);
+        Assert.Contains("key == Key.PageDown", window, StringComparison.Ordinal);
+        Assert.Contains("key == Key.Esc", window, StringComparison.Ordinal);
+        Assert.Contains("key == Key.F1", window, StringComparison.Ordinal);
+        Assert.Contains("key == Key.Tab", window, StringComparison.Ordinal);
+        Assert.Contains("key == Key.Enter", window, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void M33ThemePreferenceIsReturnedByTuiWithoutEnteringReadingState()
+    {
+        string root = RepositoryRoot.Find();
+        string host = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Cli", "Tui", "TerminalGuiReaderHost.cs"));
+        string result = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Cli", "Tui", "ReaderRunResult.cs"));
+        string cli = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Cli", "CliEntryPoint.cs"));
+
+        Assert.Contains("ReaderPreferences? preferences", host, StringComparison.Ordinal);
+        Assert.Contains("window.CurrentThemeId", host, StringComparison.Ordinal);
+        Assert.Contains("string ThemeId", result, StringComparison.Ordinal);
+        Assert.Contains("preferences.WithTheme(runResult.ThemeId)", cli, StringComparison.Ordinal);
+        Assert.Contains("JsonReaderPreferencesStore", cli, StringComparison.Ordinal);
     }
 
     private static bool ProjectReferencesAngleSharp(string projectFile)

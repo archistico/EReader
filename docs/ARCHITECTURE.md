@@ -1,7 +1,7 @@
 # Architettura di EReader
 
-Stato: **M3.1 Library Search — CANDIDATE**  
-Baseline autoritativa: **M2.5 Stable Progress VALIDATED**  
+Stato: **M3.3 Configurable Keymap & Preferences — STACKED CANDIDATE sopra M3.2**  
+Baseline autoritativa: **M3.1 Hotfix 1 Library Search VALIDATED**  
 Target: **.NET 10 / C# 14**
 
 ## 1. Obiettivo
@@ -464,3 +464,31 @@ I bookmark sono Application state, non Domain state. `ReaderWindow` opera soltan
 ### Library Search M3.1
 
 `ReadingHistorySearch` vive nello stesso Application layer della cronologia e classifica `ReadingHistoryEntry` per titolo, autore, nome file e path. Il filtro è transiente e la `LibraryWindow` delega completamente matching/ranking all'Application layer. Nessun dato di ricerca viene scritto nello schema JSON.
+
+
+## M3.2 Theme boundary
+
+```text
+VisualTextStyle / VisualLineKind
+            ↓
+      ReaderTheme
+            ↓
+Terminal.Gui Attribute / Scheme
+```
+
+I temi esistono solo in `EbookReader.Cli.Tui`; Layout, Domain, EPUB e Application State non conoscono colori o nomi tema.
+
+
+## M3.3 — Boundary configurazione utente
+
+`EbookReader.Cli.Configuration` contiene esclusivamente preferenze del frontend:
+
+```text
+config.json schema 1
+├── theme id
+└── printable keymap
+```
+
+Il modulo non dipende da Terminal.Gui e non modifica Domain/Application/Layout. `ReaderWindow` riceve un `ReaderKeymap` già validato e traduce i tasti stampabili in `ReaderCommand`; i tasti speciali canonici restano gestiti direttamente dal boundary Terminal.Gui.
+
+`state.json` schema 3 rimane indipendente e non contiene tema/keymap.

@@ -6,17 +6,26 @@ namespace EbookReader.Cli.Tui;
 
 /// <summary>
 /// Draws reader content with semantic colors while keeping Terminal.Gui out of the layout engine.
-/// Overlay screens are rendered as plain white text.
+/// Overlay screens are rendered with the active theme plain-text attribute.
 /// </summary>
 internal sealed class ReaderBodyView : View
 {
     private VisualLine[] _readerLines = [];
     private string[] _plainLines = [];
     private bool _readerMode;
+    private ReaderTheme _theme = ReaderThemeCatalog.Default;
 
     public ReaderBodyView()
     {
         SetScheme(ReaderColorPalette.PlainScheme);
+    }
+
+    public void ApplyTheme(ReaderTheme theme)
+    {
+        ArgumentNullException.ThrowIfNull(theme);
+        _theme = theme;
+        SetScheme(theme.PlainScheme);
+        SetNeedsDraw();
     }
 
     public void ShowReaderLines(VisualLine[] lines)
@@ -53,7 +62,7 @@ internal sealed class ReaderBodyView : View
             }
             else
             {
-                SetAttribute(ReaderColorPalette.PlainText);
+                SetAttribute(_theme.PlainText);
                 AddStr(_plainLines[row]);
             }
         }
@@ -65,7 +74,7 @@ internal sealed class ReaderBodyView : View
     {
         if (line.Kind == VisualLineKind.Heading)
         {
-            SetAttribute(ReaderColorPalette.ChapterHeading);
+            SetAttribute(_theme.ChapterHeading);
             AddStr(line.Text);
             return;
         }
@@ -75,18 +84,18 @@ internal sealed class ReaderBodyView : View
         {
             if (span.StartIndex > cursor)
             {
-                SetAttribute(ReaderColorPalette.PlainText);
+                SetAttribute(_theme.PlainText);
                 AddStr(line.Text[cursor..span.StartIndex]);
             }
 
-            SetAttribute(ReaderColorPalette.ForStyle(span.Style));
+            SetAttribute(_theme.ForStyle(span.Style));
             AddStr(line.Text[span.StartIndex..span.EndIndex]);
             cursor = span.EndIndex;
         }
 
         if (cursor < line.Text.Length)
         {
-            SetAttribute(ReaderColorPalette.PlainText);
+            SetAttribute(_theme.PlainText);
             AddStr(line.Text[cursor..]);
         }
     }

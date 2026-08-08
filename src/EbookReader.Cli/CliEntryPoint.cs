@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Reflection;
 using EbookReader.Application.Library;
 using EbookReader.Application.State;
+using EbookReader.Cli.Configuration;
 using EbookReader.Cli.Reading;
 using EbookReader.Cli.State;
 using EbookReader.Cli.Tui;
@@ -17,8 +18,8 @@ namespace EbookReader.Cli;
 /// </summary>
 public static class CliEntryPoint
 {
-    public const string Milestone = "M3.1";
-    public const string Status = "CANDIDATE";
+    public const string Milestone = "M3.3";
+    public const string Status = "STACKED CANDIDATE";
 
     private const int Success = 0;
     private const int UsageError = 2;
@@ -60,6 +61,16 @@ public static class CliEntryPoint
         {
             WriteFoundationInfo(output);
             return Success;
+        }
+
+        if (args.Length == 1 && string.Equals(args[0], "--config-path", StringComparison.Ordinal))
+        {
+            return WriteConfigPath(output, error);
+        }
+
+        if (args.Length == 1 && string.Equals(args[0], "--init-config", StringComparison.Ordinal))
+        {
+            return InitializeConfig(output, error);
         }
 
         if (args.Length == 1 && string.Equals(args[0], "--library", StringComparison.Ordinal))
@@ -275,7 +286,32 @@ public static class CliEntryPoint
             ? ReadingStateRestore.TryGetLocation(book, filePath, savedState)
             : ReadingHistoryState.TryGetLocation(book, filePath, matchingHistory);
         ReadOnlyCollection<ReadingLocation> initialBookmarks = ReadingBookmarkState.RestoreForBook(book, filePath, savedState);
-        ReaderRunResult runResult = TerminalGuiReaderHost.Run(book, initialLocation, initialBookmarks);
+        JsonReaderPreferencesStore? preferencesStore = TryCreatePreferencesStore(error);
+        ReaderPreferences preferences = ReaderPreferences.Default;
+        if (preferencesStore is not null)
+        {
+            ReaderPreferences? loadedPreferences = TryLoadPreferences(preferencesStore, error);
+            if (loadedPreferences is null)
+            {
+                preferencesStore = null;
+            }
+            else
+            {
+                preferences = loadedPreferences;
+            }
+        }
+
+        ReaderRunResult runResult = TerminalGuiReaderHost.Run(
+            book,
+            initialLocation,
+            initialBookmarks,
+            preferences);
+
+        if (preferencesStore is not null
+            && !string.Equals(runResult.ThemeId, preferences.ThemeId, StringComparison.Ordinal))
+        {
+            TrySavePreferences(preferencesStore, preferences.WithTheme(runResult.ThemeId), error);
+        }
 
         if (store is not null)
         {
@@ -365,6 +401,126 @@ public static class CliEntryPoint
         }
     }
 
+    private static int WriteConfigPath(TextWriter output, TextWriter error)
+    {
+        try
+        {
+            output.WriteLine(ReaderPreferencesPathResolver.Resolve());
+            return Success;
+        }
+        catch (ArgumentException exception)
+        {
+            error.WriteLine($"ER-CONFIG-PATH-001: percorso configurazione non valido: {exception.Message}");
+            return UsageError;
+        }
+        catch (InvalidOperationException exception)
+        {
+            error.WriteLine($"ER-CONFIG-PATH-001: percorso configurazione non disponibile: {exception.Message}");
+            return UsageError;
+        }
+    }
+
+    private static int InitializeConfig(TextWriter output, TextWriter error)
+    {
+        JsonReaderPreferencesStore? store = TryCreatePreferencesStore(error);
+        if (store is null)
+        {
+            return UsageError;
+        }
+
+        if (File.Exists(store.FilePath))
+        {
+            output.WriteLine($"Configurazione già esistente: {store.FilePath}");
+            return Success;
+        }
+
+        try
+        {
+            store.Save(ReaderPreferences.Default);
+            output.WriteLine($"Configurazione predefinita creata: {store.FilePath}");
+            return Success;
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            error.WriteLine($"ER-CONFIG-SAVE-001: impossibile creare la configurazione: {exception.Message}");
+            return IoFailure;
+        }
+        catch (IOException exception)
+        {
+            error.WriteLine($"ER-CONFIG-SAVE-001: impossibile creare la configurazione: {exception.Message}");
+            return IoFailure;
+        }
+        catch (InvalidOperationException exception)
+        {
+            error.WriteLine($"ER-CONFIG-SAVE-001: impossibile creare la configurazione: {exception.Message}");
+            return IoFailure;
+        }
+    }
+
+    private static JsonReaderPreferencesStore? TryCreatePreferencesStore(TextWriter error)
+    {
+        try
+        {
+            return new JsonReaderPreferencesStore(ReaderPreferencesPathResolver.Resolve());
+        }
+        catch (ArgumentException exception)
+        {
+            error.WriteLine($"ER-CONFIG-PATH-001: preferenze disabilitate: {exception.Message}");
+            return null;
+        }
+        catch (InvalidOperationException exception)
+        {
+            error.WriteLine($"ER-CONFIG-PATH-001: preferenze disabilitate: {exception.Message}");
+            return null;
+        }
+    }
+
+    private static ReaderPreferences? TryLoadPreferences(JsonReaderPreferencesStore store, TextWriter error)
+    {
+        try
+        {
+            return store.Load();
+        }
+        catch (InvalidDataException exception)
+        {
+            error.WriteLine($"ER-CONFIG-LOAD-001: configurazione ignorata, uso default: {exception.Message}");
+            return null;
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            error.WriteLine($"ER-CONFIG-LOAD-002: impossibile leggere la configurazione, uso default: {exception.Message}");
+            return null;
+        }
+        catch (IOException exception)
+        {
+            error.WriteLine($"ER-CONFIG-LOAD-002: impossibile leggere la configurazione, uso default: {exception.Message}");
+            return null;
+        }
+    }
+
+    private static void TrySavePreferences(
+        JsonReaderPreferencesStore store,
+        ReaderPreferences preferences,
+        TextWriter error)
+    {
+        try
+        {
+            store.Save(preferences);
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            error.WriteLine($"ER-CONFIG-SAVE-001: impossibile salvare le preferenze: {exception.Message}");
+        }
+        catch (IOException exception)
+        {
+            error.WriteLine($"ER-CONFIG-SAVE-001: impossibile salvare le preferenze: {exception.Message}");
+        }
+        catch (InvalidOperationException exception)
+        {
+            error.WriteLine($"ER-CONFIG-SAVE-001: impossibile salvare le preferenze: {exception.Message}");
+        }
+    }
+
     private static void WriteDiagnostics(EpubValidationResult result, TextWriter error)
     {
         foreach (EpubDiagnostic diagnostic in result.Diagnostics)
@@ -411,12 +567,14 @@ public static class CliEntryPoint
         output.WriteLine("Logical bookmarks: M2.4 schema 2 + semantic TUI colors validated");
         output.WriteLine("Stable progress: M2.5 logical UTF-16 progress independent of layout validated");
         output.WriteLine("Library/history: M3.0 recent-book JSON library with --library/--history validated");
-        output.WriteLine("Library search: M3.1 transient fuzzy title/author/path filter candidate");
+        output.WriteLine("Library search: M3.1 transient ranked title/author/file/path filter validated");
+        output.WriteLine("Reader themes: M3.2 three semantic palettes stacked candidate");
+        output.WriteLine("Preferences/keymap: M3.3 separate config.json with printable aliases stacked candidate");
     }
 
     private static void WriteHelp(TextWriter output)
     {
-        output.WriteLine("EReader — M3.1 Library Search");
+        output.WriteLine("EReader — M3.3 Configurable Keymap & Preferences");
         output.WriteLine();
         output.WriteLine("Uso:");
         output.WriteLine("  ereader <libro.epub>          apre il reader fullscreen");
@@ -424,6 +582,8 @@ public static class CliEntryPoint
         output.WriteLine("  ereader --library             apre la libreria recente interattiva");
         output.WriteLine("                               nella libreria: / cerca, Esc cancella filtro");
         output.WriteLine("  ereader --history             stampa la cronologia recente su stdout");
+        output.WriteLine("  ereader --config-path         stampa il percorso di config.json");
+        output.WriteLine("  ereader --init-config         crea config.json predefinito se assente");
         output.WriteLine("  ereader --plain <libro.epub> stampa il reading order su stdout");
         output.WriteLine("  ereader --help");
         output.WriteLine("  ereader --version");
@@ -441,8 +601,12 @@ public static class CliEntryPoint
         output.WriteLine("  b              aggiunge/rimuove bookmark corrente");
         output.WriteLine("  B              apre/chiude elenco bookmark");
         output.WriteLine("  m              apre/chiude metadati");
+        output.WriteLine("  c              cambia tema (persistito in config.json)");
         output.WriteLine("  F1 / ?         aiuto");
         output.WriteLine("  q              esci e salva la ReadingLocation");
         output.WriteLine("  Esc            annulla ricerca o chiude bookmark/metadati/indice/aiuto, altrimenti esce");
+        output.WriteLine();
+        output.WriteLine("I tasti stampabili sono configurabili; frecce/PgUp/PgDn/Space/Tab/Enter/Esc/F1 restano fissi.");
+        output.WriteLine("Override percorso configurazione: EREADER_CONFIG_FILE.");
     }
 }
