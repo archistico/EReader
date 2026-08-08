@@ -1080,6 +1080,27 @@ public sealed class ArchitectureContractTests
         Assert.DoesNotContain("externalUri", state, StringComparison.OrdinalIgnoreCase);
     }
 
+    [Fact]
+    public void M36NoteReferencesRemainFormatNeutralAfterEpubBoundary()
+    {
+        string root = RepositoryRoot.Find();
+        string domainRole = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Domain", "Content", "HyperlinkRole.cs"));
+        string epubReader = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Epub", "Content", "EpubBookReader.cs"));
+        string applicationIndex = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Application", "Links", "BookHyperlinkIndex.cs"));
+        string window = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Cli", "Tui", "ReaderWindow.cs"));
+
+        Assert.Contains("NoteReference", domainRole, StringComparison.Ordinal);
+        Assert.DoesNotContain("epub", domainRole, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("GetAttribute(\"epub:type\")", epubReader, StringComparison.Ordinal);
+        Assert.Contains("hyperlink.Role", applicationIndex, StringComparison.Ordinal);
+        Assert.Contains("Enter nota", window, StringComparison.Ordinal);
+        Assert.DoesNotContain("epub:type", applicationIndex, StringComparison.OrdinalIgnoreCase);
+    }
+
     private static bool ProjectReferencesAngleSharp(string projectFile)
     {
         XDocument document = XDocument.Load(projectFile);

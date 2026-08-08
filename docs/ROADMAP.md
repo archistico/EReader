@@ -328,7 +328,7 @@ Implementato:
 - nessun browser embedded, network retrieval, payload persistito o modifica a `state.json`/`config.json`;
 - ADR-0048 e `IMAGES.md`.
 
-### M3.5 — Interactive Hyperlinks & Back Stack — CANDIDATE / HOTFIX 1
+### M3.5 — Interactive Hyperlinks & Back Stack — VALIDATED
 
 - indice hyperlink pre-layout su range logici UTF-16;
 - `Enter` segue il link esatto o il primo link che interseca la riga corrente;
@@ -340,11 +340,15 @@ Implementato:
 - ADR-0049 e `HYPERLINKS.md`.
 - Hotfix 1: smoke EPUB riallineato a XHTML/XML senza DOCTYPE; nessuna modifica produttiva.
 
-### M3.6 — Footnotes / Endnotes UX — PLANNED
+### M3.6 — Footnotes / Endnotes UX — CANDIDATE
 
-- riconoscimento/rappresentazione dei rimandi nota sopra il primitive M3.5;
-- salto alla nota con ritorno immediato via back stack;
-- nessuna coordinata di layout persistita.
+- `epub:type="noteref"` mappato al ruolo Domain format-neutral `HyperlinkRole.NoteReference`;
+- header/footer `NOTA` / `Enter nota`;
+- salto alla nota tramite la stessa `ReadingLocation` M3.5;
+- ritorno immediato con Backspace sullo stack bounded M3.5;
+- note non marcate continuano a funzionare come hyperlink interni generici;
+- nessuna coordinata di layout, modalità nota o stack persistito;
+- ADR-0050 e `FOOTNOTES_ENDNOTES.md`.
 
 ### M3.7 — Highlights & Personal Notes — PLANNED
 

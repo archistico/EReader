@@ -65,6 +65,7 @@ Mapping M0.6:
 | `em`, `i` | `EmphasisSpan` |
 | `strong`, `b` | `StrongSpan` |
 | `a` interno al reading order | `HyperlinkSpan` + `InternalLinkTarget` |
+| `a epub:type="noteref"` interno | `HyperlinkSpan` + `InternalLinkTarget` + `HyperlinkRole.NoteReference` |
 | `a` `http:`, `https:` o `mailto:` | `HyperlinkSpan` + `ExternalLinkTarget` |
 | `br` | `LineBreakInline` |
 | altro inline | contenuto attraversato e preservato |
@@ -159,3 +160,6 @@ Nessun network retrieval, nessuna estrazione su filesystem e nessuna esecuzione 
 - TUI di lettura.
 
 Questi confini mantengono M0.6 concentrata sulla trasformazione del contenuto sorgente in un modello logico stabile.
+
+
+Da M3.6 il token EPUB `noteref` viene consumato esclusivamente in questo adapter e non attraversa il boundary come stringa EPUB.

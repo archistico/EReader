@@ -184,6 +184,26 @@ public sealed class EpubBookReaderTests
     }
 
     [Fact]
+    public void ReadMapsEpubNoterefToFormatNeutralNoteReferenceRole()
+    {
+        const string chapter = """
+        <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><body>
+          <h1 id="start">One</h1>
+          <p>Testo<a epub:type="noteref" href="#note-1">1</a>.</p>
+          <aside epub:type="footnote" id="note-1"><p>Nota uno.</p></aside>
+        </body></html>
+        """;
+
+        Book book = ContentFixtureFactory.ReadBook(chapter);
+        ParagraphBlock paragraph = Assert.IsType<ParagraphBlock>(book.ReadingOrder[0].Blocks[1]);
+        HyperlinkSpan link = Assert.IsType<HyperlinkSpan>(paragraph.Content[1]);
+        InternalLinkTarget target = Assert.IsType<InternalLinkTarget>(link.Target);
+
+        Assert.Equal(HyperlinkRole.NoteReference, link.Role);
+        Assert.Equal(book.ReadingOrder[0].Blocks[2].Id, target.Location.BlockId);
+    }
+
+    [Fact]
     public void ReadMapsExternalHttpLinkWithoutNetworkAccess()
     {
         const string chapter = """

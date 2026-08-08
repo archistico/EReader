@@ -134,7 +134,8 @@ public sealed class BookHyperlinkIndex
                     new ReadingLocation(sectionId, blockId, start),
                     text.Length,
                     text,
-                    hyperlink.Target));
+                    hyperlink.Target,
+                    hyperlink.Role));
         }
 
         AppendLinks(links, sectionId, blockId, hyperlink.Content, ref offset);

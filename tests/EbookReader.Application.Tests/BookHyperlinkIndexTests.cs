@@ -70,6 +70,26 @@ public sealed class BookHyperlinkIndexTests
     }
 
     [Fact]
+    public void IndexPreservesNoteReferenceRole()
+    {
+        SectionId sectionId = new("one");
+        BlockId sourceId = new("source");
+        BlockId noteId = new("note");
+        ParagraphBlock paragraph = new(
+            sourceId,
+            [new HyperlinkSpan(
+                new InternalLinkTarget(new ReadingLocation(sectionId, noteId, 0)),
+                [new TextRun("1")],
+                HyperlinkRole.NoteReference)]);
+        ParagraphBlock note = new(noteId, [new TextRun("Nota")]);
+        BookHyperlinkIndex index = new(CreateBook(new ReadingSection(sectionId, [paragraph, note])));
+
+        BookHyperlink link = Assert.Single(index.Links);
+
+        Assert.Equal(HyperlinkRole.NoteReference, link.Role);
+    }
+
+    [Fact]
     public void EmptyHyperlinkTextIsNotActionable()
     {
         SectionId sectionId = new("one");

@@ -58,6 +58,8 @@ Formato adottato: numero progressivo, titolo, stato, data, contesto, decisione, 
 | [0048](0048-image-preview-is-explicit-bounded-and-outside-domain.md) | Anteprima immagini esplicita, bounded e fuori dal Domain | Accepted |
 | [0049](0049-hyperlinks-use-logical-ranges-and-transient-back-stack.md) | Hyperlink su range logici con back stack transiente | Accepted |
 
+| [0050](0050-note-references-are-format-neutral-hyperlink-roles.md) | I rimandi nota sono ruoli hyperlink format-neutral | Accepted |
+
 ## Stati
 
 - **Proposed** — in discussione.
@@ -65,3 +67,4 @@ Formato adottato: numero progressivo, titolo, stato, data, contesto, decisione, 
 - **Superseded** — sostituito da ADR successivo.
 - **Deprecated** — decisione non più raccomandata ma ancora presente per compatibilità.
 - **Rejected** — valutato e non adottato.
+

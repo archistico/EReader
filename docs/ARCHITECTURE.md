@@ -1,6 +1,6 @@
 # Architettura di EReader
 
-Stato: **M3.5 Hotfix 1 XHTML Smoke Fixture Alignment — CANDIDATE sopra M3.5 / M3.4 Hotfix 1 VALIDATED**  
+Stato: **M3.6 Footnotes / Endnotes UX — CANDIDATE sopra M3.5 Hotfix 1 VALIDATED**  
 Baseline autoritativa: **M3.1 Hotfix 1 Library Search VALIDATED**  
 Target: **.NET 10 / C# 14**
 
@@ -516,3 +516,8 @@ Nessun image payload entra in `state.json`, `config.json`, `BookLayout` o `Readi
 ## M3.5 — Boundary hyperlink
 
 Gli hyperlink restano semantica Domain (`HyperlinkSpan` + `LinkTarget`) e vengono indicizzati in `EbookReader.Application.Links` come range UTF-16 prima del layout. `ReaderSession` usa la mappa sorgente di `VisualLine` soltanto per stabilire quale link logico è azionabile sulla riga corrente. Un link interno usa direttamente la `ReadingLocation` già risolta dall'adapter EPUB e push-a l'origine in uno stack transiente bounded; Backspace effettua il pop. I link esterni attraversano un adapter CLI separato che accetta solo `http`, `https`, `mailto` e delega al sistema operativo con `UseShellExecute=true`. Nessun URI viene scaricato da EReader e nessun link/back stack entra nei file persistenti.
+
+
+## M3.6 — Boundary semantico note
+
+`epub:type="noteref"` viene letto esclusivamente da `EbookReader.Epub` e tradotto in `HyperlinkRole.NoteReference`, definito nel Domain senza riferimenti EPUB. `EbookReader.Application.Links` conserva il ruolo insieme ai range UTF-16 M3.5. La TUI sceglie soltanto il wording `NOTA` / `Enter nota`; la navigazione usa ancora `InternalLinkTarget.Location` e lo stack Backspace transiente. Layout e persistenza non conoscono il vocabolario EPUB.

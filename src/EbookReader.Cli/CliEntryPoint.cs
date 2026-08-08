@@ -18,7 +18,7 @@ namespace EbookReader.Cli;
 /// </summary>
 public static class CliEntryPoint
 {
-    public const string Milestone = "M3.5";
+    public const string Milestone = "M3.6";
     public const string Status = "CANDIDATE";
 
     private const int Success = 0;
@@ -572,12 +572,13 @@ public static class CliEntryPoint
         output.WriteLine("Reader themes: M3.2 three semantic palettes validated");
         output.WriteLine("Preferences/keymap: M3.3 separate config.json with printable aliases validated");
         output.WriteLine("Images: M3.4 bounded local raster preview through the system viewer validated");
-        output.WriteLine("Hyperlinks: M3.5 logical internal navigation + transient back stack + explicit external OS handoff candidate");
+        output.WriteLine("Hyperlinks: M3.5 logical internal navigation + transient back stack + explicit external OS handoff validated");
+        output.WriteLine("Footnotes/endnotes: M3.6 EPUB noteref mapped to format-neutral note-reference UX candidate");
     }
 
     private static void WriteHelp(TextWriter output)
     {
-        output.WriteLine("EReader — M3.5 Interactive Hyperlinks & Back Stack");
+        output.WriteLine("EReader — M3.6 Footnotes & Endnotes UX");
         output.WriteLine();
         output.WriteLine("Uso:");
         output.WriteLine("  ereader <libro.epub>          apre il reader fullscreen");
@@ -605,13 +606,14 @@ public static class CliEntryPoint
         output.WriteLine("  B              apre/chiude elenco bookmark");
         output.WriteLine("  m              apre/chiude metadati");
         output.WriteLine("  c              cambia tema (persistito in config.json)");
-        output.WriteLine("  Enter          segue il link corrente/visibile; altrimenti apre l'immagine corrente");
+        output.WriteLine("  Enter          segue link/rimando nota corrente; altrimenti apre l'immagine corrente");
         output.WriteLine("  Backspace      torna alla posizione precedente dopo un link interno");
         output.WriteLine("  F1 / ?         aiuto");
         output.WriteLine("  q              esci e salva la ReadingLocation");
         output.WriteLine("  Esc            annulla ricerca o chiude bookmark/metadati/indice/aiuto, altrimenti esce");
         output.WriteLine();
         output.WriteLine("I tasti stampabili sono configurabili; frecce/PgUp/PgDn/Space/Tab/Enter/Backspace/Esc/F1 restano fissi.");
+        output.WriteLine("Note: epub:type=\"noteref\" usa ReadingLocation + Backspace per il ritorno immediato al testo.");
         output.WriteLine("Link: interni via ReadingLocation; esterni http/https/mailto soltanto su azione esplicita Enter.");
         output.WriteLine("Anteprima immagini: JPEG/PNG/GIF/WebP locali, max 16 MiB; SVG e risorse remote restano placeholder.");
         output.WriteLine("Override percorso configurazione: EREADER_CONFIG_FILE.");

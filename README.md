@@ -2,10 +2,10 @@
 
 Lettore EPUB da terminale scritto in C# per .NET 10.
 
-**Ultima baseline autoritativa validata:** M3.4 Hotfix 1 — Images + Help Contract Alignment.  
-**Candidate corrente:** M3.5 Hotfix 1 — XHTML Smoke Fixture Alignment.  
-**Stato M3.4 Hotfix 1:** **VALIDATED**.  
-**Stato M3.5 Hotfix 1:** **CANDIDATE**.
+**Ultima baseline autoritativa validata:** M3.5 Hotfix 1 — Interactive Hyperlinks + XHTML Smoke Fixture Alignment.  
+**Candidate corrente:** `EReader_M3.6_FootnotesEndnotesUX_NET10_Candidate.zip` — M3.6 Footnotes / Endnotes UX.
+**Stato M3.5 Hotfix 1:** **VALIDATED**.  
+**Stato M3.6:** **CANDIDATE** sopra M3.5 Hotfix 1 VALIDATED.
 
 M3.5 rende azionabili gli hyperlink Domain: salti interni su `ReadingLocation`, Backspace su stack transiente e handoff esplicito di `http`/`https`/`mailto` al sistema operativo, senza network client o browser embedded.
 
@@ -298,3 +298,21 @@ La cronologia conserva soltanto metadata format-neutral e `ReadingLocation`; non
 M3.1 aggiunge filtro fuzzy live a `ereader --library`. Premi `/`, digita titolo/autore/path e i risultati vengono aggiornati mentre scrivi. `Enter` applica il filtro; `Esc` durante l'input annulla, mentre `Esc` con un filtro già applicato lo cancella.
 
 La policy di ranking vive in `EbookReader.Application.Library.ReadingHistorySearch`, non nella View Terminal.Gui. La query non viene persistita. Vedi [`docs/LIBRARY_SEARCH.md`](docs/LIBRARY_SEARCH.md).
+
+## M3.6 — Footnotes / Endnotes UX
+
+M3.6 riconosce `epub:type="noteref"` al solo boundary EPUB e lo traduce in `HyperlinkRole.NoteReference`. Nel reader il rimando viene indicato come `NOTA`; `Enter` apre il target logico e `Backspace` torna immediatamente al testo usando lo stack transiente validato in M3.5. Nessun popup, pagina/riga o stato nota viene persistito.
+
+Il gate M3.6 aggiunge lo smoke `test-books/m3.6-notes-smoke.epub` e non avvia browser o viewer esterni.
+
+
+Audit statico M3.6: **444 Fact + 4 Theory + 16 InlineData = 460 casi attesi**.
+
+Documentazione decisionale: **50 ADR** totali con ADR-0050 per M3.6.
+
+
+## M3.6 Hotfix 1 — Help contract alignment
+
+Hotfix 1 riallinea il test `HelpDocumentsReadableEpubCommand` alla formulazione help M3.6 `Enter segue link/rimando nota corrente`. Nessun file produttivo sotto `src/` cambia rispetto alla candidate M3.6.
+
+Nota temi: il tema scelto è persistito in `config.json`. `semantic-dark` usa heading cyan, strong verde e emphasis giallo; `monochrome` usa intenzionalmente bianco/grigio e stili Bold/Italic. In TUI premere `c` per ciclare i temi oppure usare `ereader --config-path` per individuare la configurazione.

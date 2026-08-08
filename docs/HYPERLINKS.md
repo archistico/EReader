@@ -68,3 +68,8 @@ The back stack and currently offered hyperlink are runtime-only state.
 ## Deliberate limitation
 
 M3.5 does not yet introduce dedicated next-link/previous-link keys. If several links are on the same visual line, the first intersecting link is selected unless the current logical offset lies inside a specific link. This deterministic rule is sufficient for the first interactive-link milestone and keeps keymap compatibility intact.
+
+
+## M3.6 note-reference specialization
+
+M3.6 keeps the M3.5 hyperlink index/back-stack intact and adds only a format-neutral `HyperlinkRole.NoteReference`. The EPUB adapter maps `epub:type="noteref"` to that role; the TUI uses it to present `NOTA` / `Enter nota` and a note-specific return message. See `FOOTNOTES_ENDNOTES.md`.

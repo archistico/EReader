@@ -8,7 +8,12 @@ namespace EbookReader.Application.Links;
 /// </summary>
 public sealed class BookHyperlink
 {
-    public BookHyperlink(ReadingLocation startLocation, int textLength, string text, LinkTarget target)
+    public BookHyperlink(
+        ReadingLocation startLocation,
+        int textLength,
+        string text,
+        LinkTarget target,
+        HyperlinkRole role = HyperlinkRole.Generic)
     {
         ArgumentNullException.ThrowIfNull(startLocation);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(textLength);
@@ -29,6 +34,7 @@ public sealed class BookHyperlink
         TextLength = textLength;
         Text = text;
         Target = target;
+        Role = role;
     }
 
     public ReadingLocation StartLocation { get; }
@@ -40,4 +46,6 @@ public sealed class BookHyperlink
     public string Text { get; }
 
     public LinkTarget Target { get; }
+
+    public HyperlinkRole Role { get; }
 }

@@ -169,7 +169,7 @@ Questa proiezione diventerà la base per ricerca, progress e risoluzione degli o
 
 ## Link
 
-`HyperlinkSpan` utilizza un `LinkTarget` neutrale:
+`HyperlinkSpan` utilizza un `LinkTarget` neutrale e, da M3.6, un `HyperlinkRole` format-neutral (`Generic` / `NoteReference`):
 
 - `InternalLinkTarget` → `ReadingLocation`;
 - `ExternalLinkTarget` → `System.Uri` assoluto.

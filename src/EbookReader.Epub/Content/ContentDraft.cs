@@ -74,4 +74,8 @@ internal sealed record EmphasisDraft(List<InlineDraft> Content) : InlineDraft;
 
 internal sealed record StrongDraft(List<InlineDraft> Content) : InlineDraft;
 
-internal sealed record LinkDraft(string Href, OcfPath SourcePath, List<InlineDraft> Content) : InlineDraft;
+internal sealed record LinkDraft(
+    string Href,
+    OcfPath SourcePath,
+    HyperlinkRole Role,
+    List<InlineDraft> Content) : InlineDraft;

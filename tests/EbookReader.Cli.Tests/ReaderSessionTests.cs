@@ -565,6 +565,32 @@ public sealed class ReaderSessionTests
     }
 
     [Fact]
+    public void NoteReferenceUsesSameLogicalBackStackAsInternalLinks()
+    {
+        SectionId sectionId = new("one");
+        BlockId sourceId = new("source");
+        BlockId noteId = new("note");
+        ReadingLocation noteLocation = new(sectionId, noteId, 0);
+        ParagraphBlock source = new(
+            sourceId,
+            [new TextRun("Nota "), new HyperlinkSpan(
+                new InternalLinkTarget(noteLocation),
+                [new TextRun("1")],
+                HyperlinkRole.NoteReference)]);
+        ParagraphBlock note = new(noteId, [new TextRun("Testo nota")]);
+        Book book = new(new BookId("note-book"), new BookMetadata("Note"), [new ReadingSection(sectionId, [source, note])]);
+        ReaderSession session = new(book, new LayoutViewport(40, 10));
+        ReadingLocation origin = session.Location;
+
+        BookHyperlink current = Assert.IsType<BookHyperlink>(session.CurrentHyperlink);
+        Assert.Equal(HyperlinkRole.NoteReference, current.Role);
+        Assert.True(session.FollowCurrentInternalHyperlink());
+        Assert.Equal(noteLocation, session.Location);
+        Assert.True(session.NavigateBack());
+        Assert.Equal(origin, session.Location);
+    }
+
+    [Fact]
     public void CurrentHyperlinkRemainsLogicalAcrossReflow()
     {
         Book book = CreateBookWithInternalLink();

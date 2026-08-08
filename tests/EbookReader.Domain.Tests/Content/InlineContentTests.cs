@@ -45,6 +45,28 @@ public sealed class InlineContentTests
     }
 
     [Fact]
+    public void HyperlinkDefaultsToGenericRole()
+    {
+        HyperlinkSpan link = new(
+            new ExternalLinkTarget(new Uri("https://example.com/")),
+            [new TextRun("Example")]);
+
+        Assert.Equal(HyperlinkRole.Generic, link.Role);
+    }
+
+    [Fact]
+    public void HyperlinkStoresNoteReferenceRole()
+    {
+        ReadingLocation location = ReadingLocation.AtBlockStart(new SectionId("s1"), new BlockId("note"));
+        HyperlinkSpan link = new(
+            new InternalLinkTarget(location),
+            [new TextRun("1")],
+            HyperlinkRole.NoteReference);
+
+        Assert.Equal(HyperlinkRole.NoteReference, link.Role);
+    }
+
+    [Fact]
     public void PlainTextFlattensNestedFormattingAndBreaks()
     {
         InlineContent[] content =

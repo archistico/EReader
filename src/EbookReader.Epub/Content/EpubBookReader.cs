@@ -21,6 +21,8 @@ public static class EpubBookReader
 {
     private const string XhtmlMediaType = "application/xhtml+xml";
 
+    private static readonly char[] SemanticTypeSeparators = [' ', '\t', '\r', '\n', '\f'];
+
     private static readonly HashSet<string> BlockElementNames = new(StringComparer.Ordinal)
     {
         "address", "article", "aside", "blockquote", "div", "dl", "figure", "footer", "form",
@@ -513,7 +515,11 @@ public static class EpubBookReader
                 }
                 else
                 {
-                    target.Add(new LinkDraft(href, state.SourcePath, content));
+                    target.Add(new LinkDraft(
+                        href,
+                        state.SourcePath,
+                        GetHyperlinkRole(element),
+                        content));
                 }
             }
 
@@ -697,6 +703,25 @@ public static class EpubBookReader
         return result;
     }
 
+    private static HyperlinkRole GetHyperlinkRole(IElement element)
+    {
+        string? semanticType = element.GetAttribute("epub:type");
+        if (string.IsNullOrWhiteSpace(semanticType))
+        {
+            return HyperlinkRole.Generic;
+        }
+
+        foreach (string token in semanticType.Split(SemanticTypeSeparators, StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (string.Equals(token, "noteref", StringComparison.OrdinalIgnoreCase))
+            {
+                return HyperlinkRole.NoteReference;
+            }
+        }
+
+        return HyperlinkRole.Generic;
+    }
+
     private static void ResolveLink(
         List<InlineContent> target,
         LinkDraft link,
@@ -730,7 +755,7 @@ public static class EpubBookReader
         ReadingLocation location = fragment is null
             ? ReadingLocation.AtSectionStart(sectionId)
             : FindAnchor(path, fragment, anchors);
-        target.Add(new HyperlinkSpan(new InternalLinkTarget(location), content));
+        target.Add(new HyperlinkSpan(new InternalLinkTarget(location), content, link.Role));
     }
 
     private static TableOfContents BuildTableOfContents(

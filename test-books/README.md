@@ -20,3 +20,5 @@ EPUB 3 minimale aggiunto in M3.4. Contiene un vero PNG 1×1 locale referenziato 
 ## m3.5-link-smoke.epub
 
 EPUB 3 minimale per M3.5. Contiene un link interno `#target` e un link esterno `https://example.com/`. Il gate automatico lo apre solo con `--plain`, quindi non avvia browser/applicazioni esterne. Per la prova manuale TUI, portarsi sulla riga “destinazione interna”, premere `Enter`, verificare il salto, poi `Backspace`; sul link Example, `Enter` deve delegare l'URL al browser di sistema.
+
+- `m3.6-notes-smoke.epub`: EPUB3 minimale con `epub:type="noteref"` e target footnote interno; usato solo in `--plain` dal gate.

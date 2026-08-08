@@ -504,9 +504,14 @@ internal sealed class ReaderWindow : Window
         switch (hyperlink.Target)
         {
             case InternalLinkTarget:
-                _statusMessage = _session.FollowCurrentInternalHyperlink()
-                    ? "Link interno aperto. Backspace torna indietro."
-                    : "Il link interno punta già alla posizione corrente.";
+                bool followed = _session.FollowCurrentInternalHyperlink();
+                _statusMessage = hyperlink.Role == HyperlinkRole.NoteReference
+                    ? followed
+                        ? "Nota aperta. Backspace torna al testo."
+                        : "La nota punta già alla posizione corrente."
+                    : followed
+                        ? "Link interno aperto. Backspace torna indietro."
+                        : "Il link interno punta già alla posizione corrente.";
                 break;
 
             case ExternalLinkTarget external:
@@ -966,10 +971,12 @@ internal sealed class ReaderWindow : Window
         string progress = _session.Progress.Percentage.ToString("0.0", CultureInfo.InvariantCulture) + "%";
         string search = BuildSearchStatus();
         string bookmark = _session.IsCurrentLocationBookmarked ? "   ★" : string.Empty;
-        string link = _session.CurrentHyperlink?.Target switch
+        BookHyperlink? currentHyperlink = _session.CurrentHyperlink;
+        string link = currentHyperlink switch
         {
-            InternalLinkTarget => "   LINK interno",
-            ExternalLinkTarget external => $"   LINK {external.Uri.Scheme}",
+            { Role: HyperlinkRole.NoteReference, Target: InternalLinkTarget } => "   NOTA",
+            { Target: InternalLinkTarget } => "   LINK interno",
+            { Target: ExternalLinkTarget external } => $"   LINK {external.Uri.Scheme}",
             _ => string.Empty,
         };
         string image = _session.CurrentImage is ReaderImageInfo currentImage
@@ -993,11 +1000,13 @@ internal sealed class ReaderWindow : Window
 
     private string BuildNormalFooter()
     {
-        string enterAction = _session.CurrentHyperlink is not null
-            ? "Enter link  "
-            : _session.CurrentImage is not null
-                ? "Enter immagine  "
-                : string.Empty;
+        string enterAction = _session.CurrentHyperlink switch
+        {
+            { Role: HyperlinkRole.NoteReference, Target: InternalLinkTarget } => "Enter nota  ",
+            not null => "Enter link  ",
+            _ when _session.CurrentImage is not null => "Enter immagine  ",
+            _ => string.Empty,
+        };
         string backAction = _session.CanNavigateBack ? "Backspace indietro  " : string.Empty;
         return $"↑/{Binding(ReaderCommand.PreviousLine)} ↓/{Binding(ReaderCommand.NextLine)} riga  PgUp/PgDn pagina  "
             + enterAction
@@ -1026,7 +1035,7 @@ internal sealed class ReaderWindow : Window
 
     private string BuildHelp() =>
         $"""
-        EReader — comandi M3.5
+        EReader — comandi M3.6
 
         ↑ / {Binding(ReaderCommand.PreviousLine)}             riga precedente
         ↓ / {Binding(ReaderCommand.NextLine)}             riga successiva
@@ -1043,7 +1052,7 @@ internal sealed class ReaderWindow : Window
         {Binding(ReaderCommand.OpenBookmarks)}                 apre/chiude elenco bookmark
         {Binding(ReaderCommand.ToggleMetadata)}                 apre/chiude metadati
         {Binding(ReaderCommand.CycleTheme)}                 cambia tema
-        Enter             segue il link corrente/visibile; se non c'è link apre l'immagine corrente
+        Enter             segue il link corrente/visibile; i rimandi nota sono indicati come NOTA; se non c'è link apre l'immagine corrente
         Backspace         torna alla posizione precedente dopo un link interno
         F1 / {Binding(ReaderCommand.Help)}            mostra/nasconde questo aiuto
         {Binding(ReaderCommand.Quit)}                 esci
@@ -1057,7 +1066,8 @@ internal sealed class ReaderWindow : Window
         Il resize ricostruisce il layout mantenendo la stessa ReadingLocation logica.
         Numero pagina e riga possono cambiare dopo il reflow e restano coordinate effimere.
         La percentuale usa il testo logico UTF-16 del Book e resta stabile dopo resize/reflow.
-        I link interni usano ReadingLocation e uno stack Backspace transiente; http/https/mailto vengono delegati al sistema operativo solo su Enter.
+        I rimandi nota EPUB3 epub:type="noteref" diventano HyperlinkRole.NoteReference; Enter apre la nota e Backspace torna al testo.
+        Gli altri link interni usano ReadingLocation e lo stesso stack Backspace transiente; http/https/mailto vengono delegati al sistema operativo solo su Enter.
         Le immagini restano placeholder nel layout; Enter le apre solo quando la riga non offre un link azionabile. SVG e risorse remote non vengono avviati.
         """;
 }

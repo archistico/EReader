@@ -1,52 +1,35 @@
-# Project Handoff — EReader M3.5 Hotfix 1 — XHTML Smoke Fixture Alignment
+# Project Handoff — EReader M3.6 — Footnotes / Endnotes UX
 
 ## Baseline
 
-- **Baseline autoritativa validata:** `EReader_M3.4_Hotfix1_HelpContract_NET10_Candidate.zip`.
-- Gate utente: `M3.4 HOTFIX 1 VALIDATION PASSED`.
-- **Candidate corrente:** `EReader_M3.5_Hotfix1_XhtmlSmokeFixture_NET10_Candidate.zip` — M3.5 Hotfix 1, costruita esclusivamente sopra la candidate M3.5 derivata da M3.4 Hotfix 1.
-- Target: .NET 10 / C# 14 / Terminal.Gui 2.4.17 / AngleSharp 1.7.1.
+- Baseline autoritativa validata: `EReader_M3.5_Hotfix1_XhtmlSmokeFixture_NET10_Candidate.zip`.
+- Gate baseline: `M3.5 HOTFIX 1 VALIDATION PASSED`.
+- Candidate corrente: `EReader_M3.6_FootnotesEndnotesUX_NET10_Candidate.zip`.
 
-## M3.5
+## M3.6
 
-- `EbookReader.Application.Links.BookHyperlinkIndex` indicizza gli `HyperlinkSpan` Domain in range UTF-16 logici.
-- `ReaderSession.CurrentHyperlink` preferisce il link che contiene l'esatta ReadingLocation; in fallback usa il primo link che interseca la VisualLine corrente.
-- `Enter` segue un link interno o delega un link esterno al sistema operativo; senza link continua a gestire l'immagine M3.4.
-- I link interni pushano l'origine in uno stack runtime bounded a 128 elementi.
-- `Backspace` torna all'origine più recente.
-- `SystemExternalLinkService` ammette soltanto http/https/mailto e usa `UseShellExecute=true` dopo azione esplicita.
-- Nessun HttpClient, browser embedded o fetch di rete viene introdotto.
+- Domain: nuovo `HyperlinkRole.Generic/NoteReference`; `HyperlinkSpan` conserva il ruolo con default `Generic`.
+- EPUB: `epub:type="noteref"` viene riconosciuto come token whitespace-separated e tradotto a `NoteReference`; nessuna stringa EPUB passa in Application.
+- Application: `BookHyperlink` / `BookHyperlinkIndex` conservano il ruolo insieme ai range logici UTF-16.
+- TUI: `NOTA` nell'header, `Enter nota` nel footer, messaggio di ritorno specifico; la navigazione usa `ReadingLocation` e lo stack Backspace M3.5.
+- Persistenza: invariata (`state.json` schema 3, `config.json` schema 1).
+- Fixture: `test-books/m3.6-notes-smoke.epub`.
+- ADR: 0050.
 
-## M3.5 Hotfix 1
-
-- Corretto soltanto `test-books/m3.5-link-smoke.epub`.
-- Rimossi i `<!DOCTYPE html>` da `EPUB/nav.xhtml` e `EPUB/Text/ch1.xhtml`.
-- Entrambi i documenti sono ora XHTML/XML UTF-8 espliciti e compatibili con il parser sicuro (`DtdProcessing.Prohibit`).
-- Il package EPUB mantiene `mimetype` come prima entry, non compressa e senza extra field.
-- Nessun file sotto `src/` cambia rispetto alla candidate M3.5 originale.
-
-## Invarianti
-
-- `ReadingLocation` resta l'unica coordinata durevole.
-- Resize/reflow non cambia l'identità/range logico del link.
-- `state.json` resta schema 3.
-- `config.json` resta schema 1.
-- Link stack e current link non vengono persistiti.
-- Domain non viene modificato.
-- M3.4 image preview resta fallback di Enter quando non c'è un link azionabile.
-
-## Gate
-
-Da estrazione pulita:
-
-```bat
-.\validate.cmd
-```
-
-Esito atteso:
+## Gate atteso
 
 ```text
-M3.5 HOTFIX 1 VALIDATION PASSED
+M3.6 VALIDATION PASSED
 ```
 
-Conteggio statico previsto: **454 casi** (438 Fact + 16 InlineData; 4 Theory).
+M3.6 resta CANDIDATE fino al gate locale dell'utente.
+
+
+Audit statico M3.6: **444 Fact + 4 Theory + 16 InlineData = 460 casi attesi**.
+
+
+## M3.6 Hotfix 1
+
+- Corregge esclusivamente il contratto del test help M3.6; `src/` resta byte-identical alla candidate M3.6.
+- Gate atteso: `M3.6 HOTFIX 1 VALIDATION PASSED`.
+- Diagnostica temi: `semantic-dark` = testo bianco, heading cyan, strong verde, emphasis giallo; `monochrome` = bianco/grigio con Bold/Italic. Il tema è persistito in `config.json`.

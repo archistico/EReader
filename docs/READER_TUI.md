@@ -197,3 +197,8 @@ Dettagli e limiti: `IMAGES.md` e ADR-0048.
 ## M3.5 — Hyperlink interattivi
 
 Nella lettura normale `Enter` dà priorità a un hyperlink azionabile. La `ReadingLocation` esatta dentro un link ha precedenza; altrimenti viene scelto il primo hyperlink che interseca la riga visuale corrente. I link interni saltano alla `ReadingLocation` Domain target e attivano `Backspace indietro`; i link esterni `http`/`https`/`mailto` vengono passati all'applicazione associata dal sistema operativo. Se la riga non offre link, `Enter` conserva l'anteprima immagine M3.4. Header e footer segnalano dinamicamente link e back-stack disponibili.
+
+
+## M3.6 — Note e rimandi
+
+Un hyperlink Domain con `HyperlinkRole.NoteReference` viene mostrato come `NOTA`; `Enter` apre la nota e `Backspace` ritorna al testo attraverso lo stesso stack logico M3.5. Nessun popup o layout speciale viene persistito.
