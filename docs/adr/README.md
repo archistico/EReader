@@ -63,7 +63,8 @@ Formato adottato: numero progressivo, titolo, stato, data, contesto, decisione, 
 | [0051](0051-annotations-use-logical-ranges-and-state-schema-v4.md) | Annotazioni su range logici e stato schema 4 | Accepted |
 | [0052](0052-reader-wide-diagnostics-stay-format-neutral.md) | Diagnostica reader-wide format-neutral con bridge EPUB nel composition root | Accepted |
 | [0053](0053-defensive-epub-input-stays-virtual-and-bounded.md) | Input EPUB non attendibile: ZIP/OCF virtuale, bounded e URI allow-listed | Accepted |
-| [0054](0054-degraded-reading-recovers-only-deterministic-nonessential-failures.md) | Degraded reading solo per failure non essenziali e deterministicamente recuperabili | Accepted for M3.10 candidate |
+| [0054](0054-degraded-reading-recovers-only-deterministic-nonessential-failures.md) | Degraded reading solo per failure non essenziali e deterministicamente recuperabili | Accepted |
+| [0055](0055-broken-links-degrade-without-escaping-publication.md) | Broken link degradati senza uscire dalla pubblicazione | Accepted for M3.11 candidate |
 
 ## Stati
 

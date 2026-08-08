@@ -21,7 +21,7 @@ namespace EbookReader.Cli;
 /// </summary>
 public static class CliEntryPoint
 {
-    public const string Milestone = "M3.10";
+    public const string Milestone = "M3.11";
     public const string Status = "CANDIDATE";
 
     private const int Success = 0;
@@ -590,12 +590,13 @@ public static class CliEntryPoint
         output.WriteLine("Hyperlinks: M3.5 logical internal navigation + transient back stack + explicit external OS handoff validated");
         output.WriteLine("Footnotes/endnotes: M3.6 EPUB noteref mapped to format-neutral note-reference UX validated");
         output.WriteLine("Annotations: M3.7 logical highlight ranges + personal notes in state schema 4 validated");
-        output.WriteLine("EPUB recovery: M3.10 deterministic degraded reading for navigation, optional resources and supplementary spine candidate");
+        output.WriteLine("EPUB recovery: M3.10 deterministic degraded reading validated");
+        output.WriteLine("Link integrity: M3.11 granular broken-link diagnostics, partial TOC recovery and shared external-scheme allow-list candidate");
     }
 
     private static void WriteHelp(TextWriter output)
     {
-        output.WriteLine("EReader — M3.10 EPUB Recovery & Degraded Reading");
+        output.WriteLine("EReader — M3.11 Link Integrity & Navigation Security");
         output.WriteLine();
         output.WriteLine("Uso:");
         output.WriteLine("  ereader <libro.epub>          apre il reader fullscreen");

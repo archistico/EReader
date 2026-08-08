@@ -211,3 +211,10 @@ Un hyperlink Domain con `HyperlinkRole.NoteReference` viene mostrato come `NOTA`
 - F4: overlay annotazioni; frecce/jk selezionano, PgUp/PgDn scorrono, Enter salta, `d` (binding delete corrente) elimina.
 - Header: `EVID` se la riga corrente interseca un highlight e `NOTA PERSONALE` se esiste una nota esatta alla posizione.
 - Il rendering highlight è line-level, ma il range persistito resta preciso e indipendente dal layout.
+
+
+## M3.11 — Link failure transazionali
+
+La sessione verifica nuovamente che il target interno esista nel `Book` e sia diverso dalla posizione corrente prima di eseguire il salto. Solo dopo questa verifica l'origine viene aggiunta al back-stack e la `ReadingLocation` cambia. Un link non seguibile o autoreferenziale è quindi un no-op.
+
+Per i link esterni la allow-list condivisa `ExternalLinkPolicy` ammette soltanto `http`, `https` e `mailto`; il boundary OS ripete la verifica immediatamente prima di `UseShellExecute`. EReader non esegue richieste di rete per verificare gli URL.

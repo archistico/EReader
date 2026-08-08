@@ -37,3 +37,8 @@ A publication that does not mark note links with `epub:type="noteref"` is unchan
 ## Persistence
 
 M3.6 non modificava gli schemi allora correnti. Da M3.7 `state.json` è schema 4 per highlight/note personali e `config.json` resta schema 1; la UX footnote/endnote non aggiunge propri campi persistenti. Nessuno stato popup, token semantico EPUB, numero pagina/riga o elemento di back-stack viene serializzato.
+
+
+## M3.11 broken noteref
+
+Un `epub:type="noteref"` con target locale malformato, risorsa fuori dal reading order navigabile o fragment inesistente non rende il libro illeggibile. Nel percorso recovery-aware il testo del rimando resta leggibile, non viene creato `HyperlinkSpan`, viene emessa `ER-EPUB-RECOVERY-LINK-001` con messaggio identificato come `Rimando nota` e la posizione/back-stack della sessione restano invariati. Non vengono cercati note o backlink alternativi.

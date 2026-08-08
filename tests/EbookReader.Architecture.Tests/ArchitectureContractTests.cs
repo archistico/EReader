@@ -1065,6 +1065,8 @@ public sealed class ArchitectureContractTests
         string root = RepositoryRoot.Find();
         string external = File.ReadAllText(Path.Combine(
             root, "src", "EbookReader.Cli", "Links", "SystemExternalLinkService.cs"));
+        string policy = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Domain", "Content", "ExternalLinkPolicy.cs"));
         string window = File.ReadAllText(Path.Combine(
             root, "src", "EbookReader.Cli", "Tui", "ReaderWindow.cs"));
         string stateRoot = Path.Combine(root, "src", "EbookReader.Application", "State");
@@ -1072,9 +1074,10 @@ public sealed class ArchitectureContractTests
             Environment.NewLine,
             Directory.EnumerateFiles(stateRoot, "*.cs", SearchOption.AllDirectories).Select(File.ReadAllText));
 
-        Assert.Contains("Uri.UriSchemeHttp", external, StringComparison.Ordinal);
-        Assert.Contains("Uri.UriSchemeHttps", external, StringComparison.Ordinal);
-        Assert.Contains("\"mailto\"", external, StringComparison.Ordinal);
+        Assert.Contains("ExternalLinkPolicy.IsAllowed(uri)", external, StringComparison.Ordinal);
+        Assert.Contains("Uri.UriSchemeHttp", policy, StringComparison.Ordinal);
+        Assert.Contains("Uri.UriSchemeHttps", policy, StringComparison.Ordinal);
+        Assert.Contains("\"mailto\"", policy, StringComparison.Ordinal);
         Assert.Contains("UseShellExecute = true", external, StringComparison.Ordinal);
         Assert.Contains("key == Key.Enter && _session.CurrentHyperlink", window, StringComparison.Ordinal);
         Assert.Contains("key == Key.Backspace && _session.CanNavigateBack", window, StringComparison.Ordinal);
@@ -1209,6 +1212,39 @@ public sealed class ArchitectureContractTests
         Assert.DoesNotContain("catch (Exception", validator, StringComparison.Ordinal);
         Assert.DoesNotContain("EpubBookRecoveryResult", domainAndApplication, StringComparison.Ordinal);
         Assert.DoesNotContain("EpubContentRecoveryKind", domainAndApplication, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void M311LinkIntegrityUsesSharedAllowListAndTransactionalInternalNavigation()
+    {
+        string root = RepositoryRoot.Find();
+        string epubReader = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Epub", "Content", "EpubBookReader.cs"));
+        string external = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Cli", "Links", "SystemExternalLinkService.cs"));
+        string policy = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Domain", "Content", "ExternalLinkPolicy.cs"));
+        string session = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Cli", "Tui", "ReaderSession.cs"));
+        string validator = File.ReadAllText(Path.Combine(
+            root, "src", "EbookReader.Epub", "Validation", "EpubPublicationValidator.cs"));
+
+        Assert.Contains("ExternalLinkPolicy.IsAllowed(absoluteUri)", epubReader, StringComparison.Ordinal);
+        Assert.Contains("ExternalLinkPolicy.IsAllowed(uri)", external, StringComparison.Ordinal);
+        Assert.Contains("Uri.UriSchemeHttp", policy, StringComparison.Ordinal);
+        Assert.Contains("Uri.UriSchemeHttps", policy, StringComparison.Ordinal);
+        Assert.Contains("\"mailto\"", policy, StringComparison.Ordinal);
+        Assert.DoesNotContain("file", policy, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("javascript", policy, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("InternalHyperlinkDropped", epubReader, StringComparison.Ordinal);
+        Assert.Contains("NavigationTargetDropped", epubReader, StringComparison.Ordinal);
+        Assert.Contains("BrokenInternalHyperlink", validator, StringComparison.Ordinal);
+        Assert.Contains("UnsafeExternalHyperlinkSuppressed", validator, StringComparison.Ordinal);
+        Assert.Contains("_book.ContainsLocation(internalTarget.Location)", session, StringComparison.Ordinal);
+        Assert.Contains("Location = internalTarget.Location;", session, StringComparison.Ordinal);
+        Assert.Contains("PushLinkOrigin(origin);", session, StringComparison.Ordinal);
+        Assert.DoesNotContain("HttpClient", epubReader, StringComparison.Ordinal);
+        Assert.DoesNotContain("WebRequest", epubReader, StringComparison.Ordinal);
     }
 
     private static bool ProjectReferencesAngleSharp(string projectFile)

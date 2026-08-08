@@ -42,7 +42,7 @@ PLANNED_HARDENING
 |---|---|---|
 | Heading, paragraph, quote, pre, list | `SUPPORTED` | Domain semantico |
 | Emphasis/strong | `SUPPORTED` | stile semantico TUI |
-| Hyperlink interni | `SUPPORTED` | target logico + back-stack |
+| Hyperlink interni | `SUPPORTED` | target logico + back-stack; M3.11 degrada singoli target rotti preservando il testo |
 | Footnote/endnote `noteref` | `SUPPORTED` | ruolo format-neutral, UX M3.6 |
 | Immagini raster locali JPEG/PNG/GIF/WebP | `SUPPORTED_WITH_LIMITATIONS` | preview esplicito max 16 MiB; placeholder universale |
 | SVG | `SUPPORTED_WITH_LIMITATIONS` | descriptor/placeholder; non aperto dal preview raster M3.4 |
@@ -69,7 +69,7 @@ PLANNED_HARDENING
 
 ## Robustezza corrente e futura
 
-La baseline M3.9 Hotfix 1 possiede i guardrail bounded/security validati; la candidate M3.10 aggiunge recovery deterministico dei failure non essenziali. Le milestone immediatamente successive non servono ad aggiungere un nuovo formato, ma a rendere **esplicito e testabile** il comportamento davanti a pubblicazioni degradate, rotte o ostili.
+La baseline M3.10 Hotfix 2 possiede guardrail bounded/security e recovery non essenziale validati; la candidate M3.11 aggiunge link integrity granulare. Le milestone immediatamente successive non servono ad aggiungere un nuovo formato, ma a rendere **esplicito e testabile** il comportamento davanti a pubblicazioni degradate, rotte o ostili.
 
 ### M3.8–M3.13
 
@@ -77,11 +77,11 @@ Già implementato/validato o in candidate:
 
 - M3.8: diagnostica uniforme reader-wide e distinzione `FatalDocumentError` / `InternalError`;
 - M3.9 validata: budget ZIP, ratio guard, tipi entry speciali, path OCF difensivi, schemi manifest allow-listed, fallback bounded, decoding XHTML strict e classificazione della corruzione ZIP tardiva;
-- M3.10 candidate: TOC degradabile, skip deterministico di spine `linear="no"`, risorse opzionali mancanti e immagini referenziate mancanti con diagnostica.
+- M3.10 Hotfix 2 validata: TOC degradabile, skip deterministico di spine `linear="no"`, risorse opzionali mancanti e immagini referenziate mancanti con diagnostica;
+- M3.11 candidate: broken hyperlink/noteref degradabili, target TOC granulare, allow-list esterna condivisa.
 
 `PLANNED_HARDENING` residuo:
 
-- M3.11 link integrity completa;
 - M3.12 crash containment;
 - M3.13 corpus di EPUB corrotti con outcome attesi.
 

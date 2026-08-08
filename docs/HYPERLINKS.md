@@ -68,3 +68,14 @@ M3.5 does not yet introduce dedicated next-link/previous-link keys. If several l
 ## M3.6 note-reference specialization
 
 M3.6 keeps the M3.5 hyperlink index/back-stack intact and adds only a format-neutral `HyperlinkRole.NoteReference`. The EPUB adapter maps `epub:type="noteref"` to that role; the TUI uses it to present `NOTA` / `Enter nota` and a note-specific return message. See `FOOTNOTES_ENDNOTES.md`.
+
+
+## M3.11 link-integrity hardening
+
+M3.11 separa la leggibilità del testo dalla validità del collegamento. Nel percorso operativo recovery-aware, un link interno con risorsa/fragment non risolvibile o riferimento locale malformato conserva il contenuto inline ma non genera `HyperlinkSpan`; viene emessa la diagnostica stabile `ER-EPUB-RECOVERY-LINK-001`. I `noteref` rotti usano lo stesso contratto e vengono descritti come `Rimando nota`.
+
+La navigation EPUB diventa granulare: un target TOC rotto non elimina gli altri nodi validi: una foglia rotta viene omessa, mentre un parent con figli validi resta come grouping node (`Target == null`).
+
+La policy esterna è ora condivisa tramite `ExternalLinkPolicy`: soltanto `http`, `https` e `mailto` sono azionabili. L'adapter EPUB filtra prima della creazione del Domain link e `SystemExternalLinkService` ripete la verifica immediatamente prima dell'handoff OS. EReader non prova gli URL via rete.
+
+`ReaderSession.FollowCurrentInternalHyperlink()` verifica esplicitamente che il target appartenga ancora al `Book` prima di eseguire qualsiasi mutazione. Self-link, link esterno o target non seguibile restituiscono `false` lasciando invariati `ReadingLocation` e back-stack.

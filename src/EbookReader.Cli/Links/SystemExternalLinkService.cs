@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Diagnostics;
+using EbookReader.Domain.Content;
 
 namespace EbookReader.Cli.Links;
 
@@ -12,7 +13,7 @@ internal sealed class SystemExternalLinkService : IReaderExternalLinkService
     public ExternalLinkOpenResult Open(Uri uri)
     {
         ArgumentNullException.ThrowIfNull(uri);
-        if (!uri.IsAbsoluteUri || !IsAllowedScheme(uri.Scheme))
+        if (!ExternalLinkPolicy.IsAllowed(uri))
         {
             return ExternalLinkOpenResult.Failure("Schema link esterno non supportato.");
         }
@@ -50,8 +51,4 @@ internal sealed class SystemExternalLinkService : IReaderExternalLinkService
         }
     }
 
-    private static bool IsAllowedScheme(string scheme) =>
-        string.Equals(scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase)
-        || string.Equals(scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase)
-        || string.Equals(scheme, "mailto", StringComparison.OrdinalIgnoreCase);
 }

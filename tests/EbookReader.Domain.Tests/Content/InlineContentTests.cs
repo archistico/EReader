@@ -35,6 +35,33 @@ public sealed class InlineContentTests
         Assert.Throws<ArgumentException>(() => new ExternalLinkTarget(relative));
     }
 
+
+    [Theory]
+    [InlineData("http://example.com/")]
+    [InlineData("https://example.com/")]
+    [InlineData("mailto:reader@example.com")]
+    public void ExternalLinkPolicyAllowsOnlyExplicitSchemes(string value)
+    {
+        Assert.True(ExternalLinkPolicy.IsAllowed(new Uri(value)));
+    }
+
+    [Theory]
+    [InlineData("file:///etc/passwd")]
+    [InlineData("javascript:alert(1)")]
+    [InlineData("data:text/plain,hello")]
+    [InlineData("ftp://example.com/file")]
+    [InlineData("shell:open")]
+    public void ExternalLinkPolicyRejectsLocalScriptAndUnknownSchemes(string value)
+    {
+        Assert.False(ExternalLinkPolicy.IsAllowed(new Uri(value)));
+    }
+
+    [Fact]
+    public void ExternalLinkPolicyRejectsRelativeUri()
+    {
+        Assert.False(ExternalLinkPolicy.IsAllowed(new Uri("chapter.xhtml", UriKind.Relative)));
+    }
+
     [Fact]
     public void InternalLinkStoresLogicalLocation()
     {

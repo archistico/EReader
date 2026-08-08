@@ -124,13 +124,20 @@ public static class EpubBookReader
             }
         }
 
-        List<ReadingSection> readingOrder = ResolveSections(sectionDrafts, firstSectionByPath, anchors);
+        List<ReadingSection> readingOrder = ResolveSections(
+            sectionDrafts,
+            firstSectionByPath,
+            anchors,
+            recoverSupplementaryContent,
+            recoveryIssues);
         TableOfContents tableOfContents = TableOfContents.Empty;
         if (navigation is not null)
         {
             try
             {
-                tableOfContents = BuildTableOfContents(navigation.TableOfContents.Items, firstSectionByPath, anchors);
+                tableOfContents = recoverSupplementaryContent
+                    ? BuildTableOfContentsRecovering(navigation.TableOfContents.Items, firstSectionByPath, anchors, recoveryIssues)
+                    : BuildTableOfContents(navigation.TableOfContents.Items, firstSectionByPath, anchors);
             }
             catch (EpubContentException exception) when (recoverSupplementaryContent)
             {
@@ -680,7 +687,9 @@ public static class EpubBookReader
     private static List<ReadingSection> ResolveSections(
         List<SectionDraft> drafts,
         Dictionary<string, SectionId> firstSectionByPath,
-        Dictionary<string, ReadingLocation> anchors)
+        Dictionary<string, ReadingLocation> anchors,
+        bool recoverLinkIntegrity,
+        List<EpubContentRecoveryIssue> recoveryIssues)
     {
         List<ReadingSection> sections = new(drafts.Count);
         foreach (SectionDraft draft in drafts)
@@ -688,7 +697,7 @@ public static class EpubBookReader
             List<ContentBlock> blocks = new(draft.Blocks.Count);
             foreach (BlockDraft block in draft.Blocks)
             {
-                blocks.Add(ResolveBlock(block, firstSectionByPath, anchors));
+                blocks.Add(ResolveBlock(block, firstSectionByPath, anchors, recoverLinkIntegrity, recoveryIssues));
             }
 
             sections.Add(
@@ -705,16 +714,18 @@ public static class EpubBookReader
     private static ContentBlock ResolveBlock(
         BlockDraft draft,
         Dictionary<string, SectionId> firstSectionByPath,
-        Dictionary<string, ReadingLocation> anchors) =>
+        Dictionary<string, ReadingLocation> anchors,
+        bool recoverLinkIntegrity,
+        List<EpubContentRecoveryIssue> recoveryIssues) =>
         draft.Kind switch
         {
-            BlockDraftKind.Paragraph => new ParagraphBlock(draft.Id, ResolveInlines(draft.Inlines, firstSectionByPath, anchors)),
-            BlockDraftKind.Heading => new HeadingBlock(draft.Id, draft.LevelOrDepth, ResolveInlines(draft.Inlines, firstSectionByPath, anchors)),
-            BlockDraftKind.Quote => new QuoteBlock(draft.Id, ResolveInlines(draft.Inlines, firstSectionByPath, anchors), draft.LevelOrDepth),
+            BlockDraftKind.Paragraph => new ParagraphBlock(draft.Id, ResolveInlines(draft.Inlines, firstSectionByPath, anchors, recoverLinkIntegrity, recoveryIssues)),
+            BlockDraftKind.Heading => new HeadingBlock(draft.Id, draft.LevelOrDepth, ResolveInlines(draft.Inlines, firstSectionByPath, anchors, recoverLinkIntegrity, recoveryIssues)),
+            BlockDraftKind.Quote => new QuoteBlock(draft.Id, ResolveInlines(draft.Inlines, firstSectionByPath, anchors, recoverLinkIntegrity, recoveryIssues), draft.LevelOrDepth),
             BlockDraftKind.ListItem => new ListItemBlock(
                 draft.Id,
                 draft.ListKind,
-                ResolveInlines(draft.Inlines, firstSectionByPath, anchors),
+                ResolveInlines(draft.Inlines, firstSectionByPath, anchors, recoverLinkIntegrity, recoveryIssues),
                 draft.LevelOrDepth,
                 draft.Ordinal),
             BlockDraftKind.Preformatted => new PreformattedBlock(draft.Id, draft.Text ?? string.Empty),
@@ -730,7 +741,9 @@ public static class EpubBookReader
     private static List<InlineContent> ResolveInlines(
         List<InlineDraft> drafts,
         Dictionary<string, SectionId> firstSectionByPath,
-        Dictionary<string, ReadingLocation> anchors)
+        Dictionary<string, ReadingLocation> anchors,
+        bool recoverLinkIntegrity,
+        List<EpubContentRecoveryIssue> recoveryIssues)
     {
         List<InlineContent> result = new(drafts.Count);
         foreach (InlineDraft draft in drafts)
@@ -744,13 +757,13 @@ public static class EpubBookReader
                     result.Add(LineBreakInline.Instance);
                     break;
                 case EmphasisDraft emphasis:
-                    result.Add(new EmphasisSpan(ResolveInlines(emphasis.Content, firstSectionByPath, anchors)));
+                    result.Add(new EmphasisSpan(ResolveInlines(emphasis.Content, firstSectionByPath, anchors, recoverLinkIntegrity, recoveryIssues)));
                     break;
                 case StrongDraft strong:
-                    result.Add(new StrongSpan(ResolveInlines(strong.Content, firstSectionByPath, anchors)));
+                    result.Add(new StrongSpan(ResolveInlines(strong.Content, firstSectionByPath, anchors, recoverLinkIntegrity, recoveryIssues)));
                     break;
                 case LinkDraft link:
-                    ResolveLink(result, link, firstSectionByPath, anchors);
+                    ResolveLink(result, link, firstSectionByPath, anchors, recoverLinkIntegrity, recoveryIssues);
                     break;
             }
         }
@@ -781,36 +794,96 @@ public static class EpubBookReader
         List<InlineContent> target,
         LinkDraft link,
         Dictionary<string, SectionId> firstSectionByPath,
-        Dictionary<string, ReadingLocation> anchors)
+        Dictionary<string, ReadingLocation> anchors,
+        bool recoverLinkIntegrity,
+        List<EpubContentRecoveryIssue> recoveryIssues)
     {
-        List<InlineContent> content = ResolveInlines(link.Content, firstSectionByPath, anchors);
+        List<InlineContent> content = ResolveInlines(
+            link.Content,
+            firstSectionByPath,
+            anchors,
+            recoverLinkIntegrity,
+            recoveryIssues);
+
         if (Uri.TryCreate(link.Href, UriKind.Absolute, out Uri? absoluteUri))
         {
-            if (IsSupportedExternalScheme(absoluteUri))
+            if (ExternalLinkPolicy.IsAllowed(absoluteUri))
             {
                 target.Add(new HyperlinkSpan(new ExternalLinkTarget(absoluteUri), content));
                 return;
             }
 
-            // Preserve readable text but do not expose file:, javascript:, data: or other
-            // unsupported schemes as actionable Domain links.
             target.AddRange(content);
+            if (recoverLinkIntegrity)
+            {
+                recoveryIssues.Add(new EpubContentRecoveryIssue(
+                    EpubContentRecoveryKind.UnsafeExternalHyperlinkSuppressed,
+                    $"Link esterno '{link.Href}' reso non azionabile: lo schema URI non appartiene alla allow-list http/https/mailto e non viene delegato al sistema operativo."));
+            }
+
             return;
         }
 
-        (OcfPath path, string? fragment) = ResolveLocalReference(link.SourcePath, link.Href);
+        OcfPath path;
+        string? fragment;
+        try
+        {
+            (path, fragment) = ResolveLocalReference(link.SourcePath, link.Href);
+        }
+        catch (EpubContentException exception) when (recoverLinkIntegrity && exception.ErrorCode == EpubContentErrorCode.InvalidLocalReference)
+        {
+            PreserveBrokenInternalLink(target, content, link, recoveryIssues, exception.Message);
+            return;
+        }
+
         if (!firstSectionByPath.TryGetValue(path.Value, out SectionId? sectionId))
         {
-            // A valid EPUB may link to a non-reading resource. The Domain currently models
-            // navigable reading targets, so preserve the text while deliberately dropping link semantics.
             target.AddRange(content);
+            if (recoverLinkIntegrity)
+            {
+                recoveryIssues.Add(new EpubContentRecoveryIssue(
+                    EpubContentRecoveryKind.InternalHyperlinkDropped,
+                    BrokenInternalLinkMessage(
+                        link,
+                        $"la risorsa target '{path.Value}' non appartiene al reading order navigabile")));
+            }
+
             return;
         }
 
-        ReadingLocation location = fragment is null
-            ? ReadingLocation.AtSectionStart(sectionId)
-            : FindAnchor(path, fragment, anchors);
+        ReadingLocation location;
+        try
+        {
+            location = fragment is null
+                ? ReadingLocation.AtSectionStart(sectionId)
+                : FindAnchor(path, fragment, anchors);
+        }
+        catch (EpubContentException exception) when (recoverLinkIntegrity && exception.ErrorCode == EpubContentErrorCode.InternalTargetNotFound)
+        {
+            PreserveBrokenInternalLink(target, content, link, recoveryIssues, exception.Message);
+            return;
+        }
+
         target.Add(new HyperlinkSpan(new InternalLinkTarget(location), content, link.Role));
+    }
+
+    private static void PreserveBrokenInternalLink(
+        List<InlineContent> target,
+        List<InlineContent> content,
+        LinkDraft link,
+        List<EpubContentRecoveryIssue> recoveryIssues,
+        string reason)
+    {
+        target.AddRange(content);
+        recoveryIssues.Add(new EpubContentRecoveryIssue(
+            EpubContentRecoveryKind.InternalHyperlinkDropped,
+            BrokenInternalLinkMessage(link, reason)));
+    }
+
+    private static string BrokenInternalLinkMessage(LinkDraft link, string reason)
+    {
+        string kind = link.Role == HyperlinkRole.NoteReference ? "Rimando nota" : "Link interno";
+        return $"{kind} '{link.Href}' reso non azionabile: {reason}. Il testo resta leggibile e nessun target esterno al package viene cercato.";
     }
 
     private static TableOfContents BuildTableOfContents(
@@ -843,6 +916,58 @@ public static class EpubBookReader
             ReadingLocation? target = node.Target is null
                 ? null
                 : ResolveNavigationLocation(node.Target, firstSectionByPath, anchors);
+            items.Add(new NavigationItem(node.Label, target, children));
+        }
+
+        return items;
+    }
+
+    private static TableOfContents BuildTableOfContentsRecovering(
+        IReadOnlyList<EpubNavigationNode> source,
+        Dictionary<string, SectionId> firstSectionByPath,
+        Dictionary<string, ReadingLocation> anchors,
+        List<EpubContentRecoveryIssue> recoveryIssues) =>
+        new(BuildNavigationItemsRecovering(source, firstSectionByPath, anchors, recoveryIssues));
+
+    private static List<NavigationItem> BuildNavigationItemsRecovering(
+        IReadOnlyList<EpubNavigationNode> source,
+        Dictionary<string, SectionId> firstSectionByPath,
+        Dictionary<string, ReadingLocation> anchors,
+        List<EpubContentRecoveryIssue> recoveryIssues)
+    {
+        List<NavigationItem> items = new(source.Count);
+        foreach (EpubNavigationNode node in source)
+        {
+            List<NavigationItem> children = BuildNavigationItemsRecovering(
+                node.Children,
+                firstSectionByPath,
+                anchors,
+                recoveryIssues);
+            ReadingLocation? target = null;
+            if (node.Target is not null)
+            {
+                try
+                {
+                    target = ResolveNavigationLocation(node.Target, firstSectionByPath, anchors);
+                }
+                catch (EpubContentException exception) when (
+                    exception.ErrorCode == EpubContentErrorCode.InternalTargetNotFound ||
+                    exception.ErrorCode == EpubContentErrorCode.InvalidLocalReference)
+                {
+                    recoveryIssues.Add(new EpubContentRecoveryIssue(
+                        EpubContentRecoveryKind.NavigationTargetDropped,
+                        $"Voce TOC '{node.Label}' con target non risolvibile: {exception.Message} " +
+                        (children.Count == 0
+                            ? "La voce foglia viene omessa; gli altri target validi restano disponibili."
+                            : "La voce resta come gruppo non navigabile perché contiene figli validi.")));
+                }
+            }
+
+            if (target is null && children.Count == 0)
+            {
+                continue;
+            }
+
             items.Add(new NavigationItem(node.Label, target, children));
         }
 
@@ -1232,11 +1357,6 @@ public static class EpubBookReader
     }
 
     private static string AnchorKey(OcfPath path, string fragment) => $"{path.Value}#{fragment}";
-
-    private static bool IsSupportedExternalScheme(Uri uri) =>
-        string.Equals(uri.Scheme, Uri.UriSchemeHttp, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(uri.Scheme, "mailto", StringComparison.OrdinalIgnoreCase);
 
     private static (OcfPath Path, string? Fragment) ResolveLocalReference(OcfPath sourcePath, string href)
     {

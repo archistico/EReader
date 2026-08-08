@@ -419,13 +419,18 @@ public sealed class ReaderSession
     /// </summary>
     public bool FollowCurrentInternalHyperlink()
     {
-        if (CurrentHyperlink?.Target is not InternalLinkTarget internalTarget
-            || internalTarget.Location == Location)
+        BookHyperlink? hyperlink = CurrentHyperlink;
+        if (hyperlink is null
+            || hyperlink.Target is not InternalLinkTarget internalTarget
+            || internalTarget.Location == Location
+            || internalTarget.Location == hyperlink.StartLocation
+            || !_book.ContainsLocation(internalTarget.Location))
         {
             return false;
         }
 
-        PushLinkOrigin(Location);
+        ReadingLocation origin = Location;
+        PushLinkOrigin(origin);
         Location = internalTarget.Location;
         return true;
     }

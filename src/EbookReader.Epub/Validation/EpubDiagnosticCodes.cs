@@ -14,4 +14,7 @@ public static class EpubDiagnosticCodes
     public const string SupplementarySpineItemSkipped = "ER-EPUB-RECOVERY-CONTENT-001";
     public const string MissingReferencedImage = "ER-EPUB-RECOVERY-RESOURCE-001";
     public const string MissingOptionalResource = "ER-EPUB-RECOVERY-RESOURCE-002";
+    public const string BrokenInternalHyperlink = "ER-EPUB-RECOVERY-LINK-001";
+    public const string UnsafeExternalHyperlinkSuppressed = "ER-EPUB-SECURITY-LINK-001";
+    public const string NavigationTargetDropped = "ER-EPUB-RECOVERY-NAVIGATION-003";
 }

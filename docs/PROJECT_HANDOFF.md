@@ -1,150 +1,126 @@
-# Project Handoff — EReader M3.10 Hotfix 2 xUnit2031 Analyzer Alignment Candidate
+# Project Handoff — EReader M3.11 Hotfix 1 Navigation Invariant Alignment Candidate
 
-Data: 08/08/2026
+## Baseline
 
-## Stato autoritativo
+- baseline autoritativa validata: **M3.10 Hotfix 2**;
+- gate baseline: `M3.10 HOTFIX 2 VALIDATION PASSED` (08/08/2026);
+- candidate corrente: **M3.11 Hotfix 1 — Navigation Invariant Alignment**;
+- gate candidate: `M3.11 HOTFIX 1 VALIDATION PASSED`.
 
-- baseline autoritativa validata: **M3.9 Hotfix 1 — Defensive EPUB Input Security + CA1859 Return-Type Alignment**;
-- gate baseline: `M3.9 HOTFIX 1 VALIDATION PASSED`;
-- candidate corrente: **M3.10 — EPUB Recovery & Degraded Reading**;
-- gate candidate: `M3.10 HOTFIX 2 VALIDATION PASSED`.
+La candidate deve essere considerata non validata finché il gate locale non termina con la stringa sopra.
 
-## Obiettivo M3.10
+## Obiettivo
 
-Passare dal solo rifiuto sicuro dell'input difettoso a una recovery deterministica dei problemi non essenziali, mantenendo il principio:
-
-> **Un EPUB può essere illeggibile. EReader no.**
-
-M3.10 non deve mai inventare contenuto, cercare file sul filesystem, scaricare risorse remote o aggirare i guardrail M3.9.
+M3.11 impedisce che link e target di navigazione difettosi rendano inutilizzabile un EPUB altrimenti leggibile. La recovery è granulare e non autorizza guessing, filesystem esterno o rete.
 
 ## Decisioni implementate
 
-### Navigation
+### Hyperlink interni
 
-- nav.xhtml/NCX assente o non utilizzabile → il validator tenta comunque il primary reading order;
-- se il `Book` è valido, il risultato resta `Valid` con `TableOfContents.Empty` e diagnostica `ER-EPUB-RECOVERY-NAVIGATION-001`;
-- se un TOC parsato non è risolvibile sul `Book` recuperato, viene eliminato interamente con `ER-EPUB-RECOVERY-NAVIGATION-002`;
-- Container corruption/security durante la navigation resta fatal, salvo `EntryNotFound` della navigation stessa.
+Nel percorso `EpubBookReader.ReadRecovering(...)`:
 
-### Spine
+- fragment inesistente;
+- target fuori dal reading order;
+- riferimento locale malformato;
+- traversal/percent-encoding che esce dalla root OCF;
 
-- primary spine failure → documento `Invalid`;
-- `linear="no"` + `EpubContentException` attesa → sezione saltata con `ER-EPUB-RECOVERY-CONTENT-001`;
-- `SectionId` usa sempre l'indice originale dello spine;
-- anchor per-sezione vengono committati solo dopo parsing completo.
+vengono convertiti in testo non azionabile + `EpubContentRecoveryKind.InternalHyperlinkDropped`. Il validator proietta l'issue in `ER-EPUB-RECOVERY-LINK-001` con severity EPUB `Error`, quindi `RecoverableError` reader-wide.
 
-### Risorse locali
+Il parser pubblico strict conserva i contratti precedenti e continua a poter lanciare `EpubContentException` per gli stessi input.
 
-`EpubPackageReader.Read(...)` pubblico resta strict. È stato aggiunto un percorso interno recovery-aware usato solo dalla facade di validation.
+### Note
 
-Dopo la costruzione del `Book`:
+`epub:type="noteref"` continua a essere `HyperlinkRole.NoteReference` quando il target è valido. Se il target è rotto, il testo viene preservato e la diagnostica usa il wording `Rimando nota`.
 
-- immagine referenziata ma assente → `ER-EPUB-RECOVERY-RESOURCE-001`, severity EPUB `Error` → reader-wide `RecoverableError`;
-- risorsa locale opzionale assente → `ER-EPUB-RECOVERY-RESOURCE-002`, `Warning`;
-- risorse spine/navigation non ricevono diagnostiche duplicate.
+### TOC
 
-### UX diagnostica
+M3.10 poteva omettere l'intero TOC se un target era irrisolvibile. M3.11 introduce `BuildTableOfContentsRecovering(...)`: ogni nodo viene risolto indipendentemente. Un target rotto produce `ER-EPUB-RECOVERY-NAVIGATION-003`; se la voce è foglia viene omessa per rispettare l’invariante Domain, mentre se contiene figli validi resta come grouping node `Target == null`. Un grouping che perde tutti i figli durante la recovery viene omesso, così il Domain non riceve mai un nodo senza target e senza figli. Target validi fratelli/figli restano navigabili.
 
-`ReaderDiagnosticTextWriter` aggiunge:
+### Link esterni
+
+`EbookReader.Domain.Content.ExternalLinkPolicy` centralizza la allow-list:
 
 ```text
-[READABLE_DEGRADED] Il libro è leggibile, ma una o più parti non sono disponibili.
+http
+https
+mailto
 ```
 
-quando esiste almeno un `RecoverableError`, e:
+`EpubBookReader` usa la policy prima di creare `ExternalLinkTarget`; `SystemExternalLinkService` la verifica nuovamente prima di `Process.Start`. Schemi non ammessi restano testo e, nel percorso recovery-aware, producono `ER-EPUB-SECURITY-LINK-001` Warning.
 
-```text
-[READABLE_WITH_WARNINGS] Il libro è leggibile con avvisi non bloccanti.
-```
+Nessun URL viene verificato via rete.
 
-quando esistono warning ma nessun errore recoverable.
+### Transazione ReaderSession
 
-`DOCUMENT_UNREADABLE` resta invariato per i documenti irreversibilmente rifiutati.
+`FollowCurrentInternalHyperlink()` verifica:
 
-## Security invariants preservati
+1. esistenza del current internal hyperlink;
+2. target diverso dalla posizione corrente;
+3. appartenenza del target al `Book`;
+4. solo dopo la validazione esegue push origine + salto.
 
-M3.10 non modifica i limiti M3.9:
+Un self-link o un link non seguibile restituisce `false` senza cambiare posizione/back-stack.
 
-- 100.000 ZIP entry;
-- 256 MiB decompressi per entry;
-- 2 GiB cumulativi dichiarati;
-- ratio guard 500:1 sopra 16 MiB;
-- symlink/special ZIP entries rifiutati;
-- path traversal/drive/schema rifiutati;
-- remote manifest solo http/https e nessun fetch;
-- fallback OPF max 64;
-- XHTML UTF-8/UTF-16 strict;
-- nessun catch-all di eccezioni runtime arbitrarie.
+## File principali M3.11
+
+Produzione:
+
+- `src/EbookReader.Domain/Content/ExternalLinkPolicy.cs`;
+- `src/EbookReader.Epub/Content/EpubBookReader.cs`;
+- `src/EbookReader.Epub/Content/EpubBookRecoveryResult.cs`;
+- `src/EbookReader.Epub/Validation/EpubDiagnosticCodes.cs`;
+- `src/EbookReader.Epub/Validation/EpubPublicationValidator.cs`;
+- `src/EbookReader.Cli/Links/SystemExternalLinkService.cs`;
+- `src/EbookReader.Cli/Tui/ReaderSession.cs`;
+- `src/EbookReader.Cli/CliEntryPoint.cs`.
+
+Test principali:
+
+- `tests/EbookReader.Domain.Tests/Content/InlineContentTests.cs`;
+- `tests/EbookReader.Epub.Tests/Content/EpubBookReaderTests.cs`;
+- `tests/EbookReader.Epub.Tests/Validation/EpubPublicationValidatorTests.cs`;
+- `tests/EbookReader.Cli.Tests/ReaderSessionTests.cs`;
+- `tests/EbookReader.Architecture.Tests/ArchitectureContractTests.cs`.
+
+Fixture:
+
+- `test-books/m3.11-link-integrity-smoke.epub`.
+
+ADR:
+
+- `docs/adr/0055-broken-links-degrade-without-escaping-publication.md`.
+
+## Invarianti da preservare
+
+- Domain/Application/Layout non dipendono da `EbookReader.Epub`;
+- nessuna coordinata layout persistita;
+- `state.json` schema 4;
+- `config.json` schema 1;
+- back-stack runtime-only e bounded a 128;
+- nessun fetch automatico;
+- nessuna estrazione generale dell'EPUB;
+- limiti M3.9 invariati;
+- primary reading order ancora necessario;
+- nessun catch-all di eccezioni interne prima di M3.12.
 
 ## Gate
 
-Windows:
+```text
+495 Fact
+7 Theory
+27 InlineData
+524 casi attesi
+14 step
+```
+
+Eseguire da estrazione pulita:
 
 ```bat
 .\validate.cmd
 ```
 
-Linux/macOS:
-
-```sh
-./validate.sh
-```
-
-Esito atteso:
-
-```text
-M3.10 HOTFIX 2 VALIDATION PASSED
-```
-
-Il gate ha 13 step e include il nuovo `test-books/m3.10-recovery-smoke.epub` con navigation dichiarata ma mancante.
-
-Conteggio statico candidate:
-
-```text
-485 Fact
-5 Theory
-19 InlineData
-504 casi attesi
-```
-
-## File principali M3.10
-
-Produzione:
-
-- `src/EbookReader.Epub/Package/EpubPackageReader.cs`
-- `src/EbookReader.Epub/Content/EpubBookReader.cs`
-- `src/EbookReader.Epub/Content/EpubBookRecoveryResult.cs`
-- `src/EbookReader.Epub/Validation/EpubPublicationValidator.cs`
-- `src/EbookReader.Epub/Validation/EpubDiagnosticCodes.cs`
-- `src/EbookReader.Cli/Diagnostics/ReaderDiagnosticTextWriter.cs`
-- `src/EbookReader.Cli/CliEntryPoint.cs`
-
-Test/gate:
-
-- `tests/EbookReader.Epub.Tests/Validation/EpubPublicationValidatorTests.cs`
-- `tests/EbookReader.Epub.Tests/Validation/ValidationFixtureFactory.cs`
-- `tests/EbookReader.Cli.Tests/FirstReadableEpubTests.cs`
-- `tests/EbookReader.Cli.Tests/FoundationSmokeTests.cs`
-- `test-books/m3.10-recovery-smoke.epub`
-- `validate.cmd`
-- `validate.sh`
-
-Decisione architetturale:
-
-- `docs/adr/0054-degraded-reading-recovers-only-deterministic-nonessential-failures.md`
-
 ## Prossimo punto dopo il gate
 
-**M3.11 — Link Integrity & Navigation Security**.
+**M3.12 — Crash Containment & Diagnostics UX**.
 
-Obiettivo: rendere granulari i failure di hyperlink/anchor/noteref senza spostare `ReadingLocation` o back-stack in caso di target non valido; consolidare la allow-list degli schemi esterni e impedire qualsiasi handoff di `file:`, script/shell o schemi sconosciuti.
-
-
-## M3.10 Hotfix 1
-
-Build-only analyzer alignment: `EpubPublicationValidator.AddContentRecoveryDiagnostics(...)` usa `nameof(issues)` nel costruttore `ArgumentOutOfRangeException`, eliminando CA2208. Contratti e comportamento M3.10 restano invariati.
-
-
-## Hotfix 2 analyzer alignment
-
-Test-only: eliminati i due xUnit2031 in `EpubPublicationValidatorTests` usando l’overload predicate di `Assert.Single`. Produzione e contratti M3.10 restano invariati.
+Obiettivo: separare in modo visibile un `FatalDocumentError` da un guasto interno EReader, confinare il fallimento alla sessione/libro, preservare stato preesistente e mostrare dettagli tecnici separatamente senza trasformare eccezioni inattese in falsi errori EPUB.

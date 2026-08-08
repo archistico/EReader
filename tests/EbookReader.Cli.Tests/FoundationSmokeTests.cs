@@ -7,7 +7,7 @@ public sealed class FoundationSmokeTests
     [Fact]
     public void MilestoneIsM310()
     {
-        Assert.Equal("M3.10", CliEntryPoint.Milestone);
+        Assert.Equal("M3.11", CliEntryPoint.Milestone);
     }
 
     [Fact]

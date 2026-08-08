@@ -1,8 +1,8 @@
 # EPUB Recovery Policy
 
-**Stato:** M3.10 candidate — policy eseguibile e coperta da test.  
-**Baseline autoritativa:** M3.9 Hotfix 1 VALIDATED.  
-**Gate candidate:** `M3.10 HOTFIX 2 VALIDATION PASSED`.
+**Stato:** M3.10 Hotfix 2 VALIDATED; estensione link-integrity M3.11 CANDIDATE.  
+**Baseline autoritativa:** M3.10 Hotfix 2 VALIDATED.  
+**Gate candidate:** `M3.11 HOTFIX 1 VALIDATION PASSED`.
 
 ## Principio
 
@@ -22,7 +22,7 @@ INTERNAL_ERROR
 
 La facade EPUB continua a esporre `Valid`, `Invalid`, `Unsupported`. Un `Valid` può contenere diagnostiche; il bridge M3.8 lo proietta in `SuccessWithDiagnostics` e usa `RecoverableError`/`Warning` per spiegare il degraded reading.
 
-## Matrice M3.10
+## Matrice M3.10–M3.11
 
 | Condizione | Esito M3.10 | Recovery |
 |---|---|---|
@@ -31,7 +31,7 @@ La facade EPUB continua a esporre `Valid`, `Invalid`, `Unsupported`. Un `Valid` 
 | TOC/Nav EPUB3 assente | `CONTINUE_DEGRADED` | `TableOfContents.Empty` + diagnostica |
 | TOC/Nav EPUB3 non utilizzabile | `CONTINUE_DEGRADED` | `TableOfContents.Empty` + diagnostica |
 | NCX EPUB2 assente/non utilizzabile | `CONTINUE_DEGRADED` | `TableOfContents.Empty` + diagnostica |
-| Target TOC non risolvibile nel `Book` leggibile | `CONTINUE_DEGRADED` | TOC intero omesso; granularità per-link rimandata a M3.11 |
+| Target TOC non risolvibile nel `Book` leggibile | `CONTINUE_DEGRADED` | M3.11 Hotfix 1: foglia rotta omessa; parent con figli validi mantenuto come grouping non navigabile; resto del TOC preservato |
 | Immagine locale dichiarata e referenziata ma assente | `CONTINUE_DEGRADED` | `ImageBlock`/alt text preservati, preview non disponibile |
 | Risorsa remota `http/https` | `CONTINUE` | descrittore possibile, nessun fetch automatico |
 | Spine item `linear="no"` con `EpubContentException` attesa | `CONTINUE_DEGRADED` | sezione supplementare saltata, diagnostica |
@@ -88,7 +88,7 @@ M3.10 diagnostica l'assenza fisica della risorsa. La validazione del contenuto b
 
 ## Link: transazione logica
 
-La regola già documentata resta valida e verrà completata in M3.11:
+M3.11 completa la transazione logica dei link:
 
 1. identificare il link;
 2. validare il target;
@@ -120,7 +120,14 @@ Le annotazioni M3.7 restano validate contro `BookId` e `ReadingLocation`.
 
 Restano esplicitamente alle milestone successive:
 
-- recovery granulare dei singoli hyperlink/anchor rotti — M3.11;
+- recovery granulare dei singoli hyperlink/anchor rotti — inclusa nella candidate M3.11;
 - crash containment di eccezioni interne inattese — M3.12;
 - corpus sistematico di EPUB corrotti con expected outcome — M3.13;
 - tuning performance su libri eccezionalmente grandi — M5.0.
+
+
+### Recovery hyperlink M3.11
+
+Nel percorso recovery-aware sono recuperabili a granularità di singolo link: fragment inesistente, target fuori dal reading order navigabile e riferimenti locali non validi/traversal. Il testo inline resta nel `Book`, ma non viene creato un target azionabile. Gli schemi esterni non ammessi sono soppressi con Warning; non vengono reinterpretati come link locali.
+
+La recovery non esegue guessing: non cerca anchor simili, file omonimi, backlink alternativi o URL remoti.

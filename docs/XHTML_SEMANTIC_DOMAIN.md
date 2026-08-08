@@ -109,7 +109,7 @@ Per esempio:
 
 produce un anchor con offset `6` (`"Alpha "`). Un emoji astrale conta due code unit UTF-16.
 
-Gli anchor duplicati nello stesso Content Document sono rifiutati. TOC e link interni verso fragment inesistenti sono rifiutati in M0.6, non rinviati al layout.
+Gli anchor duplicati nello stesso Content Document sono rifiutati. Il parser pubblico strict mantiene il contratto M0.6 e rifiuta TOC/link interni verso fragment inesistenti. Nel percorso operativo recovery-aware M3.11, invece, un singolo hyperlink/noteref rotto conserva il testo senza target azionabile e un singolo target TOC rotto viene isolato con diagnostica: la foglia senza figli è omessa, il parent con figli validi resta grouping non navigabile; il layout non deve comunque inventare destinazioni.
 
 ## Navigation grouping
 

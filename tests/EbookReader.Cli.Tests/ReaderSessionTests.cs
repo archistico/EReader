@@ -565,6 +565,25 @@ public sealed class ReaderSessionTests
     }
 
     [Fact]
+    public void SelfReferentialInternalHyperlinkDoesNotMutateLocationOrBackStack()
+    {
+        SectionId sectionId = new("one");
+        BlockId blockId = new("self");
+        ReadingLocation self = new(sectionId, blockId, 0);
+        ParagraphBlock paragraph = new(
+            blockId,
+            [new HyperlinkSpan(new InternalLinkTarget(self), [new TextRun("self")])]);
+        Book book = new(new BookId("self-link"), new BookMetadata("Self Link"), [new ReadingSection(sectionId, [paragraph])]);
+        ReaderSession session = new(book, new LayoutViewport(40, 10));
+        ReadingLocation origin = session.Location;
+
+        Assert.NotNull(session.CurrentHyperlink);
+        Assert.False(session.FollowCurrentInternalHyperlink());
+        Assert.Equal(origin, session.Location);
+        Assert.False(session.CanNavigateBack);
+    }
+
+    [Fact]
     public void NoteReferenceUsesSameLogicalBackStackAsInternalLinks()
     {
         SectionId sectionId = new("one");

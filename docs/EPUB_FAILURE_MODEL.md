@@ -1,7 +1,7 @@
 # EPUB Failure Model
 
-**Stato:** foundation M3.8 validata; hardening input M3.9 Hotfix 1 validato; recovery M3.10 candidate; M3.11–M3.13 pianificati.  
-**Baseline:** M3.9 Hotfix 1 VALIDATED; M3.10 EPUB Recovery & Degraded Reading è la candidate corrente.
+**Stato:** foundation M3.8, hardening input M3.9 Hotfix 1 e recovery M3.10 Hotfix 2 VALIDATED; link integrity M3.11 CANDIDATE; M3.12–M3.13 pianificati.  
+**Baseline:** M3.10 Hotfix 2 VALIDATED; M3.11 Link Integrity & Navigation Security è la candidate corrente.
 
 ## Obiettivo
 
@@ -45,7 +45,7 @@ Una parte prevista dal libro non è utilizzabile, ma esiste una recovery non amb
 Esempi target:
 
 - immagine locale dichiarata ma corrotta → placeholder;
-- target hyperlink mancante → posizione invariata + diagnostica;
+- target hyperlink mancante → testo preservato, link non azionabile, posizione/back-stack invariati + diagnostica M3.11;
 - singolo Content Document non leggibile quando la policy consente di saltarlo senza inventare l'ordine di lettura.
 
 Ogni recovery deve dichiarare esplicitamente il comportamento applicato.

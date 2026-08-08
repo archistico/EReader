@@ -2,7 +2,7 @@
 
 **Baseline autoritativa corrente:** M3.9 Hotfix 1 VALIDATED (`M3.9 HOTFIX 1 VALIDATION PASSED`, 08/08/2026).  
 **Candidate corrente:** M3.10 — EPUB Recovery & Degraded Reading.  
-**Priorità immediata:** validare M3.10, poi M3.11–M3.13 reliability/recovery prima di M4.0.
+**Priorità immediata:** validare M3.11, poi M3.12–M3.13 reliability/recovery prima di M4.0.
 
 Per impostazione predefinita ogni milestone si costruisce esclusivamente sulla più recente baseline validata. Se l’utente chiede esplicitamente di proseguire prima del gate, la catena viene marcata come **stacked candidate** e resta non autoritativa fino alla validazione cumulativa.
 
@@ -435,20 +435,22 @@ Implementato nella candidate:
 
 Documento guida: `EPUB_RECOVERY_POLICY.md`. ADR: `0054-degraded-reading-recovers-only-deterministic-nonessential-failures.md`.
 
-### M3.11 — Link Integrity & Navigation Security — PLANNED
+### M3.11 — Link Integrity & Navigation Security — CANDIDATE
 
-Hardening di M3.5/M3.6.
+Hardening di M3.5/M3.6 sopra M3.10 Hotfix 2 validata.
 
-- risorsa target inesistente;
-- fragment/anchor inesistente;
-- riferimenti relativi complessi e percent-encoding;
-- note/backlink rotti;
-- target verso risorse non navigabili;
-- link interni sempre confinati al package;
-- un salto fallito non modifica `ReadingLocation` né back-stack;
-- link esterni tramite allow-list esplicita;
-- nessun controllo URL tramite rete;
-- nessun `file:`, script, shell o schema sconosciuto avviato dal contenuto EPUB.
+- fragment/anchor interno inesistente → testo preservato + link non azionabile + diagnostica recoverable;
+- `noteref` rotto → recovery granulare con diagnostica specifica nel messaggio;
+- target locale verso risorsa non navigabile → link disattivato senza inventare destinazioni;
+- riferimenti relativi/percent-encoding restano confinati all'OCF; traversal e path malformati non accedono al filesystem;
+- target TOC irrisolvibile → foglia rotta omessa oppure parent con figli validi mantenuto senza target; gli altri nodi restano navigabili;
+- `ReaderSession` valida il target prima di mutare `ReadingLocation`/back-stack;
+- allow-list condivisa `ExternalLinkPolicy`: solo `http`, `https`, `mailto`;
+- `file:`, `javascript:`, `data:`, `ftp:`, shell e schemi sconosciuti non diventano azionabili;
+- nessun probe URL tramite rete e nessun browser embedded;
+- parser pubblico strict preservato, recovery applicato dalla facade validator.
+
+Documento guida: `HYPERLINKS.md`, `EPUB_SECURITY_MODEL.md`, `EPUB_RECOVERY_POLICY.md`. ADR: `0055-broken-links-degrade-without-escaping-publication.md`.
 
 ### M3.12 — Crash Containment & Diagnostics UX — PLANNED
 

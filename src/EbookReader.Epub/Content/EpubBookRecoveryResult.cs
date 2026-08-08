@@ -7,6 +7,9 @@ internal enum EpubContentRecoveryKind
 {
     SupplementarySpineItemSkipped = 0,
     TableOfContentsDropped = 1,
+    InternalHyperlinkDropped = 2,
+    UnsafeExternalHyperlinkSuppressed = 3,
+    NavigationTargetDropped = 4,
 }
 
 internal sealed class EpubContentRecoveryIssue

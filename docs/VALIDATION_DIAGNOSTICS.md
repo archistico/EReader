@@ -22,7 +22,7 @@ Gli errori di programmazione e i guasti runtime non riconducibili al formato EPU
 
 ### Valid
 
-`Book` è non-null e pronto per il livello Application. Dalla M3.10 `Valid` non significa necessariamente “nessuna diagnostica”: il Container, la protection inspection, l'OPF e almeno il reading order primario devono essere affidabili, mentre navigation e risorse non essenziali possono essere degradate in modo deterministico con warning/recoverable diagnostics.
+`Book` è non-null e pronto per il livello Application. Dalla M3.10 e M3.11 `Valid` non significa necessariamente “nessuna diagnostica”: il Container, la protection inspection, l'OPF e almeno il reading order primario devono essere affidabili, mentre navigation e risorse non essenziali possono essere degradate in modo deterministico con warning/recoverable diagnostics.
 
 ### Invalid
 
@@ -131,7 +131,7 @@ Questi riferimenti descrivono il formato da riconoscere; non costituiscono una d
 
 ## Evoluzione M3.8 e roadmap successiva
 
-M0.7 resta il contratto autoritativo dell'**ingestione** (`Valid`, `Invalid`, `Unsupported`). M3.8 ha introdotto la tassonomia reader-wide format-neutral senza rompere questo contratto; M3.9 Hotfix 1 ha validato i guardrail di sicurezza dell'input. La candidate M3.10 aggiunge recovery deterministico dei failure non essenziali; M3.11–M3.13 completeranno link integrity, crash containment e corpus di affidabilità.
+M0.7 resta il contratto autoritativo dell'**ingestione** (`Valid`, `Invalid`, `Unsupported`). M3.8 ha introdotto la tassonomia reader-wide format-neutral senza rompere questo contratto; M3.9 Hotfix 1 ha validato i guardrail di sicurezza dell'input. M3.10 Hotfix 2 ha validato il recovery dei failure non essenziali; M3.11 candidate aggiunge link integrity granulare; M3.12–M3.13 completeranno crash containment e corpus di affidabilità.
 
 La nuova documentazione distingue esplicitamente:
 
@@ -150,3 +150,14 @@ Riferimenti:
 - [`EPUB_SECURITY_MODEL.md`](EPUB_SECURITY_MODEL.md)
 - [`EPUB_RECOVERY_POLICY.md`](EPUB_RECOVERY_POLICY.md)
 - [`EPUB_COMPATIBILITY.md`](EPUB_COMPATIBILITY.md)
+
+
+## Codici M3.11
+
+```text
+ER-EPUB-RECOVERY-LINK-001
+ER-EPUB-SECURITY-LINK-001
+ER-EPUB-RECOVERY-NAVIGATION-003
+```
+
+Un link rotto o un target TOC rotto non viene riclassificato come `Invalid` quando può essere isolato senza perdere il reading order.

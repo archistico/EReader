@@ -1,5 +1,7 @@
 using System.Buffers.Binary;
 using System.Text;
+using EbookReader.Domain.Content;
+using EbookReader.Domain.Navigation;
 using EbookReader.Epub.Validation;
 using EbookReader.Epub.Tests.Package;
 
@@ -133,13 +135,77 @@ public sealed class EpubPublicationValidatorTests
 
 
     [Fact]
-    public void UnresolvableNavigationTargetDropsWholeTocButKeepsBookReadable()
+    public void UnresolvableLeafNavigationTargetDropsOnlyBrokenLeafAndKeepsOtherTocStructure()
     {
         const string navigation = """
         <?xml version="1.0" encoding="UTF-8"?>
         <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
           <head><title>Navigation</title></head>
-          <body><nav epub:type="toc"><ol><li><a href="Text/ch1.xhtml#missing-anchor">Broken target</a></li></ol></nav></body>
+          <body><nav epub:type="toc"><ol>
+            <li><a href="Text/ch1.xhtml#missing-anchor">Broken target</a></li>
+            <li><a href="Text/ch1.xhtml#start">Valid target</a></li>
+          </ol></nav></body>
+        </html>
+        """;
+        using MemoryStream stream = ValidationFixtureFactory.Create(navigationContent: navigation);
+
+        EpubValidationResult result = EpubPublicationValidator.Validate(stream, leaveOpen: true);
+
+        Assert.Equal(EpubValidationStatus.Valid, result.Status);
+        Assert.NotNull(result.Book);
+        NavigationItem item = Assert.Single(result.Book.TableOfContents.Items);
+        Assert.Equal("Valid target", item.Label);
+        Assert.NotNull(item.Target);
+        EpubDiagnostic diagnostic = Assert.Single(
+            result.Diagnostics,
+            candidate => candidate.Code == EpubDiagnosticCodes.NavigationTargetDropped);
+        Assert.Equal(EpubDiagnosticSeverity.Error, diagnostic.Severity);
+        Assert.Equal(EpubDiagnosticCategory.Navigation, diagnostic.Category);
+    }
+
+    [Fact]
+    public void UnresolvableNavigationParentTargetKeepsGroupingNodeWhenChildIsValid()
+    {
+        const string navigation = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+          <head><title>Navigation</title></head>
+          <body><nav epub:type="toc"><ol>
+            <li><a href="Text/ch1.xhtml#missing-anchor">Broken parent</a><ol>
+              <li><a href="Text/ch1.xhtml#start">Valid child</a></li>
+            </ol></li>
+          </ol></nav></body>
+        </html>
+        """;
+        using MemoryStream stream = ValidationFixtureFactory.Create(navigationContent: navigation);
+
+        EpubValidationResult result = EpubPublicationValidator.Validate(stream, leaveOpen: true);
+
+        Assert.Equal(EpubValidationStatus.Valid, result.Status);
+        Assert.NotNull(result.Book);
+        NavigationItem parent = Assert.Single(result.Book.TableOfContents.Items);
+        Assert.Equal("Broken parent", parent.Label);
+        Assert.Null(parent.Target);
+        NavigationItem child = Assert.Single(parent.Children);
+        Assert.Equal("Valid child", child.Label);
+        Assert.NotNull(child.Target);
+        Assert.Single(
+            result.Diagnostics,
+            candidate => candidate.Code == EpubDiagnosticCodes.NavigationTargetDropped);
+    }
+
+    [Fact]
+    public void GroupingNavigationNodeIsDroppedWhenAllRecoveredChildrenDisappear()
+    {
+        const string navigation = """
+        <?xml version="1.0" encoding="UTF-8"?>
+        <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+          <head><title>Navigation</title></head>
+          <body><nav epub:type="toc"><ol>
+            <li><span>Group</span><ol>
+              <li><a href="Text/ch1.xhtml#missing-anchor">Broken child</a></li>
+            </ol></li>
+          </ol></nav></body>
         </html>
         """;
         using MemoryStream stream = ValidationFixtureFactory.Create(navigationContent: navigation);
@@ -149,11 +215,125 @@ public sealed class EpubPublicationValidatorTests
         Assert.Equal(EpubValidationStatus.Valid, result.Status);
         Assert.NotNull(result.Book);
         Assert.Empty(result.Book.TableOfContents.Items);
+        Assert.Single(
+            result.Diagnostics,
+            candidate => candidate.Code == EpubDiagnosticCodes.NavigationTargetDropped);
+    }
+
+    [Fact]
+    public void BrokenInternalAnchorKeepsBookReadableAndPreservesLinkText()
+    {
+        const string chapter = """
+        <html xmlns="http://www.w3.org/1999/xhtml"><body>
+          <h1 id="start">One</h1><p><a href="#missing">Broken link text</a></p>
+        </body></html>
+        """;
+        using MemoryStream stream = ValidationFixtureFactory.Create(chapterContent: chapter);
+
+        EpubValidationResult result = EpubPublicationValidator.Validate(stream, leaveOpen: true);
+
+        Assert.Equal(EpubValidationStatus.Valid, result.Status);
+        Assert.NotNull(result.Book);
+        ParagraphBlock paragraph = Assert.IsType<ParagraphBlock>(result.Book.ReadingOrder[0].Blocks[1]);
+        Assert.Equal("Broken link text", ContentText.GetPlainText(paragraph));
+        Assert.DoesNotContain(paragraph.Content, item => item is HyperlinkSpan);
         EpubDiagnostic diagnostic = Assert.Single(
             result.Diagnostics,
-            candidate => candidate.Code == EpubDiagnosticCodes.TableOfContentsDropped);
+            candidate => candidate.Code == EpubDiagnosticCodes.BrokenInternalHyperlink);
         Assert.Equal(EpubDiagnosticSeverity.Error, diagnostic.Severity);
         Assert.Equal(EpubDiagnosticCategory.Navigation, diagnostic.Category);
+    }
+
+    [Fact]
+    public void BrokenNoteReferenceIsDiagnosticButDoesNotMakePublicationUnreadable()
+    {
+        const string chapter = """
+        <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops"><body>
+          <h1 id="start">One</h1><p>Text<a epub:type="noteref" href="#missing-note">1</a></p>
+        </body></html>
+        """;
+        using MemoryStream stream = ValidationFixtureFactory.Create(chapterContent: chapter);
+
+        EpubValidationResult result = EpubPublicationValidator.Validate(stream, leaveOpen: true);
+
+        Assert.Equal(EpubValidationStatus.Valid, result.Status);
+        EpubDiagnostic diagnostic = Assert.Single(
+            result.Diagnostics,
+            candidate => candidate.Code == EpubDiagnosticCodes.BrokenInternalHyperlink);
+        Assert.Contains("Rimando nota", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void LinkToNonReadingResourceIsNonActionableWithDiagnostic()
+    {
+        const string chapter = """
+        <html xmlns="http://www.w3.org/1999/xhtml"><body>
+          <h1 id="start">One</h1><p><a href="../styles/book.css">Stylesheet</a></p>
+        </body></html>
+        """;
+        string manifest = """
+        <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav" />
+        <item id="c1" href="Text/ch1.xhtml" media-type="application/xhtml+xml" />
+        <item id="css" href="styles/book.css" media-type="text/css" />
+        """;
+        string package = OpfFixtureFactory.CreateEpub3Package(
+            manifest: manifest,
+            spine: "<itemref idref=\"c1\" />");
+        using MemoryStream stream = ValidationFixtureFactory.Create(
+            chapterContent: chapter,
+            packageContent: package,
+            additionalEntries: [("EPUB/styles/book.css", "body { color: black; }")]);
+
+        EpubValidationResult result = EpubPublicationValidator.Validate(stream, leaveOpen: true);
+
+        Assert.Equal(EpubValidationStatus.Valid, result.Status);
+        EpubDiagnostic diagnostic = Assert.Single(
+            result.Diagnostics,
+            candidate => candidate.Code == EpubDiagnosticCodes.BrokenInternalHyperlink);
+        Assert.Contains("non appartiene al reading order navigabile", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void PercentEncodedTraversalLinkIsSuppressedWithoutEscapingPackage()
+    {
+        const string chapter = """
+        <html xmlns="http://www.w3.org/1999/xhtml"><body>
+          <h1 id="start">One</h1><p><a href="%2E%2E/%2E%2E/%2E%2E/outside.xhtml">Outside</a></p>
+        </body></html>
+        """;
+        using MemoryStream stream = ValidationFixtureFactory.Create(chapterContent: chapter);
+
+        EpubValidationResult result = EpubPublicationValidator.Validate(stream, leaveOpen: true);
+
+        Assert.Equal(EpubValidationStatus.Valid, result.Status);
+        Assert.NotNull(result.Book);
+        EpubDiagnostic diagnostic = Assert.Single(
+            result.Diagnostics,
+            candidate => candidate.Code == EpubDiagnosticCodes.BrokenInternalHyperlink);
+        Assert.Contains("Riferimento locale non valido", diagnostic.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void UnsafeExternalSchemeIsSuppressedAndReportedWithoutNetworkOrShellHandoff()
+    {
+        const string chapter = """
+        <html xmlns="http://www.w3.org/1999/xhtml"><body>
+          <h1 id="start">One</h1><p><a href="javascript:alert(1)">Do not execute</a></p>
+        </body></html>
+        """;
+        using MemoryStream stream = ValidationFixtureFactory.Create(chapterContent: chapter);
+
+        EpubValidationResult result = EpubPublicationValidator.Validate(stream, leaveOpen: true);
+
+        Assert.Equal(EpubValidationStatus.Valid, result.Status);
+        Assert.NotNull(result.Book);
+        ParagraphBlock paragraph = Assert.IsType<ParagraphBlock>(result.Book.ReadingOrder[0].Blocks[1]);
+        Assert.DoesNotContain(paragraph.Content, item => item is HyperlinkSpan);
+        EpubDiagnostic diagnostic = Assert.Single(
+            result.Diagnostics,
+            candidate => candidate.Code == EpubDiagnosticCodes.UnsafeExternalHyperlinkSuppressed);
+        Assert.Equal(EpubDiagnosticSeverity.Warning, diagnostic.Severity);
+        Assert.Contains("non viene delegato al sistema operativo", diagnostic.Message, StringComparison.Ordinal);
     }
 
     [Fact]

@@ -199,6 +199,21 @@ public static class EpubPublicationValidator
                     EpubDiagnosticSeverity.Error,
                     EpubDiagnosticCategory.Navigation,
                     issue.Message),
+                EpubContentRecoveryKind.InternalHyperlinkDropped => new EpubDiagnostic(
+                    EpubDiagnosticCodes.BrokenInternalHyperlink,
+                    EpubDiagnosticSeverity.Error,
+                    EpubDiagnosticCategory.Navigation,
+                    issue.Message),
+                EpubContentRecoveryKind.UnsafeExternalHyperlinkSuppressed => new EpubDiagnostic(
+                    EpubDiagnosticCodes.UnsafeExternalHyperlinkSuppressed,
+                    EpubDiagnosticSeverity.Warning,
+                    EpubDiagnosticCategory.Navigation,
+                    issue.Message),
+                EpubContentRecoveryKind.NavigationTargetDropped => new EpubDiagnostic(
+                    EpubDiagnosticCodes.NavigationTargetDropped,
+                    EpubDiagnosticSeverity.Error,
+                    EpubDiagnosticCategory.Navigation,
+                    issue.Message),
                 _ => throw new ArgumentOutOfRangeException(nameof(issues), issue.Kind, "Recovery EPUB non supportata."),
             });
         }

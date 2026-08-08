@@ -534,7 +534,7 @@ Gli hyperlink restano semantica Domain (`HyperlinkSpan` + `LinkTarget`) e vengon
 
 La prossima fase non modifica la separazione dei layer: estende i contratti di errore e recovery senza introdurre semantica EPUB nel Domain o coordinate di layout nella persistenza.
 
-M3.8 implementa la foundation ed è validata; M3.9 aggiunge e valida il defensive input boundary ZIP/OCF senza spostarlo fuori da `EbookReader.Epub`; M3.10 aggiunge recovery deterministico per failure non essenziali; M3.11–M3.13 estendono link integrity, containment e corpus. Principi architetturali:
+M3.8 implementa la foundation ed è validata; M3.9 aggiunge e valida il defensive input boundary ZIP/OCF; M3.10 Hotfix 2 valida il recovery deterministico dei failure non essenziali; M3.11 candidate aggiunge link integrity granulare; M3.12–M3.13 restano containment e corpus. Principi architetturali:
 
 - `EpubPublicationValidator` conserva il contratto M0.7 `Valid` / `Invalid` / `Unsupported`;
 - `EbookReader.Application.Diagnostics` distingue information, warning, recovery, documento irrecuperabile e guasto interno senza dipendere da EPUB/UI/Layout;
@@ -558,3 +558,12 @@ La recovery M3.10 resta dentro `EbookReader.Epub` e non introduce concetti EPUB 
 La navigation può essere omessa dal `Book` perché `TableOfContents.Empty` è già un valore Domain valido. Non viene generato un TOC sintetico. Le diagnostiche di recovery navigation sono committate soltanto dopo la costruzione riuscita del `Book`.
 
 Il CLI continua a essere il composition root che traduce `EpubDiagnosticSeverity.Error` su un risultato `Valid` in `ReaderDiagnosticSeverity.RecoverableError`; `ReaderDiagnosticTextWriter` rende visibile `READABLE_DEGRADED` senza cambiare lo stato persistente o il layout.
+
+
+## M3.11 — Link integrity boundary
+
+La semantica esterna consentita è centralizzata in `EbookReader.Domain.Content.ExternalLinkPolicy`, che è format-neutral e non effettua I/O. `EbookReader.Epub` la usa per decidere se creare `ExternalLinkTarget`; il CLI la verifica nuovamente subito prima dell'handoff OS.
+
+I broken link non vengono rappresentati nel Domain con target fittizi: nel percorso recovery-aware il testo inline viene risolto normalmente, la semantica `HyperlinkSpan` viene omessa e un `EpubContentRecoveryIssue` resta confinato all'adapter. Questo preserva l'invariante `Book`: ogni `InternalLinkTarget` realmente presente nel Domain punta sempre a una `ReadingLocation` valida.
+
+Il TOC recovery-aware omette una foglia con target non risolvibile; se il nodo contiene figli validi lo conserva come grouping node con `Target = null`. Un grouping rimasto senza figli dopo la recovery viene omesso. Non vengono inventate destinazioni. `ReaderSession` continua quindi a ricevere soltanto target Domain validi e verifica ulteriormente `Book.ContainsLocation` prima di mutare lo stack.

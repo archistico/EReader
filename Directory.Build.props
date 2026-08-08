@@ -9,6 +9,6 @@
     <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <Deterministic>true</Deterministic>
     <VersionPrefix>1.0.0</VersionPrefix>
-    <VersionSuffix>m3.10-hotfix2-xunit2031-analyzer-alignment-candidate</VersionSuffix>
+    <VersionSuffix>m3.11-hotfix1-navigation-invariants-candidate</VersionSuffix>
   </PropertyGroup>
 </Project>

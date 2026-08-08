@@ -2,33 +2,33 @@
 
 Lettore EPUB da terminale scritto in C# per .NET 10.
 
-**Ultima baseline autoritativa validata:** M3.9 Hotfix 1 — Defensive EPUB Input Security + CA1859 Return-Type Alignment.  
-**Gate autoritativo:** `M3.9 HOTFIX 1 VALIDATION PASSED` (08/08/2026).  
-**Candidate corrente:** M3.10 Hotfix 1 — EPUB Recovery & Degraded Reading.  
-**Gate candidate:** `M3.10 HOTFIX 2 VALIDATION PASSED`.
+**Ultima baseline autoritativa validata:** M3.10 Hotfix 2 — EPUB Recovery & Degraded Reading + analyzer alignment.  
+**Gate autoritativo:** `M3.10 HOTFIX 2 VALIDATION PASSED` (08/08/2026).  
+**Candidate corrente:** M3.11 Hotfix 1 — Navigation Invariant Alignment.  
+**Gate candidate:** `M3.11 HOTFIX 1 VALIDATION PASSED`.
 
-### M3.10 — EPUB Recovery & Degraded Reading
+### M3.11 — Link Integrity & Navigation Security
 
-M3.10 applica la policy di recovery documentata dopo M3.8/M3.9. Il principio resta: **un EPUB può essere illeggibile; EReader no**. Il recovery è consentito solo quando il reading order principale resta deterministico e nessun contenuto deve essere inventato.
+M3.11 rende granulari i failure di hyperlink e TOC senza indebolire i guardrail M3.9/M3.10. Il principio operativo è: **un collegamento rotto non rende il libro illeggibile e non autorizza mai accessi fuori dal package**.
 
 In questa candidate:
 
-- Navigation Document/NCX assente o non utilizzabile → il libro resta `Valid`, viene aperto con `TableOfContents.Empty` e una diagnostica recoverable esplicita;
-- failure Container di sicurezza/corruzione nella navigation restano `DocumentUnreadable`, salvo la semplice entry navigation mancante;
-- uno spine item `linear="no"` che produce una failure Content attesa può essere saltato senza rinumerare le sezioni successive;
-- uno spine item primary (`linear="yes"` o implicito) mancante/non leggibile resta irreversibile e rende il documento `Invalid`;
-- il parsing degli anchor di una sezione è transazionale: una sezione saltata non lascia anchor parziali;
-- il validator usa una lettura OPF recovery-aware per distinguere risorse essenziali da risorse locali opzionali assenti, mentre `EpubPackageReader.Read(...)` pubblico resta strict;
-- un'immagine referenziata ma assente mantiene testo/alt/placeholder e produce `RecoverableError`;
-- CSS, cover o altre risorse locali non essenziali assenti producono `Warning`;
-- nessuna risorsa viene cercata fuori dall'EPUB o scaricata dalla rete;
-- le diagnostiche provvisorie di recovery vengono emesse solo dopo la costruzione riuscita del `Book`, evitando messaggi contraddittori in caso di failure primaria successiva;
-- la CLI rende espliciti gli esiti `READABLE_DEGRADED` e `READABLE_WITH_WARNINGS`;
-- nessun catch-all per eccezioni interne EReader: il crash containment resta M3.12.
+- fragment/anchor interno inesistente → testo preservato, link reso non azionabile, diagnostica recoverable `ER-EPUB-RECOVERY-LINK-001`;
+- `epub:type="noteref"` rotto → stesso recovery, con messaggio specifico `Rimando nota`;
+- target locale verso risorsa non appartenente al reading order → testo preservato e link disattivato;
+- riferimento locale malformato, traversal o percent-encoding che tenta di uscire dalla root OCF → link disattivato, nessun accesso filesystem, diagnostica recoverable;
+- percent-encoding valido dei fragment continua a risolversi nello spazio logico degli anchor;
+- un target TOC irrisolvibile non elimina più l'intero indice: una voce foglia rotta viene omessa; una voce con figli validi resta come gruppo non navigabile (`Target == null`); gli altri target validi restano disponibili (`ER-EPUB-RECOVERY-NAVIGATION-003`);
+- la allow-list esterna è centralizzata in `ExternalLinkPolicy` e accetta esclusivamente `http`, `https`, `mailto`;
+- `file:`, `javascript:`, `data:`, `ftp:`, shell e schemi sconosciuti sono testo non azionabile e producono warning `ER-EPUB-SECURITY-LINK-001` nel percorso recovery-aware;
+- EReader non usa `HttpClient`, `WebRequest` o altri probe di rete per verificare URL;
+- `ReaderSession` verifica il target logico prima di mutare back-stack/`ReadingLocation`; self-link o link non seguibile non alterano lo stato;
+- il parser pubblico `EpubBookReader.Read(...)` resta strict per i contratti parser esistenti; la facade operativa `EpubPublicationValidator` usa il percorso recovery-aware;
+- nessun catch-all di eccezioni interne viene introdotto: crash containment resta M3.12.
 
-M3.9 Hotfix 1 è la baseline validata e mantiene tutti i guardrail ZIP/OCF, path, URI, fallback e decoding strict. M3.10 non li indebolisce.
+M3.10 Hotfix 2 è la baseline validata. M3.11 non modifica `state.json` schema 4, `config.json` schema 1, layout o persistenza.
 
-Dettagli: [`docs/EPUB_RECOVERY_POLICY.md`](docs/EPUB_RECOVERY_POLICY.md), [`docs/DIAGNOSTICS.md`](docs/DIAGNOSTICS.md), ADR [`0054`](docs/adr/0054-degraded-reading-recovers-only-deterministic-nonessential-failures.md).
+Dettagli: [`docs/HYPERLINKS.md`](docs/HYPERLINKS.md), [`docs/EPUB_SECURITY_MODEL.md`](docs/EPUB_SECURITY_MODEL.md), [`docs/EPUB_RECOVERY_POLICY.md`](docs/EPUB_RECOVERY_POLICY.md), ADR [`0055`](docs/adr/0055-broken-links-degrade-without-escaping-publication.md).
 
 M3.5 rende azionabili gli hyperlink Domain: salti interni su `ReadingLocation`, Backspace su stack transiente e handoff esplicito di `http`/`https`/`mailto` al sistema operativo, senza network client o browser embedded.
 
@@ -254,14 +254,14 @@ validate.cmd
 ./validate.sh
 ```
 
-Il gate M3.10 esegue **13 step**: restore, build Release, suite completa, smoke CLI help/version/foundation-info, smoke `--plain` sui libri M1.0/M3.4/M3.5/M3.6, smoke degradato M3.10, history e config. Nessuno smoke avvia viewer o browser esterni.
+Il gate M3.11 esegue **14 step**: restore, build Release, suite completa, smoke CLI help/version/foundation-info, smoke `--plain` sui libri M1.0/M3.4/M3.5/M3.6, smoke degradato M3.10, smoke link-integrity M3.11, history e config. Nessuno smoke avvia viewer o browser esterni.
 
-La candidate M3.10 contiene staticamente **485 `[Fact]` + 5 `[Theory]` + 19 `[InlineData]`**, quindi sono attesi **504 casi**. Il conteggio autoritativo resta quello prodotto dal gate locale.
+La candidate M3.11 Hotfix 1 contiene staticamente **497 `[Fact]` + 7 `[Theory]` + 27 `[InlineData]`**, quindi sono attesi **524 casi**. Il conteggio autoritativo resta quello prodotto dal gate locale.
 
 Output atteso:
 
 ```text
-M3.10 HOTFIX 2 VALIDATION PASSED
+M3.11 HOTFIX 1 VALIDATION PASSED
 ```
 
 ## Documentazione

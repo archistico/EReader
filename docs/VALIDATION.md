@@ -1,8 +1,6 @@
-# Validation — M3.10 Hotfix 2 xUnit2031 Analyzer Alignment
+# Validation — M3.11 Hotfix 1 Navigation Invariant Alignment
 
-M3.10 è costruita esclusivamente sopra la baseline autoritativa validata **M3.9 Hotfix 1** (`M3.9 HOTFIX 1 VALIDATION PASSED`, 08/08/2026).
-
-Non modifica Domain, `ReadingLocation`, layout, state schema 4 o config schema 1. Il recovery resta confinato all'adapter EPUB/validator e alla presentazione diagnostica CLI.
+M3.11 è costruita esclusivamente sopra la baseline autoritativa validata **M3.10 Hotfix 2** (`M3.10 HOTFIX 2 VALIDATION PASSED`, 08/08/2026).
 
 ## Gate
 
@@ -18,71 +16,62 @@ Linux/macOS:
 ./validate.sh
 ```
 
-Esito atteso:
+Il gate esegue 14 step: restore, build Release, suite completa, help/version/foundation-info, smoke M1.0/M3.4/M3.5/M3.6, smoke recovery M3.10, smoke link-integrity M3.11, history e config.
+
+Output finale atteso:
 
 ```text
-M3.10 HOTFIX 2 VALIDATION PASSED
+M3.11 HOTFIX 1 VALIDATION PASSED
 ```
 
-## Criteri M3.10
+## Contratti M3.11
 
-- restore/build Release senza warning-as-error;
-- suite completa xUnit;
-- `CliEntryPoint.Milestone == "M3.10"`;
-- help/foundation info coerenti con M3.10;
-- tutti i gate M0–M3.9 continuano a passare;
-- `EpubPackageReader.Read(...)` pubblico resta strict sulle risorse locali mancanti;
-- `EpubPublicationValidator` può classificare risorse manifest mancanti dopo aver determinato il loro ruolo;
-- Navigation Document/NCX assente o non utilizzabile non blocca un primary reading order valido;
-- nessun TOC sintetico: recovery navigation usa `TableOfContents.Empty`;
-- failure Container diverse da `EntryNotFound` durante la navigation restano `Invalid` + diagnostica Container;
-- spine item primary mancante/non leggibile resta `Invalid`;
-- spine item `linear="no"` con failure Content attesa può essere saltato con diagnostica recoverable;
-- anchor di una sezione supplementare fallita non vengono committati parzialmente;
-- immagine manifest referenziata ma fisicamente assente produce `MissingReferencedImage` e il `Book` resta leggibile;
-- CSS/cover/risorsa locale non essenziale assente produce `Warning`;
-- nessuna ricerca di fallback fuori dall'EPUB e nessun network fetch;
-- CLI distingue `READABLE_DEGRADED`, `READABLE_WITH_WARNINGS` e `DOCUMENT_UNREADABLE`;
-- una diagnostica navigation di recovery viene resa visibile solo se il `Book` finale è realmente leggibile;
-- nessun catch-all per eccezioni interne inattese.
+- `CliEntryPoint.Milestone == "M3.11"`;
+- `state.json` resta schema 4 e `config.json` resta schema 1;
+- `ExternalLinkPolicy` è format-neutral e consente solo `http`, `https`, `mailto`;
+- adapter EPUB e `SystemExternalLinkService` usano la stessa allow-list;
+- link `file:`, `javascript:`, `data:`, `ftp:` e schemi sconosciuti non sono azionabili;
+- nessun `HttpClient`/`WebRequest` viene introdotto per validare URL;
+- fragment/anchor interno irrisolvibile nel percorso recovery-aware preserva il testo e produce `ER-EPUB-RECOVERY-LINK-001`;
+- `noteref` rotto produce la stessa diagnostica con wording nota-specifico;
+- target locale fuori dal reading order o riferimento traversal/malformato non provoca accessi filesystem;
+- target TOC rotto produce `ER-EPUB-RECOVERY-NAVIGATION-003`: la foglia senza figli viene omessa, il parent con figli validi resta come grouping node;
+- percent-encoding valido dei fragment continua a risolversi correttamente;
+- `ReaderSession` verifica il target prima di mutare lo stack; self-link/non-followable non cambiano posizione né back-stack;
+- parser pubblico `EpubBookReader.Read(...)` resta strict;
+- nessun catch-all `Exception` viene aggiunto alla facade EPUB.
 
-## Smoke M3.10 reale
+## Smoke M3.11
 
-Il gate include `test-books/m3.10-recovery-smoke.epub`.
+`test-books/m3.11-link-integrity-smoke.epub` contiene intenzionalmente:
 
-Il file dichiara una navigation EPUB3 che non è presente nell'archivio, ma contiene un Content Document primary valido. Il comando:
+- un target TOC con fragment inesistente e uno valido;
+- un hyperlink interno rotto;
+- un `epub:type="noteref"` rotto;
+- un `javascript:` non azionabile;
+- un link HTTPS valido.
+
+Il comando `--plain` deve terminare con exit code 0: il testo rimane leggibile e le anomalie di link sono diagnostiche, non motivo per rifiutare il libro.
+
+## Conteggio statico
+
+La candidate contiene:
 
 ```text
-ereader --plain test-books/m3.10-recovery-smoke.epub
+495 Fact
+7 Theory
+27 InlineData
+524 casi attesi (Fact + InlineData)
 ```
 
-deve terminare con exit code `0`. La diagnostica attesa è recoverable/`READABLE_DEGRADED`; il testo primary deve essere renderizzato normalmente.
+Il conteggio autoritativo resta quello prodotto dal gate locale.
 
-## Test count statico atteso
+## Non incluso
 
-```text
-485 Fact
-5 Theory
-19 InlineData
-504 casi parametrizzati/non parametrizzati attesi
-```
+M3.11 non implementa ancora:
 
-Il conteggio definitivo autoritativo resta quello stampato da `dotnet test` nel gate locale.
-
-## Limite del gate
-
-M3.10 dimostra recovery deterministico per navigation, risorse locali non essenziali e spine supplementare. Non implementa ancora:
-
-- recovery granulare dei singoli link/fragment rotti — M3.11;
-- crash containment di eccezioni interne EReader — M3.12;
-- corpus sistematico di pubblicazioni corrotte con expected outcome — M3.13.
-
-
-## Hotfix 1
-
-Correzione esclusiva di CA2208 in `EpubPublicationValidator.AddContentRecoveryDiagnostics(...)`: il `paramName` di `ArgumentOutOfRangeException` è `nameof(issues)`. Nessuna modifica funzionale.
-
-
-## Hotfix 2 — xUnit2031
-
-Correzione esclusivamente nei test M3.10: le due selezioni diagnostiche usano `Assert.Single(collection, predicate)` al posto di `Assert.Single(collection.Where(predicate))`. Nessuna modifica funzionale.
+- crash containment globale o conversione delle eccezioni interne in messaggi UX — M3.12;
+- corpus esteso di EPUB corrotti e gate di affidabilità dedicato — M3.13;
+- network reputation/checking degli URL;
+- browser embedded o download di risorse remote;
+- persistenza del back-stack o di URI esterni.

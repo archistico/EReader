@@ -1,7 +1,7 @@
 # EPUB Security Model
 
-**Stato:** hardening M3.9 Hotfix 1 VALIDATED; recovery M3.10 candidate sopra gli stessi guardrail; M3.11/M3.12 restano pianificate.  
-**Baseline:** M3.9 Hotfix 1 VALIDATED.
+**Stato:** hardening M3.9 Hotfix 1 e recovery M3.10 Hotfix 2 VALIDATED; link security M3.11 CANDIDATE; M3.12 resta pianificata.  
+**Baseline:** M3.10 Hotfix 2 VALIDATED.
 
 ## Threat model
 
@@ -94,26 +94,32 @@ I Content Document continuano a essere letti in memoria bounded prima di AngleSh
 
 I boundary XML veri e propri continuano a usare `XmlReader` con resolver `null`, DTD proibiti salvo il caso NCX canonico già vincolato e senza external resolution.
 
-## Sicurezza dei link — target M3.11
+## Sicurezza dei link — M3.11 candidate
 
 ### Link interni
 
-Devono restare confinati alla pubblicazione e risolversi attraverso i path virtuali OCF e le `ReadingLocation` già previste.
+I target locali vengono risolti solo nello spazio virtuale OCF. Path relativi e percent-encoding attraversano `OcfPath`; un traversal oltre la root, un separatore codificato o un riferimento malformato non viene mai trasformato in accesso filesystem.
 
-Un target assente o non risolvibile deve:
+Nel percorso recovery-aware un target assente/non risolvibile:
 
 ```text
-non modificare ReadingLocation
-non alterare il back-stack
-non provocare accesso filesystem arbitrario
-produrre diagnostica
+preserva il testo
+rimuove la semantica azionabile
+produce ER-EPUB-RECOVERY-LINK-001
+non modifica ReadingLocation
+non altera il back-stack
+non cerca destinazioni fuori dal package
 ```
+
+Il parser pubblico strict continua a poter rifiutare lo stesso errore: la degradazione è una decisione della facade operativa, non un allentamento dei contratti parser.
+
+### TOC
+
+M3.10 degradava l'intero TOC quando un target era irrisolvibile. M3.11 rende il recovery granulare: il nodo rotto produce `ER-EPUB-RECOVERY-NAVIGATION-003`; una foglia senza figli viene omessa, mentre un parent con figli validi viene mantenuto come grouping/non-navigable node. Fratelli e figli validi restano disponibili.
 
 ### Link esterni
 
-EReader non è un browser e non verifica automaticamente gli URL via rete.
-
-Il contratto corrente M3.5 permette l'handoff esplicito per:
+`ExternalLinkPolicy` nel Domain definisce l'unica allow-list format-neutral condivisa dall'adapter EPUB e dall'handoff CLI:
 
 ```text
 http:
@@ -121,7 +127,9 @@ https:
 mailto:
 ```
 
-Le milestone di security hardening devono mantenere una allow-list esplicita e rifiutare schemi non previsti. In particolare contenuto EPUB non deve poter avviare implicitamente `file:`, `javascript:`, shell, interpreter o comandi locali.
+Qualsiasi altro schema resta non azionabile. In particolare `file:`, `javascript:`, `data:`, `ftp:`, shell/interpreter o schemi sconosciuti non vengono passati a `Process.Start`. La soppressione nel percorso recovery-aware produce `ER-EPUB-SECURITY-LINK-001`.
+
+EReader non usa rete per verificare l'esistenza o la reputazione di un URL: nessun `HttpClient`, `WebRequest`, DNS probe o fetch viene eseguito durante parsing/validation/rendering.
 
 ## Filesystem
 

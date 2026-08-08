@@ -1,14 +1,14 @@
 # M3.8 — Diagnostics Foundation & Failure Taxonomy
 
-**Stato:** foundation M3.8 VALIDATED; M3.9 security VALIDATED; M3.10 recovery CANDIDATE.  
-**Baseline autoritativa corrente:** M3.9 Hotfix 1 VALIDATED.  
-**Gate baseline:** `M3.9 HOTFIX 1 VALIDATION PASSED`.
+**Stato:** M3.8 foundation, M3.9 security e M3.10 Hotfix 2 recovery VALIDATED; M3.11 link integrity CANDIDATE.  
+**Baseline autoritativa corrente:** M3.10 Hotfix 2 VALIDATED.  
+**Gate baseline:** `M3.10 HOTFIX 2 VALIDATION PASSED`.
 
 ## Principio guida
 
 > Un EPUB può essere illeggibile. EReader no.
 
-M3.8 introduce il linguaggio comune con cui i boundary EReader descrivono problemi e risultati. M3.9 ha validato il defensive input hardening. La candidate M3.10 usa lo stesso contratto per rendere distinguibili libro leggibile con warning, libro leggibile degradato e documento irrecuperabile; crash containment globale resta M3.12.
+M3.8 introduce il linguaggio comune con cui i boundary EReader descrivono problemi e risultati. M3.9 ha validato il defensive input hardening. M3.10 Hotfix 2 usa lo stesso contratto per rendere distinguibili libro leggibile con warning, libro leggibile degradato e documento irrecuperabile; crash containment globale resta M3.12.
 
 ## Contratto M0.7 preservato
 
@@ -159,3 +159,16 @@ Decisione autoritativa: [`adr/0052-reader-wide-diagnostics-stay-format-neutral.m
 Un `EpubValidationStatus.Valid` con diagnostica EPUB `Error` viene proiettato dal bridge M3.8 in `RecoverableError` e `SuccessWithDiagnostics`. La CLI aggiunge un riepilogo `READABLE_DEGRADED`. Un `Warning` senza recovery error produce `READABLE_WITH_WARNINGS`.
 
 Le diagnostiche navigation recuperabili vengono tenute provvisorie finché il `Book` non è costruito: se il primary content fallisce, non vengono mostrate promesse di continuazione contraddittorie.
+
+
+## M3.11 — diagnostics di link integrity
+
+Nuovi codici stabili:
+
+```text
+ER-EPUB-RECOVERY-LINK-001        link interno/noteref non risolvibile, testo preservato
+ER-EPUB-SECURITY-LINK-001        schema esterno non ammesso, link non azionabile
+ER-EPUB-RECOVERY-NAVIGATION-003  singolo target TOC non risolvibile
+```
+
+I primi e il terzo usano `EpubDiagnosticSeverity.Error` su un risultato `Valid`, quindi il bridge li rende `RecoverableError` + `ContinueDegraded`. Lo schema esterno soppresso usa `Warning` + `Continue`. Nessuno di questi casi produce `DocumentUnreadable` se il reading order primario resta valido.

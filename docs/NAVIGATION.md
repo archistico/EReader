@@ -100,3 +100,10 @@ M0.5 si fermava alla normalizzazione della navigation. Le milestone successive h
 ## M3.10 — Navigation degradabile
 
 La navigation non è più un prerequisito assoluto quando il reading order principale è sano. Navigation assente o non utilizzabile produce una diagnostica recuperabile e `TableOfContents.Empty`; un TOC sintatticamente valido ma con target non risolvibili viene scartato integralmente, senza costruire un indice parzialmente ambiguo. Corruzioni del contenitore sottostante restano fatal document errors.
+
+
+## M3.11 — Target TOC degradabili granularmente
+
+M3.11 restringe la recovery della navigation alla singola destinazione difettosa. Un nodo con path/fragment non risolvibile produce `ER-EPUB-RECOVERY-NAVIGATION-003`: se è una foglia viene omesso; se contiene figli validi resta nel `TableOfContents` come grouping node non navigabile (`Target == null`) e conserva label e figli; un grouping che, dopo la recovery dei discendenti, resta senza target e senza figli viene omesso. Fratelli e discendenti con target validi restano azionabili.
+
+Il parser strict resta invariato: la granularità M3.11 appartiene al percorso recovery-aware della facade di validazione. Nessun target viene cercato fuori dal package e nessun anchor simile viene indovinato.

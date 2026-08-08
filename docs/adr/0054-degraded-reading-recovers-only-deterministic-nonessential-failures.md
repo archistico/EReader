@@ -1,6 +1,6 @@
 # ADR-0054 — Degraded reading recovers only deterministic non-essential failures
 
-- **Status:** Accepted for M3.10 candidate
+- **Status:** Accepted — validated with M3.10 Hotfix 2
 - **Date:** 2026-08-08
 
 ## Context

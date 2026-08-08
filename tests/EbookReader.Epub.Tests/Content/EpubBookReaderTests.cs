@@ -235,6 +235,25 @@ public sealed class EpubBookReaderTests
     }
 
     [Fact]
+    public void ReadResolvesPercentEncodedInternalFragment()
+    {
+        const string chapter = """
+        <html xmlns="http://www.w3.org/1999/xhtml"><body>
+          <h1 id="start">One</h1>
+          <p><a href="#note%2D1">jump</a></p>
+          <p id="note-1">Target</p>
+        </body></html>
+        """;
+
+        Book book = ContentFixtureFactory.ReadBook(chapter);
+        HyperlinkSpan link = Assert.IsType<HyperlinkSpan>(
+            Assert.Single(Assert.IsType<ParagraphBlock>(book.ReadingOrder[0].Blocks[1]).Content));
+        InternalLinkTarget target = Assert.IsType<InternalLinkTarget>(link.Target);
+
+        Assert.Equal(book.ReadingOrder[0].Blocks[2].Id, target.Location.BlockId);
+    }
+
+    [Fact]
     public void ReadMapsEpubNoterefToFormatNeutralNoteReferenceRole()
     {
         const string chapter = """
@@ -267,6 +286,23 @@ public sealed class EpubBookReaderTests
         HyperlinkSpan link = Assert.IsType<HyperlinkSpan>(Assert.Single(Assert.IsType<ParagraphBlock>(book.ReadingOrder[0].Blocks[1]).Content));
         ExternalLinkTarget target = Assert.IsType<ExternalLinkTarget>(link.Target);
         Assert.Equal("https://example.com/page", target.Uri.AbsoluteUri);
+    }
+
+    [Fact]
+    public void ReadMapsExternalMailtoLinkThroughSharedAllowList()
+    {
+        const string chapter = """
+        <html xmlns="http://www.w3.org/1999/xhtml"><body>
+          <h1 id="start">One</h1><p><a href="mailto:reader@example.com">Mail</a></p>
+        </body></html>
+        """;
+
+        Book book = ContentFixtureFactory.ReadBook(chapter);
+        HyperlinkSpan link = Assert.IsType<HyperlinkSpan>(
+            Assert.Single(Assert.IsType<ParagraphBlock>(book.ReadingOrder[0].Blocks[1]).Content));
+        ExternalLinkTarget target = Assert.IsType<ExternalLinkTarget>(link.Target);
+
+        Assert.Equal("mailto", target.Uri.Scheme);
     }
 
     [Fact]
