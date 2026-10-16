@@ -358,7 +358,8 @@ public static class CliEntryPoint
             initialBookmarks,
             initialHighlights,
             initialNotes,
-            preferences);
+            preferences,
+            ReadingAnnotationBudget.ForBook(filePath, savedState?.Highlights, savedState?.Notes));
 
         if (preferencesStore is not null
             && !string.Equals(runResult.ThemeId, preferences.ThemeId, StringComparison.Ordinal))

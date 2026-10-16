@@ -171,6 +171,11 @@ public sealed class JsonReadingStateStore
             {
                 foreach (BookmarkDto bookmark in document.Bookmarks)
                 {
+                    if (bookmark is null)
+                    {
+                        throw new InvalidDataException("Il documento di stato contiene un bookmark null.");
+                    }
+
                     ArgumentException.ThrowIfNullOrWhiteSpace(bookmark.Path);
                     ArgumentException.ThrowIfNullOrWhiteSpace(bookmark.BookId);
                     LocationDto bookmarkLocation = bookmark.Location
@@ -193,6 +198,11 @@ public sealed class JsonReadingStateStore
             {
                 foreach (HistoryDto item in document.History)
                 {
+                    if (item is null)
+                    {
+                        throw new InvalidDataException("Il documento di stato contiene una voce di cronologia null.");
+                    }
+
                     ArgumentException.ThrowIfNullOrWhiteSpace(item.Path);
                     ArgumentException.ThrowIfNullOrWhiteSpace(item.BookId);
                     ArgumentException.ThrowIfNullOrWhiteSpace(item.Title);
@@ -235,6 +245,11 @@ public sealed class JsonReadingStateStore
                 {
                     foreach (HighlightDto item in document.Highlights)
                     {
+                        if (item is null)
+                        {
+                            throw new InvalidDataException("Il documento di stato contiene un'evidenziazione null.");
+                        }
+
                         ArgumentException.ThrowIfNullOrWhiteSpace(item.Path);
                         ArgumentException.ThrowIfNullOrWhiteSpace(item.BookId);
                         LocationDto start = item.Start
@@ -267,6 +282,11 @@ public sealed class JsonReadingStateStore
                 {
                     foreach (NoteDto item in document.Notes)
                     {
+                        if (item is null)
+                        {
+                            throw new InvalidDataException("Il documento di stato contiene una nota null.");
+                        }
+
                         ArgumentException.ThrowIfNullOrWhiteSpace(item.Path);
                         ArgumentException.ThrowIfNullOrWhiteSpace(item.BookId);
                         ArgumentException.ThrowIfNullOrWhiteSpace(item.Text);

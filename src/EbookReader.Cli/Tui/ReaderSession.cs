@@ -21,6 +21,7 @@ namespace EbookReader.Cli.Tui;
 public sealed class ReaderSession
 {
     private readonly Book _book;
+    private readonly ReadingAnnotationBudget _annotationBudget;
     private const int MaximumLinkBackStackDepth = 128;
 
     private readonly BookProgressIndex _progressIndex;
@@ -45,7 +46,8 @@ public sealed class ReaderSession
         ReadingLocation? initialLocation = null,
         IEnumerable<ReadingLocation>? initialBookmarks = null,
         IEnumerable<ReadingHighlightRange>? initialHighlights = null,
-        IEnumerable<ReadingPersonalNote>? initialNotes = null)
+        IEnumerable<ReadingPersonalNote>? initialNotes = null,
+        ReadingAnnotationBudget? annotationBudget = null)
     {
         ArgumentNullException.ThrowIfNull(book);
         ArgumentNullException.ThrowIfNull(viewport);
@@ -59,6 +61,7 @@ public sealed class ReaderSession
         }
 
         _book = book;
+        _annotationBudget = annotationBudget ?? ReadingAnnotationBudget.Default;
         _progressIndex = new BookProgressIndex(book);
         _hyperlinkIndex = new BookHyperlinkIndex(book);
         _tocEntries = FlattenTableOfContents(book.TableOfContents);
@@ -612,7 +615,7 @@ public sealed class ReaderSession
             return HighlightToggleResult.Removed;
         }
 
-        if (_highlights.Count >= ReadingAnnotationState.MaximumHighlightsPerBook)
+        if (_highlights.Count >= _annotationBudget.MaximumHighlights)
         {
             return HighlightToggleResult.LimitReached;
         }
@@ -647,7 +650,14 @@ public sealed class ReaderSession
                 $"Una nota può contenere al massimo {ReadingAnnotationState.MaximumNoteTextLength} code unit UTF-16.");
         }
 
-        if (existingIndex < 0 && _notes.Count >= ReadingAnnotationState.MaximumNotesPerBook)
+        if (existingIndex < 0 && _notes.Count >= _annotationBudget.MaximumNotes)
+        {
+            return false;
+        }
+
+        int previousLength = existingIndex >= 0 ? _notes[existingIndex].Text.Length : 0;
+        int totalTextLength = _notes.Sum(note => note.Text.Length) - previousLength + normalized.Length;
+        if (totalTextLength > _annotationBudget.MaximumNoteTextLength)
         {
             return false;
         }

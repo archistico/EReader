@@ -8,6 +8,24 @@ namespace EbookReader.Application.Tests;
 
 public sealed class ReadingStateTests
 {
+    [Theory]
+    [InlineData("bookmarks")]
+    [InlineData("history")]
+    [InlineData("highlights")]
+    [InlineData("notes")]
+    public void NullCollectionItemsAreRejectedAsInvalidState(string collection)
+    {
+        using TemporaryDirectory temporary = new();
+        string statePath = Path.Combine(temporary.Path, "state.json");
+        JsonReadingStateStore store = new(statePath);
+        store.Save(CreateState(Path.Combine(temporary.Path, "book.epub")));
+        var document = System.Text.Json.Nodes.JsonNode.Parse(File.ReadAllText(statePath))!;
+        document[collection] = new System.Text.Json.Nodes.JsonArray((System.Text.Json.Nodes.JsonNode?)null);
+        File.WriteAllText(statePath, document.ToJsonString());
+
+        Assert.Throws<InvalidDataException>(() => store.Load());
+    }
+
     [Fact]
     public void JsonRoundTripPreservesLogicalReadingState()
     {

@@ -15,11 +15,11 @@ public sealed class ReadingHistoryTests
         string currentPath = Path.Combine(temporary.Path, "current.epub");
         string otherPath = Path.Combine(temporary.Path, "other.epub");
         Book current = CreateBook("new-id", "Current");
-        ReadingHistoryEntry stale = new(currentPath, new BookId("old-id"), "Old", null,
-            ReadingLocation.AtSectionStart(new SectionId("one")), DateTimeOffset.UtcNow.AddDays(-2));
-        ReadingHistoryEntry other = new(otherPath, new BookId("other-id"), "Other", null,
-            ReadingLocation.AtSectionStart(new SectionId("one")), DateTimeOffset.UtcNow.AddDays(-1));
         DateTimeOffset opened = new(2026, 8, 8, 0, 30, 0, TimeSpan.Zero);
+        ReadingHistoryEntry stale = new(currentPath, new BookId("old-id"), "Old", null,
+            ReadingLocation.AtSectionStart(new SectionId("one")), opened.AddDays(-2));
+        ReadingHistoryEntry other = new(otherPath, new BookId("other-id"), "Other", null,
+            ReadingLocation.AtSectionStart(new SectionId("one")), opened.AddDays(-1));
 
         var history = ReadingHistoryState.Update(
             current,

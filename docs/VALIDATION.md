@@ -2,7 +2,7 @@
 
 **Baseline autoritativa:** M3.13 Hotfix 1, validata l'08/08/2026 con gate `M3.13 HOTFIX 1 VALIDATION PASSED`. Il gate cumulativo ha validato anche M3.12 Crash Containment e M3.13 Reliability Corpus.
 
-**Candidate corrente:** M3.13 Hotfix 4. Mantiene integralmente il runtime della Hotfix 3 e riallinea due architecture contract storici che attendevano ancora il footer singolo M2.x. I test ora verificano il body con `Dim.Fill(3)`, il separatore a `Pos.AnchorEnd(3)` e i due label `_footerPrimary` / `_footerSecondary` con `PlainScheme`. Nessuna modifica ai sorgenti produttivi rispetto a Hotfix 3.
+**Candidate corrente:** M3.13 Hotfix 4 con correzioni dell'audit del 16/10/2026. Include il riallineamento dei contract del footer a due righe e le correzioni per budget annotazioni, anchor inline vuoti, overflow delle liste e valori null nelle collezioni dello stato. Il test della cronologia usa date deterministiche. Dettagli e copertura in [Verifica correzioni audit](analysis/BUGFIX_VERIFICATION_2026-10-16.md).
 
 ## Gate
 
@@ -46,10 +46,10 @@ Vedi `RELIABILITY_CORPUS.md` e `test-books/reliability/README.md`.
 ## Conteggio statico
 
 ```text
-506 Fact
-10 Theory
-57 InlineData
-563 casi eseguibili attesi (Fact + InlineData)
+513 Fact
+15 Theory
+73 InlineData
+586 casi eseguibili attesi (Fact + InlineData)
 ```
 
 Il conteggio autoritativo resta quello prodotto dal gate locale.

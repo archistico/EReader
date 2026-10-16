@@ -100,6 +100,15 @@ Outside highlighted lines, existing heading/strong/emphasis colors remain unchan
 - 131,072 UTF-16 code units of note text overall;
 - existing `state.json` maximum remains 1 MiB.
 
+The composition root computes a `ReadingAnnotationBudget` for the open book, subtracting
+the annotations retained for other paths from the global count and note-text limits.
+Same-path annotations are excluded because the final commit replaces them, including
+when the publication identity changed. The session checks this budget before accepting
+a new highlight or note and before increasing a note's text. A rejected edit preserves
+the previous note. Deletion, shrinking a note, and removing a highlight remain available
+at the limit and release capacity immediately. This prevents an accepted edit from
+exceeding the annotation limits only when the session is committed.
+
 ## Restore policy
 
 An annotation is restored only when:

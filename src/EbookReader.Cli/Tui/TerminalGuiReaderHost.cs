@@ -18,7 +18,8 @@ internal static class TerminalGuiReaderHost
         IEnumerable<ReadingLocation>? initialBookmarks = null,
         IEnumerable<ReadingHighlightRange>? initialHighlights = null,
         IEnumerable<ReadingPersonalNote>? initialNotes = null,
-        ReaderPreferences? preferences = null)
+        ReaderPreferences? preferences = null,
+        ReadingAnnotationBudget? annotationBudget = null)
     {
         ArgumentNullException.ThrowIfNull(book);
         ArgumentException.ThrowIfNullOrWhiteSpace(epubFilePath);
@@ -30,7 +31,8 @@ internal static class TerminalGuiReaderHost
             initialLocation,
             initialBookmarks,
             initialHighlights,
-            initialNotes);
+            initialNotes,
+            annotationBudget);
 
         ReaderPreferences effectivePreferences = preferences ?? ReaderPreferences.Default;
         using ExternalImagePreviewService imagePreviewService = new(epubFilePath);

@@ -233,8 +233,10 @@ public static class EpubBookReader
 
         BlockId blockId = NextBlockId(section);
         InlineParseState state = new(section.Id, blockId, section.SourcePath, anchors);
+        int previousAnchorCount = anchors.Count;
         List<InlineDraft> inlines = ParseInlineNodes(inlineBatch, state, depth: 1);
-        if (state.Length > 0)
+        // Anchors without text still need a real logical block, including at document end.
+        if (state.Length > 0 || anchors.Count > previousAnchorCount)
         {
             BlockDraft block = new(blockId, BlockDraftKind.Paragraph);
             block.Inlines.AddRange(inlines);
@@ -454,7 +456,7 @@ public static class EpubBookReader
         int listDepth,
         ListKind listKind)
     {
-        int ordinal = ParsePositiveInteger(list.GetAttribute("start")) ?? 1;
+        long ordinal = ParsePositiveInteger(list.GetAttribute("start")) ?? 1;
         int firstNewBlock = section.Blocks.Count;
 
         foreach (IElement child in list.Children)
@@ -465,7 +467,13 @@ public static class EpubBookReader
             }
 
             int? explicitValue = ParsePositiveInteger(child.GetAttribute("value"));
-            int itemOrdinal = explicitValue ?? ordinal;
+            long itemOrdinal = explicitValue ?? ordinal;
+            if (listKind == ListKind.Ordered && itemOrdinal > int.MaxValue)
+            {
+                throw Error(
+                    EpubContentErrorCode.InvalidContent,
+                    $"L'ordinale della lista ordinata supera il massimo supportato di {int.MaxValue}.");
+            }
             BlockId id = NextBlockId(section);
             InlineParseState state = new(section.Id, id, section.SourcePath, anchors);
             RegisterElementAnchor(child, section.Id, id, 0, section.SourcePath, anchors);
@@ -478,7 +486,7 @@ public static class EpubBookReader
             {
                 ListKind = listKind,
                 LevelOrDepth = listDepth,
-                Ordinal = listKind == ListKind.Ordered ? itemOrdinal : null,
+                Ordinal = listKind == ListKind.Ordered ? (int)itemOrdinal : null,
             };
             item.Inlines.AddRange(inlines);
             AddBlock(section, item);

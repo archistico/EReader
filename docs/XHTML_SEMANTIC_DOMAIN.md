@@ -55,6 +55,11 @@ Container strutturali come `section`, `article`, `main`, `div`, `aside`, `header
 
 `script`, `style`, `template`, `nav` e `form` non vengono proiettati nel reading text.
 
+Le liste ordinate conservano ordinali positivi rappresentabili con `Int32`. Un
+incremento implicito oltre `2147483647` produce un errore EPUB tipizzato
+`InvalidContent`, senza overflow o errore interno. Il massimo resta valido come
+ultimo elemento; un successivo `li value="1"` può riprendere la numerazione.
+
 ## Inline tree
 
 Mapping M0.6:
@@ -110,6 +115,12 @@ Per esempio:
 produce un anchor con offset `6` (`"Alpha "`). Un emoji astrale conta due code unit UTF-16.
 
 Gli anchor duplicati nello stesso Content Document sono rifiutati. Il parser pubblico strict mantiene il contratto M0.6 e rifiuta TOC/link interni verso fragment inesistenti. Nel percorso operativo recovery-aware M3.11, invece, un singolo hyperlink/noteref rotto conserva il testo senza target azionabile e un singolo target TOC rotto viene isolato con diagnostica: la foglia senza figli è omessa, il parent con figli validi resta grouping non navigabile; il layout non deve comunque inventare destinazioni.
+
+Un batch inline senza testo che contiene anchor conserva un `ParagraphBlock`
+vuoto nel modello logico. Questo mantiene valida la destinazione anche alla fine
+del documento e impedisce il riutilizzo del suo `BlockId` da parte del blocco
+successivo. Il layout applica la normale risoluzione dei blocchi vuoti senza
+aggiungere testo visibile.
 
 ## Navigation grouping
 

@@ -6,6 +6,42 @@ namespace EbookReader.Cli.Tests;
 
 public sealed class FirstReadableEpubTests
 {
+    [Theory]
+    [InlineData("<p><a href='#end'>Go to end</a></p><span id='end'></span>", 0)]
+    [InlineData("<p><a href='#end'>Go to end</a></p><a id='end'></a>", 0)]
+    [InlineData("<ol start='2147483647'><li>One</li><li>Two</li></ol>", 3)]
+    [InlineData("<ol><li value='2147483647'>One</li><li>Two</li></ol>", 3)]
+    public void AnchorAndListBoundaryCasesHaveExpectedCliOutcomes(string body, int expectedExitCode)
+    {
+        string path = CreateReadableEpub(chapterContent:
+            $"<html xmlns='http://www.w3.org/1999/xhtml'><head><title>Chapter</title></head><body><h1 id='start'>Start</h1>{body}</body></html>");
+        try
+        {
+            using StringWriter output = new();
+            using StringWriter error = new();
+
+            int exitCode = CliEntryPoint.Run(["--diagnostics", "--plain", path], output, error);
+
+            Assert.Equal(expectedExitCode, exitCode);
+            Assert.DoesNotContain("[INTERNAL_FAILURE]", error.ToString(), StringComparison.Ordinal);
+            if (expectedExitCode == 0)
+            {
+                Assert.Contains("Go to end", output.ToString(), StringComparison.Ordinal);
+                Assert.Equal(string.Empty, error.ToString());
+            }
+            else
+            {
+                Assert.Equal(string.Empty, output.ToString());
+                Assert.Contains("[DOCUMENT_UNREADABLE]", error.ToString(), StringComparison.Ordinal);
+                Assert.Contains("ER-EPUB-CONTENT-", error.ToString(), StringComparison.Ordinal);
+            }
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
     [Fact]
     public void ValidEpubIsRenderedFromDomainReadingOrder()
     {
@@ -194,7 +230,8 @@ public sealed class FirstReadableEpubTests
     private static string CreateReadableEpub(
         bool encrypted = false,
         bool omitNavigation = false,
-        bool omitOptionalCss = false)
+        bool omitOptionalCss = false,
+        string? chapterContent = null)
     {
         string path = Path.Combine(Path.GetTempPath(), $"ereader-m10-{Guid.NewGuid():N}.epub");
 
@@ -261,7 +298,7 @@ public sealed class FirstReadableEpubTests
         AddTextEntry(
             archive,
             "EPUB/Text/ch1.xhtml",
-            """
+            chapterContent ?? """
             <!DOCTYPE html>
             <html xmlns="http://www.w3.org/1999/xhtml">
               <head><title>Capitolo Uno</title></head>

@@ -12,6 +12,58 @@ namespace EbookReader.Epub.Tests.Content;
 
 public sealed class EpubBookReaderTests
 {
+    [Theory]
+    [InlineData("<span id='end'></span>")]
+    [InlineData("<a id='end'></a>")]
+    public void EmptyTrailingInlineAnchorsRemainValidForLinksAndToc(string anchor)
+    {
+        Book book = ContentFixtureFactory.ReadBook(
+            $"<html xmlns='http://www.w3.org/1999/xhtml'><body><p><a href='#end'>Go to end</a></p>{anchor}</body></html>",
+            navigationItems: "<li><a href='Text/ch1.xhtml#end'>End</a></li>");
+
+        var target = Assert.Single(book.TableOfContents.Items).Target;
+        Assert.NotNull(target);
+        Assert.True(book.ContainsLocation(target));
+        ParagraphBlock paragraph = Assert.IsType<ParagraphBlock>(book.ReadingOrder[0].Blocks[0]);
+        HyperlinkSpan link = Assert.IsType<HyperlinkSpan>(Assert.Single(paragraph.Content));
+        Assert.Equal(target, Assert.IsType<InternalLinkTarget>(link.Target).Location);
+        Assert.Equal(string.Empty, ContentText.GetPlainText(book.ReadingOrder[0].FindBlock(target.BlockId!)!));
+    }
+
+    [Fact]
+    public void EmptyIntermediateAnchorDoesNotInheritTheFollowingBlocksOffset()
+    {
+        Book book = ContentFixtureFactory.ReadBook(
+            "<html xmlns='http://www.w3.org/1999/xhtml'><body><span id='empty'></span><p>Text</p></body></html>",
+            navigationItems: "<li><a href='Text/ch1.xhtml#empty'>Empty</a></li>");
+
+        var target = Assert.Single(book.TableOfContents.Items).Target!;
+        Assert.True(book.ContainsLocation(target));
+        Assert.Equal(string.Empty, ContentText.GetPlainText(book.ReadingOrder[0].FindBlock(target.BlockId!)!));
+        Assert.Equal("Text", ContentText.GetPlainText(book.ReadingOrder[0].Blocks[1]));
+    }
+
+    [Theory]
+    [InlineData("<ol start='2147483647'><li>One</li><li>Two</li></ol>")]
+    [InlineData("<ol><li value='2147483647'>One</li><li>Two</li></ol>")]
+    public void UnrepresentableOrderedListOrdinalIsATypedContentFailure(string list)
+    {
+        EpubContentException error = ContentFixtureFactory.ReadFailure(
+            $"<html xmlns='http://www.w3.org/1999/xhtml'><body><h1 id='start'>Start</h1>{list}</body></html>");
+
+        Assert.Equal(EpubContentErrorCode.InvalidContent, error.ErrorCode);
+    }
+
+    [Fact]
+    public void MaximumOrderedListOrdinalCanBeLastOrExplicitlyReset()
+    {
+        Book book = ContentFixtureFactory.ReadBook(
+            "<html xmlns='http://www.w3.org/1999/xhtml'><body><h1 id='start'>Start</h1><ol start='2147483647'><li>Max</li><li value='1'>Reset</li><li>Next</li></ol><ol><li value='2147483647'>Last</li></ol></body></html>");
+
+        Assert.Equal(new int?[] { int.MaxValue, 1, 2, int.MaxValue },
+            book.ReadingOrder[0].Blocks.OfType<ListItemBlock>().Select(item => item.Ordinal));
+    }
+
     private const string BasicChapter = """
         <html xmlns="http://www.w3.org/1999/xhtml">
           <head><title>Document title</title></head>
